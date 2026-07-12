@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
-	import { dndzone } from 'svelte-dnd-action';
+	import { invalidateAll, goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { dndzone, dragHandleZone, dragHandle } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
-	import { Plus, Settings2, LayoutGrid, CheckCircle2 } from 'lucide-svelte';
+	import { Plus, Settings2, LayoutGrid, CheckCircle2, GripHorizontal } from 'lucide-svelte';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import TaskDrawer from '$lib/components/task/TaskDrawer.svelte';
 	import TaskCard from '$lib/components/ui/TaskCard.svelte';
@@ -11,6 +12,93 @@
 	import CalendarView from '$lib/components/ui/CalendarView.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import { modalStore } from '$lib/stores/ui.svelte';
+
+	let focusedColumnIndex = $state<number | null>(null);
+	let focusedTaskIndex = $state<number | null>(null);
+
+	function scrollToColumn(index: number) {
+		const colElement = document.getElementById(`column-${index}`);
+		if (colElement) colElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+	}
+
+	function scrollToTask(colIndex: number, taskIndex: number | null) {
+		if (taskIndex === null) return;
+		const taskElement = document.getElementById(`task-${colIndex}-${taskIndex}`);
+		if (taskElement) taskElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
+		if (activeView !== 'board' || activeTask || settingsOpen || reorderModalOpen) return;
+
+		if (e.key === 'ArrowRight') {
+			e.preventDefault();
+			if (focusedColumnIndex === null) {
+				focusedColumnIndex = 0;
+			} else {
+				focusedColumnIndex = Math.min(focusedColumnIndex + 1, columns.length - 1);
+			}
+			focusedTaskIndex = null;
+			scrollToColumn(focusedColumnIndex);
+		} else if (e.key === 'ArrowLeft') {
+			e.preventDefault();
+			if (focusedColumnIndex === null) {
+				focusedColumnIndex = 0;
+			} else {
+				focusedColumnIndex = Math.max(focusedColumnIndex - 1, 0);
+			}
+			focusedTaskIndex = null;
+			scrollToColumn(focusedColumnIndex);
+		} else if (e.key === 'ArrowDown') {
+			if (focusedColumnIndex === null) focusedColumnIndex = 0;
+			const items = columns[focusedColumnIndex]?.items || [];
+			if (items.length > 0) {
+				e.preventDefault();
+				if (focusedTaskIndex === null) {
+					focusedTaskIndex = 0;
+				} else {
+					focusedTaskIndex = Math.min(focusedTaskIndex + 1, items.length - 1);
+				}
+				scrollToTask(focusedColumnIndex, focusedTaskIndex);
+			}
+		} else if (e.key === 'ArrowUp') {
+			if (focusedColumnIndex === null) focusedColumnIndex = 0;
+			const items = columns[focusedColumnIndex]?.items || [];
+			if (items.length > 0) {
+				e.preventDefault();
+				if (focusedTaskIndex === null) {
+					focusedTaskIndex = items.length - 1;
+				} else {
+					focusedTaskIndex = Math.max(focusedTaskIndex - 1, 0);
+				}
+				scrollToTask(focusedColumnIndex, focusedTaskIndex);
+			}
+		} else if (e.key === 'c' || e.key === 'C') {
+			if (focusedColumnIndex !== null) {
+				e.preventDefault();
+				activeStageId = columns[focusedColumnIndex].id;
+			}
+		} else if (e.key === 'Enter') {
+			if (focusedColumnIndex !== null && focusedTaskIndex !== null) {
+				e.preventDefault();
+				activeTask = columns[focusedColumnIndex].items[focusedTaskIndex];
+			}
+		} else if (e.key === 'Escape') {
+			focusedColumnIndex = null;
+			focusedTaskIndex = null;
+		}
+	}
+
+	function handleWheel(e: WheelEvent) {
+		if (e.deltaY !== 0 && e.deltaX === 0) {
+			const target = e.target as HTMLElement;
+			if (!target.closest('.overflow-y-auto')) {
+				e.preventDefault();
+				const container = e.currentTarget as HTMLElement;
+				container.scrollLeft += e.deltaY;
+			}
+		}
+	}
 
 	let { data } = $props();
 	let board = $derived(data.board);
@@ -62,8 +150,10 @@
 		});
 	});
 
+	let isTouchDevice = $state(false);
 	let eventSource: EventSource | null = null;
 	onMount(() => {
+		isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 		eventSource = new EventSource(`/api/boards/${board.id}/sync`);
 		
 		eventSource.onmessage = (e) => {
@@ -181,6 +271,25 @@
 
 	let activeStageId = $state<string | null>(null);
 	let activeTask = $state<any | null>(null);
+
+	$effect(() => {
+		const taskIdParam = $page.url.searchParams.get('task');
+		if (taskIdParam && (!activeTask || activeTask.id !== taskIdParam)) {
+			const found = tasks.find(t => t.id === taskIdParam);
+			if (found) {
+				activeTask = found;
+			}
+		}
+	});
+
+	function closeTaskDrawer() {
+		activeTask = null;
+		if ($page.url.searchParams.has('task')) {
+			const url = new URL($page.url);
+			url.searchParams.delete('task');
+			goto(url.pathname + url.search, { replaceState: true, noScroll: true, keepFocus: true });
+		}
+	}
 	let activeView = $state<'board' | 'table' | 'calendar'>('board');
 	let settingsOpen = $state(false);
 	let settingsTab = $state<'general' | 'fields'>('general');
@@ -216,9 +325,11 @@
 	});
 </script>
 
+<svelte:window onkeydown={handleKeydown} />
+
 <div class="h-full flex flex-col relative overflow-hidden bg-zinc-50 dark:bg-[#0c0c0d]">
 	<!-- Board Header -->
-	<div class="px-8 py-5 border-b border-zinc-200/50 dark:border-white/5 bg-white/50 dark:bg-[#121214]/50 backdrop-blur-xl flex items-center justify-between shrink-0">
+	<div class="px-8 py-5 border-b border-zinc-200/50 dark:border-white/5 bg-white/50 dark:bg-[#121214]/50 backdrop-blur-xl flex items-center justify-between shrink-0 relative z-20">
 		<div class="flex items-center gap-4">
 			<div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-violet-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
 				<LayoutGrid class="w-5 h-5" />
@@ -366,29 +477,34 @@
 
 	<!-- Board Canvas -->
 	{#if activeView === 'board'}
-	<div class="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar snap-x snap-mandatory relative">
+	<div class="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar snap-x snap-mandatory relative scroll-px-8" onwheel={handleWheel}>
 		<div class="h-full inline-flex items-start gap-4 p-8">
 			
-			<form method="POST" action="?/moveStage" use:enhance bind:this={moveStageForm}>
+			<form class="hidden" method="POST" action="?/moveStage" use:enhance bind:this={moveStageForm}>
 				<input type="hidden" name="stageId" value={movedStageId || ''} />
 				<input type="hidden" name="previousIndex" value={movedPrevIndex || ''} />
 				<input type="hidden" name="nextIndex" value={movedNextIndex || ''} />
 			</form>
 
 			<section 
-				use:dndzone={{ items: columns, flipDurationMs, type: 'columns', dropTargetStyle: {} }} 
+				use:dragHandleZone={{ items: columns, flipDurationMs, type: 'columns', dropTargetStyle: {}, dragDisabled: isTouchDevice || user.role !== 'Admin' }} 
 				onconsider={handleColumnConsider} 
 				onfinalize={handleColumnFinalize}
 				class="h-full inline-flex items-start gap-4"
 			>
 			{#each columns as column, stageIdx (column.id)}
-				<div animate:flip={{duration: flipDurationMs}} class="h-full max-h-full">
+				<div animate:flip={{duration: flipDurationMs}} class="h-full max-h-full shrink-0 snap-start" id="column-{stageIdx}">
 					<!-- Stage Column -->
-					<div class="w-[85vw] lg:w-[320px] snap-start shrink-0 flex flex-col max-h-full rounded-2xl bg-zinc-100/50 dark:bg-[#121214] border border-zinc-200/50 dark:border-white/5 shadow-sm">
+					<div class="w-[85vw] lg:w-[320px] flex flex-col max-h-full rounded-2xl bg-zinc-100/50 dark:bg-[#121214] border {focusedColumnIndex === stageIdx && focusedTaskIndex === null ? 'border-blue-500 ring-2 ring-blue-500/50' : 'border-zinc-200/50 dark:border-white/5'} shadow-sm">
 					
 					<!-- Column Header -->
-					<div class="p-4 flex items-center justify-between shrink-0 group">
+					<div use:dragHandle aria-label="Drag {column.name} column" class="p-4 flex items-center justify-between shrink-0 group {user.role === 'Admin' && !isTouchDevice ? 'cursor-grab active:cursor-grabbing' : ''}">
 						<div class="flex items-center gap-2">
+							{#if user.role === 'Admin' && !isTouchDevice}
+								<div class="column-drag-grip cursor-grab active:cursor-grabbing text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 px-1 -ml-1">
+									<GripHorizontal class="w-4 h-4" />
+								</div>
+							{/if}
 							<h3 class="text-sm font-bold tracking-tight text-zinc-800 dark:text-zinc-200">{column.name}</h3>
 							<span class="px-2 py-0.5 bg-zinc-200 dark:bg-white/10 text-zinc-600 dark:text-zinc-400 text-xs font-bold rounded-full">{column.items.length}</span>
 						</div>
@@ -413,14 +529,14 @@
 
 					<!-- Drag and Drop Zone -->
 					<div 
-						use:dndzone={{items: column.items, flipDurationMs, dropTargetStyle: { outline: '2px solid rgba(59, 130, 246, 0.5)', outlineOffset: '-2px', borderRadius: '0.75rem', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}} 
+						use:dndzone={{items: column.items, flipDurationMs, dragDisabled: isTouchDevice, dropTargetStyle: { outline: '2px solid rgba(59, 130, 246, 0.5)', outlineOffset: '-2px', borderRadius: '0.75rem', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}} 
 						onconsider={(e) => handleDndConsider(e, stageIdx)} 
 						onfinalize={(e) => handleDndFinalize(e, stageIdx)}
 						class="flex-1 overflow-y-auto px-3 pb-3 min-h-[150px] custom-scrollbar flex flex-col gap-2 relative"
 					>
-						{#each column.items as task (task.id)}
-							<div animate:flip={{duration: flipDurationMs}}>
-								<TaskCard {task} {groupUsers} userRole={user.role} onClick={() => { if (!isDragging) activeTask = task; }} />
+						{#each column.items as task, taskIdx (task.id)}
+							<div animate:flip={{duration: flipDurationMs}} id="task-{stageIdx}-{taskIdx}">
+								<TaskCard {task} {groupUsers} userRole={user.role} focused={focusedColumnIndex === stageIdx && focusedTaskIndex === taskIdx} onClick={() => { if (!isDragging) activeTask = task; }} />
 							</div>
 						{/each}
 						
@@ -496,7 +612,7 @@
 
 	<!-- Task Edit Side Panel -->
 	{#if activeTask}
-		<TaskDrawer bind:task={activeTask} groupUsers={groupUsers} allTasks={tasks} stages={stages} customFields={customFields} projectTags={data.projectTags} projectId={data.board.projectId} onClose={() => activeTask = null} />
+		<TaskDrawer bind:task={activeTask} groupUsers={groupUsers} allTasks={tasks} stages={stages} customFields={customFields} projectTags={data.projectTags} projectId={data.board.projectId} onClose={closeTaskDrawer} />
 	{/if}
 
 	{#if reorderModalOpen}

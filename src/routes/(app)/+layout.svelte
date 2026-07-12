@@ -17,7 +17,9 @@
 		ChevronRight,
 		ChevronDown,
 		Sun,
-		Moon
+		Moon,
+		PanelLeft,
+		LayoutDashboard
 	} from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 
@@ -138,6 +140,7 @@
 	}
 
 	const topNavItems = [
+		{ name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
 		{ name: 'My Tasks', href: '/my-tasks', icon: CheckCircle2 },
 		{ name: 'Inbox', href: '/inbox', icon: Inbox },
 		{ name: 'My Calendar', href: '/calendar', icon: CalendarDays },
@@ -153,6 +156,7 @@
 	let addingProject = $state(false);
 	let isCreatingBoard = $state(false);
 	let selectedProjectIdForBoard = $state<string | null>(null);
+	let isSidebarOpen = $state(true);
 
 	$effect(() => {
 		if (browser) {
@@ -162,6 +166,10 @@
 					collapsedProjects = JSON.parse(stored);
 				} catch (e) {}
 			}
+			const storedSidebar = localStorage.getItem('sidebar-open');
+			if (storedSidebar !== null) {
+				isSidebarOpen = storedSidebar === 'true';
+			}
 		}
 	});
 
@@ -170,14 +178,20 @@
 		localStorage.setItem('collapsed-projects', JSON.stringify(collapsedProjects));
 	}
 
+	function toggleSidebar() {
+		isSidebarOpen = !isSidebarOpen;
+		localStorage.setItem('sidebar-open', String(isSidebarOpen));
+	}
+
 	// Derived store to check active routes
 	let currentPath = $derived($page.url.pathname);
+	let isCommandPaletteOpen = $state(false);
 </script>
 
 <div class="flex h-screen bg-zinc-50 dark:bg-zinc-950 overflow-hidden font-sans text-zinc-900 dark:text-zinc-100">
 	
 	<!-- Sidebar / Workspace Shell -->
-	<aside class="hidden lg:flex w-64 flex-col bg-white/70 dark:bg-zinc-900/50 backdrop-blur-xl border-r border-zinc-200/80 dark:border-zinc-800/80 z-20">
+	<aside class="hidden lg:flex w-64 flex-shrink-0 flex-col bg-white/70 dark:bg-zinc-900/50 backdrop-blur-xl border-r border-zinc-200/80 dark:border-zinc-800/80 z-20 transition-all duration-300 ease-in-out {isSidebarOpen ? 'ml-0' : '-ml-64'}">
 		<!-- Brand Header -->
 		<div class="h-16 flex items-center px-6 border-b border-zinc-200/50 dark:border-zinc-800/50">
 			<div class="flex items-center gap-3">
@@ -372,7 +386,7 @@
 						<div class="text-xs text-zinc-500 dark:text-zinc-400 truncate">{user?.role}</div>
 					</div>
 				</a>
-				<form method="POST" action="/?/logout">
+				<form method="POST" action="/api/logout">
 					<button type="submit" class="text-zinc-400 hover:text-red-500 transition-colors ml-2" title="Sign out">
 						<LogOut class="w-4 h-4" />
 					</button>
@@ -384,15 +398,28 @@
 	<!-- Main Content Area -->
 	<div class="flex-1 flex flex-col relative z-10 overflow-hidden">
 		<!-- Top Navbar -->
-		<header class="h-16 bg-white/40 dark:bg-zinc-950/40 backdrop-blur-md border-b border-zinc-200/50 dark:border-zinc-800/50 flex items-center justify-between px-8 sticky top-0 z-30">
-			<!-- Search Bar -->
-			<div class="flex-1 max-w-xl">
-				<div class="relative group">
+		<header class="h-16 bg-white/40 dark:bg-zinc-950/40 backdrop-blur-md border-b border-zinc-200/50 dark:border-zinc-800/50 flex items-center justify-between px-8 sticky top-0 z-30 transition-all duration-300">
+			
+			<!-- Left Side Actions -->
+			<div class="flex items-center gap-4 flex-1 max-w-xl">
+				<button 
+					onclick={toggleSidebar}
+					class="hidden lg:flex p-1.5 -ml-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+					title="Toggle Sidebar"
+				>
+					<PanelLeft class="w-5 h-5" />
+				</button>
+
+				<!-- Search Bar -->
+				<div class="relative group flex-1">
 					<Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-focus-within:text-blue-500 transition-colors" />
 					<input 
 						type="text" 
+						readonly
+						onclick={() => isCommandPaletteOpen = true}
+						onfocus={() => isCommandPaletteOpen = true}
 						placeholder="Search tasks, projects, or boards... (Press ⌘K)" 
-						class="w-full bg-zinc-100/50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-full pl-10 pr-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-zinc-500"
+						class="w-full bg-zinc-100/50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-full pl-10 pr-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-zinc-500 cursor-pointer"
 					/>
 				</div>
 			</div>
@@ -457,11 +484,19 @@
 					title="Toggle theme"
 				>
 					{#if isDark}
-						<Sun class="w-4 h-4" /> <span>Light</span>
+						<Sun class="w-4 h-4" /> <span class="hidden sm:inline">Light</span>
 					{:else}
-						<Moon class="w-4 h-4" /> <span>Dark</span>
+						<Moon class="w-4 h-4" /> <span class="hidden sm:inline">Dark</span>
 					{/if}
 				</button>
+
+				<a 
+					href="/settings/profile" 
+					class="lg:hidden flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-400 to-cyan-500 text-white text-xs font-bold shadow-inner flex-shrink-0 ml-1"
+					title="My Profile"
+				>
+					{user?.name?.charAt(0).toUpperCase()}
+				</a>
 
 			</div>
 		</header>
@@ -488,7 +523,7 @@
 		{/each}
 	</nav>
 
-<CommandPalette />
+<CommandPalette bind:isOpen={isCommandPaletteOpen} />
 <CreateBoardModal bind:isOpen={isCreatingBoard} projects={projects} selectedProjectId={selectedProjectIdForBoard} />
 
 <style>

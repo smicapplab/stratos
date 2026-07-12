@@ -11,9 +11,9 @@
 	];
 </script>
 
-<div class="flex h-full w-full bg-white dark:bg-[#1C1C1E]">
+<div class="flex flex-col md:flex-row h-full w-full bg-white dark:bg-[#1C1C1E]">
 	<!-- Settings Sidebar -->
-	<div class="w-[240px] flex-shrink-0 border-r border-gray-200 dark:border-white/[0.05] bg-[#F9F9F9] dark:bg-[#1E1E20] flex flex-col pt-6">
+	<div class="w-full md:w-[240px] flex-shrink-0 border-b md:border-b-0 md:border-r border-gray-200 dark:border-white/[0.05] bg-[#F9F9F9] dark:bg-[#1E1E20] flex flex-col pt-6">
 		<div class="px-5 mb-6">
 			<h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
 		</div>
@@ -30,6 +30,17 @@
 				</a>
 			{/each}
 		</nav>
+		
+		<div class="p-4 border-t border-gray-200 dark:border-white/[0.05]">
+			<form method="POST" action="/api/logout">
+				<button 
+					type="submit" 
+					class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-white/[0.05] rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1C1C1E] hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
+				>
+					Sign out
+				</button>
+			</form>
+		</div>
 	</div>
 
 	<!-- Main Content Area -->

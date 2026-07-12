@@ -35,7 +35,9 @@ describe('Board Management Service (Security Matrix)', () => {
 
 	describe('createBoard()', () => {
 		it('should allow Admin to create a board', async () => {
-			mockSelectChain.where.mockResolvedValue([]);
+			mockSelectChain.where
+				.mockResolvedValueOnce([{ id: projectId }])
+				.mockResolvedValueOnce([]);
 			const result = await createBoard(adminActor, projectId, 'Sprint 1', 'SPR');
 			expect(result).toBeDefined();
 			expect(result.name).toBe('Sprint 1');

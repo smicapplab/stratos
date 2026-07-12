@@ -5,7 +5,7 @@
 	import { modalStore } from '$lib/stores/ui.svelte';
 	import { getTaskIdentifier } from '$lib/utils';
 
-	let { task, groupUsers, userRole, onClick } = $props();
+	let { task, groupUsers, userRole, onClick, focused = false } = $props();
 
 	let assignee = $derived((() => {
 		if (!task.assigneeId) return null;
@@ -97,7 +97,7 @@
 			onClick();
 		}
 	}}
-	class="group p-3 rounded-lg shadow-sm border cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg relative flex flex-col gap-3 overflow-hidden {task.parentTaskId ? 'bg-zinc-50 dark:bg-[#18181b]/80 border-dashed border-zinc-300 dark:border-white/10 hover:border-zinc-400 dark:hover:border-zinc-600' : 'bg-white dark:bg-[#18181b] border-zinc-200/80 dark:border-white/5 hover:border-zinc-400 dark:hover:border-zinc-600'}"
+	class="group p-3 rounded-lg shadow-sm border cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg relative flex flex-col gap-3 overflow-hidden {focused ? 'ring-2 ring-blue-500 border-transparent' : ''} {task.parentTaskId ? 'bg-zinc-50 dark:bg-[#18181b]/80 border-dashed border-zinc-300 dark:border-white/10 hover:border-zinc-400 dark:hover:border-zinc-600' : 'bg-white dark:bg-[#18181b] border-zinc-200/80 dark:border-white/5 hover:border-zinc-400 dark:hover:border-zinc-600'}"
 >
 	<!-- Priority Left Border Stripe -->
 	<div class="absolute left-0 top-0 bottom-0 w-1 {getPriorityColor(task.priority)}"></div>

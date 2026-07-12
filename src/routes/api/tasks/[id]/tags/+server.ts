@@ -2,8 +2,8 @@ import { json } from '@sveltejs/kit';
 import { attachTagToTask, detachTagFromTask } from '$lib/server/services/tags';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db/db';
-import { taskTags, tags } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { taskTags, tags, tasks } from '$lib/server/db/schema';
+import { eq, and } from 'drizzle-orm';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) return new Response('Unauthorized', { status: 401 });
@@ -16,7 +16,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			deletedAt: tags.deletedAt
 		}).from(taskTags)
 		  .innerJoin(tags, eq(taskTags.tagId, tags.id))
-		  .where(eq(taskTags.taskId, params.id));
+		  .innerJoin(tasks, eq(taskTags.taskId, tasks.id))
+		  .where(and(eq(taskTags.taskId, params.id), eq(tasks.groupId, locals.user.groupId)));
 		  
 		return json(assignedTags);
 	} catch (e: any) {

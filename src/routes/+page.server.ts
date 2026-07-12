@@ -86,15 +86,5 @@ export const actions: Actions = {
 		});
 
 		throw redirect(302, '/admin/users');
-	},
-	logout: async ({ locals, cookies }) => {
-		if (!locals.session) return fail(401);
-		await lucia.invalidateSession(locals.session.id);
-		const sessionCookie = lucia.createBlankSessionCookie();
-		cookies.set(sessionCookie.name, sessionCookie.value, {
-			path: '.',
-			...sessionCookie.attributes
-		});
-		throw redirect(302, '/');
 	}
 };

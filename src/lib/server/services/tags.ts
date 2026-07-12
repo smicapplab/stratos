@@ -4,13 +4,12 @@ import { eq, and, or, inArray, asc, isNull } from 'drizzle-orm';
 import type { Actor } from './users';
 
 async function checkProjectAccess(actor: Actor, projectId: string) {
-	if (actor.role === 'Admin') return true;
-	
 	const [project] = await db.select({ visibility: projects.visibility }).from(projects).where(
 		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId))
 	);
 	
 	if (!project) throw new Error('Project not found or access denied');
+	if (actor.role === 'Admin') return true;
 	if (project.visibility === 'Public') return true;
 	
 	const [member] = await db.select().from(projectMembers).where(
@@ -22,6 +21,11 @@ async function checkProjectAccess(actor: Actor, projectId: string) {
 }
 
 async function checkProjectAdmin(actor: Actor, projectId: string) {
+	const [project] = await db.select({ id: projects.id }).from(projects).where(
+		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId))
+	);
+	
+	if (!project) throw new Error('Project not found or access denied');
 	if (actor.role === 'Admin') return true;
 	
 	const [member] = await db.select({ role: projectMembers.role }).from(projectMembers).where(

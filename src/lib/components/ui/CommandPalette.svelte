@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import { getTaskIdentifier } from '$lib/utils';
 	
-	let isOpen = $state(false);
+	let { isOpen = $bindable(false) } = $props();
 	let searchQuery = $state('');
 	
 	let results = $state<{tasks: any[], boards: any[], projects: any[]}>({ tasks: [], boards: [], projects: [] });

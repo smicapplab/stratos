@@ -4,6 +4,10 @@ import { eq, and, or, isNull, inArray, asc, desc } from 'drizzle-orm';
 import type { Actor } from './users';
 
 export async function createProject(actor: Actor, name: string, visibility: 'Public' | 'Private' = 'Public') {
+	if (actor.role !== 'Admin') {
+		throw new Error('Unauthorized: Only Admins can create projects.');
+	}
+
 	const [newProject] = await db.insert(projects).values({
 		name,
 		groupId: actor.groupId,
@@ -86,6 +90,11 @@ export async function getAccessibleBoards(actor: Actor) {
 }
 
 export async function addProjectMember(actor: Actor, projectId: string, targetUserId: string, role: 'Admin' | 'Member' = 'Member') {
+	const [project] = await db.select({ id: projects.id }).from(projects).where(
+		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId))
+	);
+	if (!project) throw new Error('Project not found or access denied');
+
 	// Verify actor is Group Admin or Project Admin
 	if (actor.role !== 'Admin') {
 		const [member] = await db.select({ role: projectMembers.role }).from(projectMembers).where(
@@ -118,6 +127,11 @@ export async function addProjectMember(actor: Actor, projectId: string, targetUs
 }
 
 export async function removeProjectMember(actor: Actor, projectId: string, targetUserId: string) {
+	const [project] = await db.select({ id: projects.id }).from(projects).where(
+		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId))
+	);
+	if (!project) throw new Error('Project not found or access denied');
+
 	// Verify actor is Group Admin or Project Admin
 	if (actor.role !== 'Admin') {
 		const [member] = await db.select({ role: projectMembers.role }).from(projectMembers).where(
@@ -148,6 +162,11 @@ export async function removeProjectMember(actor: Actor, projectId: string, targe
 }
 
 export async function updateProjectVisibility(actor: Actor, projectId: string, visibility: 'Public' | 'Private') {
+	const [project] = await db.select({ id: projects.id }).from(projects).where(
+		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId))
+	);
+	if (!project) throw new Error('Project not found or access denied');
+
 	if (actor.role !== 'Admin') {
 		const [member] = await db.select({ role: projectMembers.role }).from(projectMembers).where(
 			and(

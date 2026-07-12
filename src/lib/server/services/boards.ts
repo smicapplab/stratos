@@ -1,5 +1,5 @@
 import { db } from '../db/db';
-import { boards, auditLogs } from '../db/schema';
+import { boards, auditLogs, projects } from '../db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import type { Actor } from './users';
 
@@ -7,6 +7,12 @@ export async function createBoard(actor: Actor, projectId: string, name: string,
 	if (actor.role !== 'Admin') {
 		throw new Error('Unauthorized: Only Admins can create boards.');
 	}
+	
+	// Ensure the project belongs to the actor's group
+	const [project] = await db.select({ id: projects.id }).from(projects).where(
+		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId))
+	);
+	if (!project) throw new Error('Project not found or access denied');
 	
 	// Check prefix uniqueness in the group
 	const existing = await db.select({ id: boards.id }).from(boards).where(and(eq(boards.groupId, actor.groupId), eq(boards.prefix, prefix), isNull(boards.deletedAt)));
