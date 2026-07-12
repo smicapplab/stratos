@@ -1,7 +1,9 @@
 import { json } from '@sveltejs/kit';
 import { getProjectActivity } from '$lib/server/services/projects';
 
-export const GET = async ({ params, locals, url }) => {
+import type { RequestHandler } from './$types';
+
+export const GET: RequestHandler = async ({ params, locals, url }) => {
 	if (!locals.user) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}

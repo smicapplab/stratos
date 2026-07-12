@@ -1,6 +1,6 @@
 import { db } from '../db/db';
 import { tags, taskTags, projects, projectMembers, tasks, auditLogs } from '../db/schema';
-import { eq, and, or, inArray, asc, isNull } from 'drizzle-orm';
+import { eq, and, asc, isNull } from 'drizzle-orm';
 import type { Actor } from './users';
 
 async function checkProjectAccess(actor: Actor, projectId: string) {

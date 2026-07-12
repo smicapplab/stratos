@@ -55,3 +55,6 @@ All code must pass the automated verification suite before being merged. The fol
 *   **Strict SvelteKit Boundaries:** All database access and secret management must reside strictly in `+page.server.ts`, `+server.ts`, or `src/lib/server/`.
 *   **No Markdown Proliferation:** All documentation must reside within the `docs/` directory. Standalone markdown files outside this directory are prohibited.
 *   **Error Handling:** Errors must be explicitly handled and propagated to the client with valid HTTP status codes and typed error boundaries. Never fail silently.
+*   **Accessibility (A11y) & Semantics:** All custom UI components (like Modals or Drawers) must implement strict WAI-ARIA standards (e.g., `role="dialog"`, `aria-modal="true"`, `aria-label`).
+*   **Timezones & Typings:** Use UTC strict strings for data transport. Use strict types for all event handlers (`e.currentTarget`) and SvelteKit `use:enhance` actions to prevent `any` escapes.
+

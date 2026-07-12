@@ -520,9 +520,11 @@
 					class="flex gap-3 items-end"
 					onsubmit={async (e) => {
 						e.preventDefault();
-						const form = e.target;
-						const name = form.tagName.value;
-						const color = form.tagColor.value;
+						const form = e.currentTarget;
+						if (!form) return;
+						const formData = new FormData(form);
+						const name = formData.get("tagName") as string;
+						const color = formData.get("tagColor") as string;
 						if (!name) return;
 						const res = await fetch(
 							`/api/projects/${project.id}/tags`,

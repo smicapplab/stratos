@@ -57,10 +57,10 @@
 
 {#if isOpen}
 	<div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex justify-center items-center p-4 animate-in fade-in duration-200">
-		<div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+		<div role="dialog" aria-modal="true" aria-labelledby="modal-title" class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
 			<div class="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center">
-				<h2 class="text-xl font-semibold text-zinc-900 dark:text-white">Create a New Board</h2>
-				<button type="button" onclick={close} class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors">
+				<h2 id="modal-title" class="text-xl font-semibold text-zinc-900 dark:text-white">Create a New Board</h2>
+				<button type="button" aria-label="Close modal" onclick={close} class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors">
 					✕
 				</button>
 			</div>
@@ -72,12 +72,15 @@
 						newBoardName = '';
 						newBoardPrefix = '';
 						prefixTouched = false;
-						currentProjectId = '';
+						currentProjectId = selectedProjectId || '';
 						toastStore?.success('Board created successfully');
 					} else if (result.type === 'failure') {
-						toastStore?.error((result.data as any)?.error || 'Failed to create board');
+						const errorMsg = result.data && typeof result.data.error === 'string' 
+							? result.data.error 
+							: 'Failed to create board';
+						toastStore?.error(errorMsg);
 					}
-					update({ reset: false });
+					await update({ reset: false });
 				};
 			}} class="p-6 space-y-5">
 				<div class="space-y-2">

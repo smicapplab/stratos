@@ -1,23 +1,25 @@
 <script lang="ts">
 	import TableView from '$lib/components/ui/TableView.svelte';
 	import TaskDrawer from '$lib/components/task/TaskDrawer.svelte';
+	import type { PageData } from './$types';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 
-	let activeTask = $state(null);
+	type Task = PageData['tasks'][number];
+	let activeTask = $state<Task | null>(null);
 
 	// Process tasks to attach "stages" based on due date urgency
-	let tasks = $derived((() => {
+	let tasks = $derived.by(() => {
 		const now = new Date();
 		now.setHours(0, 0, 0, 0);
 
-		return data.tasks.map((task: any) => {
+		return data.tasks.map((task) => {
 			let stageId = 'no-date';
 			if (task.dueDate) {
 				const due = new Date(task.dueDate);
 				due.setHours(0, 0, 0, 0);
 				const diffTime = due.getTime() - now.getTime();
-				const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+				const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
 				if (diffDays < 0) {
 					stageId = 'overdue';
@@ -31,7 +33,7 @@
 			}
 			return { ...task, stageId };
 		});
-	})());
+	});
 
 	const stages = [
 		{ id: 'overdue', name: 'Overdue' },
@@ -41,7 +43,7 @@
 		{ id: 'no-date', name: 'No Date' }
 	];
 
-	function handleTaskClick(task: any) {
+	function handleTaskClick(task: Task) {
 		activeTask = task;
 	}
 </script>

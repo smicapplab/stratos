@@ -1,6 +1,6 @@
 import { db } from '../db/db';
 import { tasks, stages, users } from '../db/schema';
-import { eq, and, isNull, sql, getTableColumns, lt, gt, inArray } from 'drizzle-orm';
+import { eq, and, isNull, sql, lt, gt, inArray } from 'drizzle-orm';
 import type { Actor } from './users';
 
 export async function getDashboardMetrics(actor: Actor, boardId?: string) {
