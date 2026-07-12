@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import { enhance } from "$app/forms";
 	import { untrack } from "svelte";
 	import DOMPurify from "dompurify";
@@ -374,7 +375,7 @@
 		const formData = new FormData();
 		formData.append('taskId', targetTaskId);
 		formData.append('parentTaskId', task.id);
-		const res = await fetch(`/boards/${task.boardId}?/linkSubtask`, {
+		const res = await fetch(`${$page.url.pathname}?/linkSubtask`, {
 			method: 'POST',
 			body: formData,
 			headers: { 'x-sveltekit-action': 'true' }
@@ -484,7 +485,7 @@
 		const formData = new FormData();
 		formData.append('taskId', subtaskId);
 		formData.append('title', newTitle.trim());
-		const res = await fetch(`/boards/${task.boardId}?/updateTask`, {
+		const res = await fetch(`${$page.url.pathname}?/updateTask`, {
 			method: 'POST',
 			body: formData,
 			headers: { 'x-sveltekit-action': 'true' }
@@ -510,7 +511,7 @@
 			onConfirm: async () => {
 				const formData = new FormData();
 				formData.append('taskId', subtaskId);
-				const res = await fetch(`/boards/${task.boardId}?/softDeleteTask`, {
+				const res = await fetch(`${$page.url.pathname}?/softDeleteTask`, {
 					method: 'POST',
 					body: formData,
 					headers: { 'x-sveltekit-action': 'true' }
@@ -536,7 +537,7 @@
 		const formData = new FormData();
 		formData.append('taskId', subtaskId);
 		formData.append('parentTaskId', '');
-		const res = await fetch(`/boards/${task.boardId}?/linkSubtask`, {
+		const res = await fetch(`${$page.url.pathname}?/linkSubtask`, {
 			method: 'POST',
 			body: formData,
 			headers: { 'x-sveltekit-action': 'true' }
@@ -575,7 +576,7 @@
 			formData.append('taskId', subtask.id);
 			formData.append('title', subtask.title); // Title is strictly required by the backend
 			formData.append('stageId', targetStage);
-			const res = await fetch(`/boards/${task.boardId}?/updateTask`, {
+			const res = await fetch(`${$page.url.pathname}?/updateTask`, {
 				method: 'POST',
 				body: formData,
 				headers: { 'x-sveltekit-action': 'true' }
@@ -1126,7 +1127,7 @@
 			>
 				<form
 					method="POST"
-					action="/boards/{task.boardId}?/updateTask"
+					action="?/updateTask"
 					id="task-form"
 					use:enhance={() => {
 						return async ({ update, result }) => {
@@ -1342,7 +1343,7 @@
 
 								<form
 									method="POST"
-									action="/boards/{task.boardId}?/createTask"
+									action="?/createTask"
 									use:enhance={() => {
 										return async ({ update }) => {
 											update({ reset: true });

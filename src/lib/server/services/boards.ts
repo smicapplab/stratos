@@ -1,5 +1,5 @@
 import { db } from '../db/db';
-import { boards } from '../db/schema';
+import { boards, auditLogs } from '../db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import type { Actor } from './users';
 
@@ -22,11 +22,19 @@ export async function createBoard(actor: Actor, projectId: string, name: string,
 		creatorId: actor.id
 	}).returning();
 
+	await db.insert(auditLogs).values({
+		groupId: actor.groupId,
+		projectId,
+		userId: actor.id,
+		actionType: 'board_created',
+		details: { boardId: newBoard.id, name, prefix }
+	});
+
 	return newBoard;
 }
 
 export async function deleteBoard(actor: Actor, boardId: string) {
-	const [board] = await db.select({ creatorId: boards.creatorId }).from(boards).where(
+	const [board] = await db.select({ creatorId: boards.creatorId, projectId: boards.projectId }).from(boards).where(
 		and(
 			eq(boards.id, boardId),
 			eq(boards.groupId, actor.groupId)
@@ -46,6 +54,14 @@ export async function deleteBoard(actor: Actor, boardId: string) {
 				eq(boards.groupId, actor.groupId)
 			)
 		);
+
+	await db.insert(auditLogs).values({
+		groupId: actor.groupId,
+		projectId: board.projectId,
+		userId: actor.id,
+		actionType: 'board_deleted',
+		details: { boardId }
+	});
 }
 
 export async function updateBoard(actor: Actor, boardId: string, updates: { name?: string; projectId?: string }) {

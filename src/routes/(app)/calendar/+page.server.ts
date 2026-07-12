@@ -47,3 +47,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		groupUsers
 	};
 }
+
+import { taskActions } from '$lib/server/actions/tasks';
+import type { Actions } from './$types';
+
+export const actions: Actions = {
+	...taskActions
+};

@@ -1,8 +1,9 @@
-import { pgTable, uuid, varchar, text, timestamp, jsonb, boolean, primaryKey, integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, jsonb, boolean, primaryKey, integer, index } from 'drizzle-orm/pg-core';
 
 export const groups = pgTable('groups', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -13,6 +14,10 @@ export const users = pgTable('users', {
   hashedPassword: text('hashed_password'), // Can be null if invited but not registered yet
   groupId: uuid('group_id').references(() => groups.id).notNull(),
   role: varchar('role', { length: 50 }).notNull(), // Admin, Member, etc.
+  jobTitle: varchar('job_title', { length: 100 }),
+  avatarUrl: text('avatar_url'),
+  theme: varchar('theme', { length: 20 }).default('system').notNull(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -21,6 +26,8 @@ export const sessions = pgTable('sessions', {
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
+  userAgent: text('user_agent'),
+  ipAddress: varchar('ip_address', { length: 45 }),
   expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
 });
 
@@ -29,6 +36,7 @@ export const projects = pgTable('projects', {
   name: varchar('name', { length: 255 }).notNull(),
   groupId: uuid('group_id').references(() => groups.id).notNull(),
   visibility: varchar('visibility', { length: 50 }).default('Public').notNull(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -58,6 +66,7 @@ export const stages = pgTable('stages', {
   boardId: uuid('board_id').references(() => boards.id).notNull(),
   orderIndex: varchar('order_index', { length: 255 }).notNull(),
   isCompleted: boolean('is_completed').default(false).notNull(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
 
 export const tasks = pgTable('tasks', {
@@ -104,13 +113,20 @@ export const taskLinks = pgTable('task_links', {
 
 export const auditLogs = pgTable('audit_logs', {
 	id: uuid('id').defaultRandom().primaryKey(),
-	taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }).notNull(),
+	groupId: uuid('group_id').references(() => groups.id, { onDelete: 'cascade' }).notNull(),
+	projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+	taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }), // Made nullable
 	userId: uuid('user_id').references(() => users.id).notNull(),
-	actionType: varchar('action_type', { length: 255 }).notNull(), // e.g. 'status_change', 'priority_change', 'assignee_change'
+	actionType: varchar('action_type', { length: 255 }).notNull(), // e.g. 'status_change', 'project_created'
 	oldValue: text('old_value'),
 	newValue: text('new_value'),
+	details: jsonb('details'), // For structured data like invites, complex state changes
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
-});
+}, (t) => ({
+	groupProjectTaskIdx: index('audit_logs_group_project_task_idx').on(t.groupId, t.projectId, t.taskId),
+	// Optional: add GIN index if searching inside details is needed frequently
+	// detailsGinIdx: index('audit_logs_details_gin_idx').using('gin', t.details) 
+}));
 
 export const attachments = pgTable('attachments', {
 	id: uuid('id').defaultRandom().primaryKey(),
@@ -137,6 +153,7 @@ export const customFieldDefinitions = pgTable('custom_field_definitions', {
 	name: varchar('name', { length: 255 }).notNull(),
 	type: varchar('type', { length: 50 }).notNull(), // text, number, date, select, multi-select
 	options: jsonb('options').default([]), // For select types
+	deletedAt: timestamp('deleted_at', { withTimezone: true }),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
 });
 
@@ -155,7 +172,7 @@ export const tags = pgTable('tags', {
 	projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
 	name: varchar('name', { length: 50 }).notNull(),
 	color: varchar('color', { length: 20 }).default('blue').notNull(),
-	isDeleted: boolean('is_deleted').default(false).notNull(),
+	deletedAt: timestamp('deleted_at', { withTimezone: true }), // Replaced isDeleted with deletedAt for consistency
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

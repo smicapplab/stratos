@@ -102,9 +102,26 @@
 	// Theme Toggle Logic
 	let isDark = $state(false);
 
-	// On mount, sync with actual DOM state
+	// On mount, sync with actual DOM state and user's DB preference
 	$effect(() => {
 		if (browser) {
+			if (user?.theme && user.theme !== 'system') {
+				if (localStorage.theme !== user.theme) {
+					localStorage.theme = user.theme;
+					if (user.theme === 'dark') {
+						document.documentElement.classList.add('dark');
+					} else {
+						document.documentElement.classList.remove('dark');
+					}
+				}
+			} else if (user?.theme === 'system' && localStorage.theme) {
+				localStorage.removeItem('theme');
+				if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+					document.documentElement.classList.add('dark');
+				} else {
+					document.documentElement.classList.remove('dark');
+				}
+			}
 			isDark = document.documentElement.classList.contains('dark');
 		}
 	});
@@ -127,6 +144,7 @@
 	];
 
 	const adminItems = [
+		{ name: 'My Profile', href: '/settings/profile', icon: Settings },
 		{ name: 'User Access', href: '/admin/users', icon: Settings },
 	];
 
@@ -242,14 +260,25 @@
 					{#each projects as project (project.id)}
 						<li>
 							<div class="flex items-center px-2 py-1 w-full rounded-md text-[13px] font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors group relative">
-								<button class="flex items-center gap-2 flex-1 text-left truncate" onclick={() => toggleProject(project.id)}>
-									{#if collapsedProjects[project.id]}
-										<ChevronRight class="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
-									{:else}
-										<ChevronDown class="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
-									{/if}
-									<span class="truncate">{project.name}</span>
-								</button>
+								<div class="flex items-center gap-1.5 flex-1 min-w-0">
+									<button 
+										class="flex-shrink-0 p-0.5 rounded text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800" 
+										onclick={(e) => { e.preventDefault(); e.stopPropagation(); toggleProject(project.id); }}
+										aria-label="Toggle Project"
+									>
+										{#if collapsedProjects[project.id]}
+											<ChevronRight class="w-3.5 h-3.5" />
+										{:else}
+											<ChevronDown class="w-3.5 h-3.5" />
+										{/if}
+									</button>
+									<a 
+										href={`/projects/${project.id}/settings`} 
+										class="flex-1 truncate hover:text-zinc-900 dark:hover:text-white"
+									>
+										{project.name}
+									</a>
+								</div>
 								<!-- Project Actions -->
 								<div class="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
 									<a 
@@ -333,8 +362,8 @@
 
 		<!-- User Footer -->
 		<div class="p-4 border-t border-zinc-200/50 dark:border-zinc-800/50">
-			<div class="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50">
-				<div class="flex items-center gap-3 truncate">
+			<div class="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors group relative cursor-pointer">
+				<a href="/settings/profile" class="flex items-center gap-3 truncate flex-1" title="Go to My Profile">
 					<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold shadow-inner flex-shrink-0">
 						{user?.name?.charAt(0).toUpperCase()}
 					</div>
@@ -342,7 +371,7 @@
 						<div class="text-sm font-medium truncate">{user?.name}</div>
 						<div class="text-xs text-zinc-500 dark:text-zinc-400 truncate">{user?.role}</div>
 					</div>
-				</div>
+				</a>
 				<form method="POST" action="/?/logout">
 					<button type="submit" class="text-zinc-400 hover:text-red-500 transition-colors ml-2" title="Sign out">
 						<LogOut class="w-4 h-4" />

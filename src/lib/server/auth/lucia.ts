@@ -17,7 +17,16 @@ export const lucia = new Lucia(adapter, {
 			email: attributes.email,
 			name: attributes.name,
 			role: attributes.role,
-			groupId: attributes.groupId
+			groupId: attributes.groupId,
+			jobTitle: attributes.jobTitle,
+			avatarUrl: attributes.avatarUrl,
+			theme: attributes.theme
+		};
+	},
+	getSessionAttributes: (attributes) => {
+		return {
+			userAgent: attributes.userAgent,
+			ipAddress: attributes.ipAddress
 		};
 	}
 });
@@ -26,6 +35,7 @@ declare module "lucia" {
 	interface Register {
 		Lucia: typeof lucia;
 		DatabaseUserAttributes: DatabaseUserAttributes;
+		DatabaseSessionAttributes: DatabaseSessionAttributes;
 	}
 }
 
@@ -34,4 +44,12 @@ interface DatabaseUserAttributes {
 	name: string;
 	role: string;
 	groupId: string;
+	jobTitle: string | null;
+	avatarUrl: string | null;
+	theme: string;
+}
+
+interface DatabaseSessionAttributes {
+	userAgent: string | null;
+	ipAddress: string | null;
 }

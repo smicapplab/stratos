@@ -32,6 +32,7 @@ export async function createTask(actor: Actor, stageId: string, title: string, p
 	}).returning();
 
 	await db.insert(auditLogs).values({
+		groupId: actor.groupId,
 		taskId: newTask.id,
 		userId: actor.id,
 		actionType: 'task_created',
@@ -70,6 +71,7 @@ export async function moveTask(actor: Actor, taskId: string, newStageId: string,
 
 	if (oldTask.stageId !== newStageId) {
 		await db.insert(auditLogs).values({
+			groupId: actor.groupId,
 			taskId,
 			userId: actor.id,
 			actionType: 'stage_change',
@@ -135,21 +137,21 @@ export async function updateTask(actor: Actor, taskId: string, updates: TaskUpda
 		.where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)))
 		.returning();
 
-	const logs: { taskId: string; userId: string; actionType: string; oldValue: string | null; newValue: string | null }[] = [];
+	const logs: { groupId: string; taskId: string; userId: string; actionType: string; oldValue: string | null; newValue: string | null }[] = [];
 	if (updates.priority && updates.priority !== oldTask.priority) {
-		logs.push({ taskId, userId: actor.id, actionType: 'priority_change', oldValue: oldTask.priority, newValue: updates.priority });
+		logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'priority_change', oldValue: oldTask.priority, newValue: updates.priority });
 	}
 	if (updates.assigneeId !== undefined && updates.assigneeId !== oldTask.assigneeId) {
-		logs.push({ taskId, userId: actor.id, actionType: 'assignee_change', oldValue: oldTask.assigneeId || 'unassigned', newValue: updates.assigneeId || 'unassigned' });
+		logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'assignee_change', oldValue: oldTask.assigneeId || 'unassigned', newValue: updates.assigneeId || 'unassigned' });
 		if (updates.assigneeId) {
 			await createNotification(updates.assigneeId, actor.id, 'assigned', taskId);
 		}
 	}
 	if (updates.title && updates.title !== oldTask.title) {
-		logs.push({ taskId, userId: actor.id, actionType: 'title_change', oldValue: oldTask.title, newValue: updates.title });
+		logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'title_change', oldValue: oldTask.title, newValue: updates.title });
 	}
 	if (updates.stageId && updates.stageId !== oldTask.stageId) {
-		logs.push({ taskId, userId: actor.id, actionType: 'stage_change', oldValue: oldTask.stageId, newValue: updates.stageId });
+		logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'stage_change', oldValue: oldTask.stageId, newValue: updates.stageId });
 		if (oldTask.assigneeId) {
 			await createNotification(oldTask.assigneeId, actor.id, 'status_changed', taskId);
 		}
@@ -158,11 +160,11 @@ export async function updateTask(actor: Actor, taskId: string, updates: TaskUpda
 		const oldDateStr = oldTask.dueDate?.toISOString() || 'none';
 		const newDateStr = updates.dueDate?.toISOString() || 'none';
 		if (oldDateStr !== newDateStr) {
-			logs.push({ taskId, userId: actor.id, actionType: 'due_date_change', oldValue: oldDateStr, newValue: newDateStr });
+			logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'due_date_change', oldValue: oldDateStr, newValue: newDateStr });
 		}
 	}
 	if (updates.parentTaskId !== undefined && updates.parentTaskId !== oldTask.parentTaskId) {
-		logs.push({ taskId, userId: actor.id, actionType: 'parent_change', oldValue: oldTask.parentTaskId || 'none', newValue: updates.parentTaskId || 'none' });
+		logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'parent_change', oldValue: oldTask.parentTaskId || 'none', newValue: updates.parentTaskId || 'none' });
 
 		if (updates.parentTaskId === null && oldTask.parentTaskId !== null) {
 			const siblings = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.parentTaskId, oldTask.parentTaskId));
@@ -276,7 +278,7 @@ export async function getTaskActivity(taskId: string, actor: Actor): Promise<Act
 	const commentsQuery = db.select({
 		id: comments.id,
 		type: sql<string>`'comment'`,
-		taskId: comments.taskId,
+		taskId: sql<string | null>`${comments.taskId}`,
 		createdAt: comments.createdAt,
 		updatedAt: sql<Date | null>`${comments.updatedAt}`,
 		userId: users.id,

@@ -71,8 +71,13 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid email or password' });
 		}
 
+		const userAgent = request.headers.get('user-agent') || null;
+		
 		// Create Lucia session
-		const session = await lucia.createSession(user.id, {});
+		const session = await lucia.createSession(user.id, {
+			userAgent,
+			ipAddress: clientIp
+		});
 		const sessionCookie = lucia.createSessionCookie(session.id);
 		
 		cookies.set(sessionCookie.name, sessionCookie.value, {

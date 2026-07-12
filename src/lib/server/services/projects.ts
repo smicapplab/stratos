@@ -1,6 +1,6 @@
 import { db } from '../db/db';
-import { projects, projectMembers, boards } from '../db/schema';
-import { eq, and, or, isNull, inArray, asc } from 'drizzle-orm';
+import { projects, projectMembers, boards, auditLogs, users } from '../db/schema';
+import { eq, and, or, isNull, inArray, asc, desc } from 'drizzle-orm';
 import type { Actor } from './users';
 
 export async function createProject(actor: Actor, name: string, visibility: 'Public' | 'Private' = 'Public') {
@@ -15,6 +15,14 @@ export async function createProject(actor: Actor, name: string, visibility: 'Pub
 		projectId: newProject.id,
 		userId: actor.id,
 		role: 'Admin'
+	});
+
+	await db.insert(auditLogs).values({
+		groupId: actor.groupId,
+		projectId: newProject.id,
+		userId: actor.id,
+		actionType: 'project_created',
+		details: { name, visibility }
 	});
 
 	return newProject;
@@ -99,6 +107,14 @@ export async function addProjectMember(actor: Actor, projectId: string, targetUs
 		target: [projectMembers.projectId, projectMembers.userId],
 		set: { role }
 	});
+
+	await db.insert(auditLogs).values({
+		groupId: actor.groupId,
+		projectId,
+		userId: actor.id,
+		actionType: 'member_joined',
+		details: { targetUserId, role }
+	});
 }
 
 export async function removeProjectMember(actor: Actor, projectId: string, targetUserId: string) {
@@ -121,6 +137,14 @@ export async function removeProjectMember(actor: Actor, projectId: string, targe
 			eq(projectMembers.userId, targetUserId)
 		)
 	);
+
+	await db.insert(auditLogs).values({
+		groupId: actor.groupId,
+		projectId,
+		userId: actor.id,
+		actionType: 'member_removed',
+		details: { targetUserId }
+	});
 }
 
 export async function updateProjectVisibility(actor: Actor, projectId: string, visibility: 'Public' | 'Private') {
@@ -142,4 +166,53 @@ export async function updateProjectVisibility(actor: Actor, projectId: string, v
 			eq(projects.groupId, actor.groupId)
 		)
 	);
+
+	await db.insert(auditLogs).values({
+		groupId: actor.groupId,
+		projectId,
+		userId: actor.id,
+		actionType: 'project_visibility_changed',
+		details: { visibility }
+	});
+}
+
+export async function getProjectActivity(actor: Actor, projectId: string, limitCount: number = 100, offsetCount: number = 0) {
+	// First check access (we can reuse the logic or do it inline)
+	// For simplicity, inline check:
+	if (actor.role !== 'Admin') {
+		const [project] = await db.select({ visibility: projects.visibility }).from(projects).where(
+			and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId))
+		);
+		if (!project) throw new Error('Project not found');
+		if (project.visibility !== 'Public') {
+			const [member] = await db.select({ role: projectMembers.role }).from(projectMembers).where(
+				and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, actor.id))
+			);
+			if (!member) throw new Error('Unauthorized');
+		}
+	}
+
+	return await db.select({
+		id: auditLogs.id,
+		actionType: auditLogs.actionType,
+		oldValue: auditLogs.oldValue,
+		newValue: auditLogs.newValue,
+		details: auditLogs.details,
+		createdAt: auditLogs.createdAt,
+		userId: users.id,
+		userName: users.name,
+		taskId: auditLogs.taskId
+	})
+	.from(auditLogs)
+	.innerJoin(users, eq(auditLogs.userId, users.id))
+	.where(
+		and(
+			eq(auditLogs.projectId, projectId),
+			eq(auditLogs.groupId, actor.groupId),
+			isNull(auditLogs.taskId) // We only want project-level activity, not every task update in the project
+		)
+	)
+	.orderBy(desc(auditLogs.createdAt))
+	.limit(limitCount)
+	.offset(offsetCount);
 }

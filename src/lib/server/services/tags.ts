@@ -1,6 +1,6 @@
 import { db } from '../db/db';
-import { tags, taskTags, projects, projectMembers, tasks } from '../db/schema';
-import { eq, and, or, inArray, asc } from 'drizzle-orm';
+import { tags, taskTags, projects, projectMembers, tasks, auditLogs } from '../db/schema';
+import { eq, and, or, inArray, asc, isNull } from 'drizzle-orm';
 import type { Actor } from './users';
 
 async function checkProjectAccess(actor: Actor, projectId: string) {
@@ -46,7 +46,7 @@ export async function getProjectTags(actor: Actor, projectId: string) {
 	return await db.select().from(tags).where(
 		and(
 			eq(tags.projectId, projectId),
-			eq(tags.isDeleted, false)
+			isNull(tags.deletedAt)
 		)
 	).orderBy(asc(tags.name));
 }
@@ -61,6 +61,14 @@ export async function createTag(actor: Actor, projectId: string, name: string, c
 		color
 	}).returning();
 	
+	await db.insert(auditLogs).values({
+		groupId: actor.groupId,
+		projectId,
+		userId: actor.id,
+		actionType: 'tag_created',
+		details: { tagId: newTag.id, name, color }
+	});
+
 	return newTag;
 }
 
@@ -75,6 +83,14 @@ export async function updateTag(actor: Actor, tagId: string, name: string, color
 		updatedAt: new Date()
 	}).where(eq(tags.id, tagId)).returning();
 	
+	await db.insert(auditLogs).values({
+		groupId: actor.groupId,
+		projectId,
+		userId: actor.id,
+		actionType: 'tag_updated',
+		details: { tagId, name, color }
+	});
+
 	return updatedTag;
 }
 
@@ -84,9 +100,17 @@ export async function softDeleteTag(actor: Actor, tagId: string) {
 	await checkProjectAdmin(actor, projectId);
 	
 	await db.update(tags).set({
-		isDeleted: true,
+		deletedAt: new Date(),
 		updatedAt: new Date()
 	}).where(eq(tags.id, tagId));
+
+	await db.insert(auditLogs).values({
+		groupId: actor.groupId,
+		projectId,
+		userId: actor.id,
+		actionType: 'tag_deleted',
+		details: { tagId }
+	});
 }
 
 export async function attachTagToTask(actor: Actor, taskId: string, tagId: string) {

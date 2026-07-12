@@ -49,12 +49,14 @@ export async function removeUser(actor: Actor, targetUserId: string) {
 	}
 
 	// Make sure they can only remove users from their OWN group
-	await db.delete(users).where(
-		and(
-			eq(users.id, targetUserId),
-			eq(users.groupId, actor.groupId)
-		)
-	);
+	await db.update(users)
+		.set({ deletedAt: new Date() })
+		.where(
+			and(
+				eq(users.id, targetUserId),
+				eq(users.groupId, actor.groupId)
+			)
+		);
 }
 
 export async function changeUserRole(actor: Actor, targetUserId: string, newRole: string) {

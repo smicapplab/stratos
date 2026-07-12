@@ -19,7 +19,8 @@ export async function getCustomFields(actor: Actor, boardId: string) {
 			or(
 				isNull(customFieldDefinitions.boardId),
 				eq(customFieldDefinitions.boardId, boardId)
-			)
+			),
+			isNull(customFieldDefinitions.deletedAt)
 		)
 	);
 }
@@ -39,10 +40,12 @@ export async function createCustomField(actor: Actor, boardId: string, name: str
 export async function deleteCustomField(actor: Actor, fieldId: string) {
 	if (actor.role === 'Viewer') throw new Error('Unauthorized');
 	// In a real app we'd also check if the actor has admin rights on the board it belongs to
-	await db.delete(customFieldDefinitions).where(
-		and(
-			eq(customFieldDefinitions.id, fieldId),
-			eq(customFieldDefinitions.groupId, actor.groupId)
-		)
-	);
+	await db.update(customFieldDefinitions)
+		.set({ deletedAt: new Date() })
+		.where(
+			and(
+				eq(customFieldDefinitions.id, fieldId),
+				eq(customFieldDefinitions.groupId, actor.groupId)
+			)
+		);
 }

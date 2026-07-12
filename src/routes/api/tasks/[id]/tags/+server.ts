@@ -13,7 +13,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			id: tags.id,
 			name: tags.name,
 			color: tags.color,
-			isDeleted: tags.isDeleted
+			deletedAt: tags.deletedAt
 		}).from(taskTags)
 		  .innerJoin(tags, eq(taskTags.tagId, tags.id))
 		  .where(eq(taskTags.taskId, params.id));

@@ -2,7 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db/db';
 import { projects, projectMembers, users } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { addProjectMember, removeProjectMember, updateProjectVisibility, getAccessibleProjects } from '$lib/server/services/projects';
+import { addProjectMember, removeProjectMember, updateProjectVisibility, getAccessibleProjects, getProjectActivity } from '$lib/server/services/projects';
 import { sendProjectInviteEmail } from '$lib/server/services/email';
 import { getProjectTags } from '$lib/server/services/tags';
 
@@ -50,11 +50,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// Fetch Tags
 	const tags = await getProjectTags(locals.user!, projectId);
 
+	// Fetch Activity (initial 15)
+	const activity = await getProjectActivity(locals.user!, projectId, 15, 0);
+
 	return {
 		project,
 		members,
 		availableUsers,
-		tags
+		tags,
+		activity
 	};
 };
 

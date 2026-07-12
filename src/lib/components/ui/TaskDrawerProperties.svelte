@@ -48,11 +48,11 @@
 	let editTagColor = $state("blue");
 
 	let filteredTags = $derived(
-		projectTags.filter(t => !t.isDeleted && t.name.toLowerCase().includes(tagSearchQuery.toLowerCase()))
+		projectTags.filter(t => !t.deletedAt && t.name.toLowerCase().includes(tagSearchQuery.toLowerCase()))
 	);
 
 	let exactMatch = $derived(
-		projectTags.some(t => !t.isDeleted && t.name.toLowerCase() === tagSearchQuery.toLowerCase())
+		projectTags.some(t => !t.deletedAt && t.name.toLowerCase() === tagSearchQuery.toLowerCase())
 	);
 
 	async function toggleTag(tag: any) {
