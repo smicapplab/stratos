@@ -4,6 +4,7 @@ import { eq, and, isNull, sql, asc, desc } from 'drizzle-orm';
 import type { Actor } from './users';
 import { generateKeyBetween } from 'fractional-indexing';
 import { emitBoardEvent } from './events';
+import { notifyCommentAdded } from './notifications';
 
 /**
  * Creates a helpdesk ticket (task) for a group and ensures that the default 
@@ -322,6 +323,8 @@ export async function submitHelpdeskComment(actor: Actor, ticketId: string, cont
 		authorId: actor.id,
 		content: content.trim()
 	}).returning();
+
+	await notifyCommentAdded(actor.id, ticketId);
 
 	return newComment;
 }
