@@ -623,7 +623,12 @@
 		<div class="bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col border border-zinc-200 dark:border-zinc-800" onclick={e => e.stopPropagation()}>
 			<div class="p-4 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-900/50">
 				<h3 class="font-bold text-zinc-900 dark:text-white">Reorder Columns</h3>
-				<button class="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300" onclick={() => reorderModalOpen = false}>
+				<button 
+					class="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 min-h-[44px] min-w-[44px] flex items-center justify-center" 
+					onclick={() => reorderModalOpen = false}
+					aria-label="Close modal"
+					title="Close modal"
+				>
 					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
 				</button>
 			</div>
