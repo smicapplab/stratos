@@ -1,5 +1,5 @@
 import { db } from '../db/db';
-import { tasks, stages, users } from '../db/schema';
+import { tasks, stages, users, boards } from '../db/schema';
 import { eq, and, isNull, sql, lt, gt, inArray } from 'drizzle-orm';
 import type { Actor } from './users';
 
@@ -14,7 +14,20 @@ export async function getDashboardMetrics(actor: Actor, boardId?: string) {
 	const openTasksCondition = and(
 		baseCondition,
 		eq(tasks.assigneeId, actor.id),
-		inArray(tasks.stageId, db.select({ id: stages.id }).from(stages).where(eq(stages.isCompleted, false)))
+		inArray(
+			tasks.stageId,
+			db.select({ id: stages.id })
+				.from(stages)
+				.innerJoin(boards, eq(stages.boardId, boards.id))
+				.where(
+					and(
+						eq(stages.isCompleted, false),
+						eq(boards.groupId, actor.groupId),
+						isNull(stages.deletedAt),
+						isNull(boards.deletedAt)
+					)
+				)
+		)
 	);
 	const [openTasksRes] = await db.select({ count: sql<number>`cast(count(${tasks.id}) as int)` })
 		.from(tasks)
@@ -38,7 +51,20 @@ export async function getDashboardMetrics(actor: Actor, boardId?: string) {
 		baseCondition,
 		eq(tasks.assigneeId, actor.id),
 		gt(tasks.updatedAt, oneWeekAgo), // We use updatedAt as a proxy for completed at for now
-		inArray(tasks.stageId, db.select({ id: stages.id }).from(stages).where(eq(stages.isCompleted, true)))
+		inArray(
+			tasks.stageId,
+			db.select({ id: stages.id })
+				.from(stages)
+				.innerJoin(boards, eq(stages.boardId, boards.id))
+				.where(
+					and(
+						eq(stages.isCompleted, true),
+						eq(boards.groupId, actor.groupId),
+						isNull(stages.deletedAt),
+						isNull(boards.deletedAt)
+					)
+				)
+		)
 	);
 	const [completedThisWeekRes] = await db.select({ count: sql<number>`cast(count(${tasks.id}) as int)` })
 		.from(tasks)
@@ -67,7 +93,20 @@ export async function getDashboardCharts(actor: Actor, boardId?: string) {
 	.leftJoin(users, eq(tasks.assigneeId, users.id))
 	.where(and(
 		baseCondition,
-		inArray(tasks.stageId, db.select({ id: stages.id }).from(stages).where(eq(stages.isCompleted, false)))
+		inArray(
+			tasks.stageId,
+			db.select({ id: stages.id })
+				.from(stages)
+				.innerJoin(boards, eq(stages.boardId, boards.id))
+				.where(
+					and(
+						eq(stages.isCompleted, false),
+						eq(boards.groupId, actor.groupId),
+						isNull(stages.deletedAt),
+						isNull(boards.deletedAt)
+					)
+				)
+		)
 	))
 	.groupBy(tasks.assigneeId, users.name);
 
@@ -80,7 +119,14 @@ export async function getDashboardCharts(actor: Actor, boardId?: string) {
 	})
 	.from(tasks)
 	.innerJoin(stages, eq(tasks.stageId, stages.id))
-	.where(baseCondition)
+	.innerJoin(boards, eq(stages.boardId, boards.id))
+	.where(
+		and(
+			baseCondition,
+			isNull(stages.deletedAt),
+			isNull(boards.deletedAt)
+		)
+	)
 	.groupBy(stages.isCompleted);
 
 	return {

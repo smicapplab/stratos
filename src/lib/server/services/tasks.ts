@@ -13,9 +13,20 @@ export async function createTask(actor: Actor, stageId: string, title: string, p
 	}
 	const orderIndex = generateKeyBetween(previousIndex, nextIndex);
 	
-	// Get boardId from stage
-	const [stage] = await db.select({ boardId: stages.boardId }).from(stages).where(eq(stages.id, stageId));
-	const boardId = stage?.boardId;
+	// Get boardId from stage and validate group/soft-delete
+	const [stage] = await db.select({ boardId: stages.boardId })
+		.from(stages)
+		.innerJoin(boards, eq(stages.boardId, boards.id))
+		.where(
+			and(
+				eq(stages.id, stageId),
+				eq(boards.groupId, actor.groupId),
+				isNull(stages.deletedAt),
+				isNull(boards.deletedAt)
+			)
+		);
+	if (!stage) throw new Error('Stage not found or access denied');
+	const boardId = stage.boardId;
 
 	// Atomically claim the next task number via a locked read inside a transaction
 	// to prevent race conditions where two concurrent creates get the same number
@@ -52,16 +63,27 @@ export async function moveTask(actor: Actor, taskId: string, newStageId: string,
 		throw new Error('Unauthorized: Viewers cannot move tasks.');
 	}
 
-	const [oldTask] = await db.select({ stageId: tasks.stageId, boardId: tasks.boardId, assigneeId: tasks.assigneeId }).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)));
+	const [oldTask] = await db.select({ stageId: tasks.stageId, boardId: tasks.boardId, assigneeId: tasks.assigneeId }).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId), isNull(tasks.deletedAt)));
 	if (!oldTask) throw new Error('Task not found');
 
 	const orderIndex = generateKeyBetween(previousIndex, nextIndex);
 	
-	// Get new boardId if stage changed
+	// Get new boardId if stage changed and validate group/soft-delete
 	let boardId = oldTask.boardId;
 	if (oldTask.stageId !== newStageId) {
-		const [newStage] = await db.select({ boardId: stages.boardId }).from(stages).where(eq(stages.id, newStageId));
-		boardId = newStage?.boardId;
+		const [newStage] = await db.select({ boardId: stages.boardId })
+			.from(stages)
+			.innerJoin(boards, eq(stages.boardId, boards.id))
+			.where(
+				and(
+					eq(stages.id, newStageId),
+					eq(boards.groupId, actor.groupId),
+					isNull(stages.deletedAt),
+					isNull(boards.deletedAt)
+				)
+			);
+		if (!newStage) throw new Error('Stage not found or access denied');
+		boardId = newStage.boardId;
 	}
 
 	const [updated] = await db.update(tasks)
@@ -104,7 +126,7 @@ export async function softDeleteTask(actor: Actor, taskId: string) {
 	}
 }
 
-interface TaskUpdatePayload {
+export interface TaskUpdatePayload {
 	title?: string;
 	description?: string | null;
 	priority?: string;
@@ -112,6 +134,7 @@ interface TaskUpdatePayload {
 	dueDate?: Date | null;
 	checklists?: { id: string; text: string; completed: boolean }[];
 	stageId?: string;
+	boardId?: string;
 	parentTaskId?: string | null;
 	customFields?: Record<string, unknown>;
 }
@@ -129,8 +152,24 @@ export async function updateTask(actor: Actor, taskId: string, updates: TaskUpda
 		dueDate: tasks.dueDate,
 		boardId: tasks.boardId,
 		parentTaskId: tasks.parentTaskId
-	}).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)));
+	}).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId), isNull(tasks.deletedAt)));
 	if (!oldTask) throw new Error('Task not found');
+
+	if (updates.stageId && updates.stageId !== oldTask.stageId) {
+		const [newStage] = await db.select({ boardId: stages.boardId })
+			.from(stages)
+			.innerJoin(boards, eq(stages.boardId, boards.id))
+			.where(
+				and(
+					eq(stages.id, updates.stageId),
+					eq(boards.groupId, actor.groupId),
+					isNull(stages.deletedAt),
+					isNull(boards.deletedAt)
+				)
+			);
+		if (!newStage) throw new Error('Stage not found or access denied');
+		updates.boardId = newStage.boardId;
+	}
 
 	const [updatedTask] = await db.update(tasks)
 		.set(updates)
@@ -272,7 +311,7 @@ interface ActivityEntry {
 
 export async function getTaskActivity(taskId: string, actor: Actor): Promise<ActivityEntry[]> {
 	// Verify task belongs to actor's group
-	const [task] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)));
+	const [task] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId), isNull(tasks.deletedAt)));
 	if (!task) throw new Error('Task not found');
 
 	const commentsQuery = db.select({
@@ -351,9 +390,9 @@ export async function linkTasks(actor: Actor, sourceTaskId: string, targetTaskId
 	if (actor.role === 'Viewer') throw new Error('Unauthorized');
 	if (sourceTaskId === targetTaskId) throw new Error('Cannot link task to itself');
 
-	// Verify both tasks belong to the actor's group
-	const [sourceTask] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, sourceTaskId), eq(tasks.groupId, actor.groupId)));
-	const [targetTask] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, targetTaskId), eq(tasks.groupId, actor.groupId)));
+	// Verify both tasks belong to the actor's group and are not deleted
+	const [sourceTask] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, sourceTaskId), eq(tasks.groupId, actor.groupId), isNull(tasks.deletedAt)));
+	const [targetTask] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, targetTaskId), eq(tasks.groupId, actor.groupId), isNull(tasks.deletedAt)));
 	if (!sourceTask || !targetTask) throw new Error('Task not found');
 
 	if (linkType === 'blocks' || linkType === 'is_blocked_by') {
@@ -400,7 +439,7 @@ export async function removeTaskLink(actor: Actor, linkId: string) {
 
 export async function getTaskLinks(actor: Actor, taskId: string) {
 	// Verify the task belongs to the actor's group
-	const [task] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)));
+	const [task] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId), isNull(tasks.deletedAt)));
 	if (!task) throw new Error('Task not found');
 
 	// Links where task is source
@@ -413,7 +452,11 @@ export async function getTaskLinks(actor: Actor, taskId: string) {
 		direction: sql<string>`'out'`
 	}).from(taskLinks)
 	  .innerJoin(tasks, eq(taskLinks.targetTaskId, tasks.id))
-	  .where(and(eq(taskLinks.sourceTaskId, taskId), eq(tasks.groupId, actor.groupId)));
+	  .where(and(
+		eq(taskLinks.sourceTaskId, taskId),
+		eq(tasks.groupId, actor.groupId),
+		isNull(tasks.deletedAt)
+	  ));
 
 	// Links where task is target
 	const incoming = await db.select({
@@ -425,7 +468,11 @@ export async function getTaskLinks(actor: Actor, taskId: string) {
 		direction: sql<string>`'in'`
 	}).from(taskLinks)
 	  .innerJoin(tasks, eq(taskLinks.sourceTaskId, tasks.id))
-	  .where(and(eq(taskLinks.targetTaskId, taskId), eq(tasks.groupId, actor.groupId)));
+	  .where(and(
+		eq(taskLinks.targetTaskId, taskId),
+		eq(tasks.groupId, actor.groupId),
+		isNull(tasks.deletedAt)
+	  ));
 
 	return [...outgoing, ...incoming];
 }

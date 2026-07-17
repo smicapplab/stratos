@@ -39,7 +39,8 @@
 	];
 
 	import { invalidateAll } from '$app/navigation';
-	import { Pencil, Trash2 } from 'lucide-svelte';
+	import { Pencil } from 'lucide-svelte';
+	import { toastStore } from '$lib/stores/ui.svelte';
 
 	let showTagDropdown = $state(false);
 	let tagSearchQuery = $state("");
@@ -117,7 +118,7 @@
 		}
 	}
 
-	function startEdit(tag: any, e: MouseEvent) {
+	function startEdit(tag: any, e: Event) {
 		e.stopPropagation();
 		editTagId = tag.id;
 		editTagName = tag.name;

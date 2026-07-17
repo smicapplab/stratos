@@ -35,12 +35,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 		isNull(tasks.deletedAt)
 	));
 
-	// We'll group them on the frontend, but we need all users in the group for assignee avatars
 	const groupUsers = await db.select({
 		id: users.id,
 		name: users.name,
 		role: users.role
-	}).from(users).where(eq(users.groupId, locals.user.groupId));
+	}).from(users).where(
+		and(
+			eq(users.groupId, locals.user.groupId),
+			isNull(users.deletedAt)
+		)
+	);
 
 	return {
 		tasks: userTasks,

@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db/db';
 import { users } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import * as argon2 from 'argon2';
 import { lucia } from '$lib/server/auth/lucia';
 
@@ -14,24 +14,26 @@ const loginAttempts = new Map<string, { count: number; firstAttempt: number }>()
 
 function checkRateLimit(ip: string): boolean {
 	const now = Date.now();
+	
+	// Lazy cleanup of all expired entries to prevent memory growth
+	for (const [key, entry] of loginAttempts.entries()) {
+		if (now - entry.firstAttempt > LOGIN_WINDOW_MS) {
+			loginAttempts.delete(key);
+		}
+	}
+
 	const entry = loginAttempts.get(ip);
-	if (!entry || now - entry.firstAttempt > LOGIN_WINDOW_MS) {
+	if (!entry) {
+		loginAttempts.set(ip, { count: 1, firstAttempt: now });
+		return true;
+	}
+	if (now - entry.firstAttempt > LOGIN_WINDOW_MS) {
 		loginAttempts.set(ip, { count: 1, firstAttempt: now });
 		return true;
 	}
 	entry.count++;
 	return entry.count <= LOGIN_MAX_ATTEMPTS;
 }
-
-// Periodic cleanup to prevent unbounded memory growth
-setInterval(() => {
-	const now = Date.now();
-	for (const [ip, entry] of loginAttempts) {
-		if (now - entry.firstAttempt > LOGIN_WINDOW_MS) {
-			loginAttempts.delete(ip);
-		}
-	}
-}, LOGIN_WINDOW_MS);
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.session) {
@@ -59,14 +61,19 @@ export const actions: Actions = {
 		const [user] = await db.select({
 			id: users.id,
 			hashedPassword: users.hashedPassword
-		}).from(users).where(eq(users.email, email));
+		}).from(users).where(and(eq(users.email, email), isNull(users.deletedAt)));
 		if (!user || !user.hashedPassword) {
 			// Do not leak if user exists or not, standard security practice
 			return fail(400, { error: 'Invalid email or password' });
 		}
 
 		// Verify password
-		const validPassword = await argon2.verify(user.hashedPassword, password);
+		let validPassword = false;
+		try {
+			validPassword = await argon2.verify(user.hashedPassword, password);
+		} catch (e) {
+			return fail(400, { error: 'Invalid email or password' });
+		}
 		if (!validPassword) {
 			return fail(400, { error: 'Invalid email or password' });
 		}
@@ -81,7 +88,7 @@ export const actions: Actions = {
 		const sessionCookie = lucia.createSessionCookie(session.id);
 		
 		cookies.set(sessionCookie.name, sessionCookie.value, {
-			path: '.',
+			path: '/',
 			...sessionCookie.attributes
 		});
 

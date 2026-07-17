@@ -3,7 +3,7 @@
 	import { browser } from '$app/environment';
 
 	let { data, form } = $props();
-	let profileUser = $derived(data.profileUser);
+
 	let theme = $state(data.profileUser.theme || 'system');
 	let isSaving = $state(false);
 

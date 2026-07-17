@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { User, Shield, Sliders } from 'lucide-svelte';
 
-	let { data, children } = $props();
+	let { children } = $props();
 
 	const navItems = [
 		{ name: 'Profile', href: '/settings/profile', icon: User },

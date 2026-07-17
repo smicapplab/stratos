@@ -113,7 +113,7 @@
 	let customFields = $derived(data.customFields);
 	
 	// Create a reactive local copy of tasks mapped by stageId so we can mutate them on drag/drop
-	let columns = $state<{id: string, name: string, isCompleted: boolean, dragDisabled?: boolean, items: any[]}[]>([]);
+	let columns = $state<{id: string, name: string, isCompleted: boolean, orderIndex: string, dragDisabled?: boolean, items: any[]}[]>([]);
 
 	// Sync server data to local mutable state whenever the server data updates
 	$effect(() => {

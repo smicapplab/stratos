@@ -1,6 +1,6 @@
 import { db } from '../db/db';
 import { stages, boards } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import type { Actor } from './users';
 import { generateKeyBetween } from 'fractional-indexing';
 import { emitBoardEvent } from './events';
@@ -11,7 +11,7 @@ export async function createStage(actor: Actor, boardId: string, name: string, p
 	}
 
 	const [board] = await db.select({ id: boards.id }).from(boards).where(
-		and(eq(boards.id, boardId), eq(boards.groupId, actor.groupId))
+		and(eq(boards.id, boardId), eq(boards.groupId, actor.groupId), isNull(boards.deletedAt))
 	);
 	if (!board) throw new Error('Board not found or unauthorized.');
 
@@ -41,7 +41,12 @@ export async function getBoardStages(actor: Actor, boardId: string) {
 		boardId: stages.boardId,
 		isCompleted: stages.isCompleted,
 		orderIndex: stages.orderIndex
-	}).from(stages).where(eq(stages.boardId, boardId)).orderBy(stages.orderIndex);
+	}).from(stages).where(
+		and(
+			eq(stages.boardId, boardId),
+			isNull(stages.deletedAt)
+		)
+	).orderBy(stages.orderIndex);
 }
 
 export async function updateStage(actor: Actor, stageId: string, updates: Partial<{ name: string, isCompleted: boolean }>) {
@@ -49,17 +54,17 @@ export async function updateStage(actor: Actor, stageId: string, updates: Partia
 		throw new Error('Unauthorized: Only Admins can manage stages.');
 	}
 
-	const [stage] = await db.select({ boardId: stages.boardId }).from(stages).where(eq(stages.id, stageId));
+	const [stage] = await db.select({ boardId: stages.boardId }).from(stages).where(and(eq(stages.id, stageId), isNull(stages.deletedAt)));
 	if (!stage) throw new Error('Stage not found');
 
 	const [board] = await db.select({ id: boards.id }).from(boards).where(
-		and(eq(boards.id, stage.boardId), eq(boards.groupId, actor.groupId))
+		and(eq(boards.id, stage.boardId), eq(boards.groupId, actor.groupId), isNull(boards.deletedAt))
 	);
 	if (!board) throw new Error('Board not found or unauthorized.');
 
 	const [updated] = await db.update(stages)
 		.set(updates)
-		.where(eq(stages.id, stageId))
+		.where(and(eq(stages.id, stageId), isNull(stages.deletedAt)))
 		.returning();
 
 	emitBoardEvent(stage.boardId, 'stage_updated', { stage: updated });
@@ -72,11 +77,11 @@ export async function moveStage(actor: Actor, stageId: string, previousIndex: st
 		throw new Error('Unauthorized: Only Admins can manage stages.');
 	}
 
-	const [stage] = await db.select({ boardId: stages.boardId }).from(stages).where(eq(stages.id, stageId));
+	const [stage] = await db.select({ boardId: stages.boardId }).from(stages).where(and(eq(stages.id, stageId), isNull(stages.deletedAt)));
 	if (!stage) throw new Error('Stage not found');
 
 	const [board] = await db.select({ id: boards.id }).from(boards).where(
-		and(eq(boards.id, stage.boardId), eq(boards.groupId, actor.groupId))
+		and(eq(boards.id, stage.boardId), eq(boards.groupId, actor.groupId), isNull(boards.deletedAt))
 	);
 	if (!board) throw new Error('Board not found or unauthorized.');
 
@@ -84,7 +89,7 @@ export async function moveStage(actor: Actor, stageId: string, previousIndex: st
 	
 	const [updated] = await db.update(stages)
 		.set({ orderIndex })
-		.where(eq(stages.id, stageId))
+		.where(and(eq(stages.id, stageId), isNull(stages.deletedAt)))
 		.returning();
 
 	emitBoardEvent(stage.boardId, 'stage_moved', { stage: updated });
