@@ -3,6 +3,7 @@ import { comments, tasks } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { json } from '@sveltejs/kit';
 import { getTaskActivity } from '$lib/server/services/tasks';
+import { notifyCommentAdded } from '$lib/server/services/notifications';
 
 import type { RequestHandler } from './$types';
 
@@ -33,6 +34,8 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		content: body.content,
 		parentCommentId: body.parentCommentId || null
 	}).returning();
+
+	await notifyCommentAdded(locals.user.id, taskId);
 
 	return json(newComment);
 }

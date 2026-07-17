@@ -1,5 +1,6 @@
 import { error, fail } from '@sveltejs/kit';
 import { getHelpdeskTicket, submitHelpdeskComment } from '$lib/server/services/helpdesk';
+import { markTaskNotificationsAsRead } from '$lib/server/services/notifications';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -8,6 +9,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	try {
+		// Mark task notifications as read for this user
+		await markTaskNotificationsAsRead(locals.user, params.id);
+
 		const data = await getHelpdeskTicket(locals.user, params.id);
 		return {
 			ticket: data.task,
