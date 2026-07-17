@@ -4,7 +4,10 @@
 
 	let { data, form } = $props();
 
-	let theme = $state(data.profileUser.theme || 'system');
+	let theme = $state('system');
+	$effect(() => {
+		theme = data.profileUser.theme || 'system';
+	});
 	let isSaving = $state(false);
 
 	// When theme changes in the form, apply it instantly to UI for a better UX

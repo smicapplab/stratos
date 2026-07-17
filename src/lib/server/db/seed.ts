@@ -7,13 +7,24 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgres://postgres:password@localhost:5432/stratos',
 });
 const db = drizzle(pool);
-import { groups, users, projects, projectMembers, boards, stages, tasks } from './schema';
+import { groups, users, projects, projectMembers, boards, stages, tasks, comments, auditLogs } from './schema';
 import crypto from 'crypto';
 const uuidv4 = () => crypto.randomUUID();
 import argon2 from 'argon2';
 import { generateKeyBetween } from 'fractional-indexing';
 
 async function main() {
+	console.log('Clearing existing data...');
+	await db.delete(comments);
+	await db.delete(auditLogs);
+	await db.delete(tasks);
+	await db.delete(stages);
+	await db.delete(boards);
+	await db.delete(projectMembers);
+	await db.delete(projects);
+	await db.delete(users);
+	await db.delete(groups);
+
 	console.log('Seeding data...');
 
 	const passwordHash = await argon2.hash('password123');
@@ -88,6 +99,76 @@ async function main() {
 	await db.insert(tasks).values([
 		{ id: uuidv4(), stageId: s12, boardId: board1Id, groupId, title: 'Header Component', priority: 'Medium', orderIndex: generateKeyBetween(null, null), parentTaskId: t2, assigneeId: userId2 },
 		{ id: uuidv4(), stageId: s12, boardId: board1Id, groupId, title: 'Sidebar Component', priority: 'Medium', orderIndex: generateKeyBetween(generateKeyBetween(null, null), null), parentTaskId: t2, assigneeId: userId1 }
+	]).onConflictDoNothing();
+
+	// Create Helpdesk Private Project
+	const supportProjectId = uuidv4();
+	await db.insert(projects).values({
+		id: supportProjectId,
+		groupId,
+		name: 'System Support & Tickets',
+		visibility: 'Private'
+	}).onConflictDoNothing();
+
+	// Add Alice Admin and Charlie Developer to Support Project
+	await db.insert(projectMembers).values([
+		{ projectId: supportProjectId, userId: adminId, role: 'Admin' },
+		{ projectId: supportProjectId, userId: userId2, role: 'Member' } // Charlie Developer
+	]).onConflictDoNothing();
+
+	// Create Helpdesk Board
+	const supportBoardId = uuidv4();
+	await db.insert(boards).values({
+		id: supportBoardId,
+		projectId: supportProjectId,
+		groupId,
+		name: 'Helpdesk Tickets',
+		prefix: 'TIC'
+	}).onConflictDoNothing();
+
+	// Create Helpdesk Stages
+	const supportStageIncoming = uuidv4();
+	const supportStageProgress = uuidv4();
+	const supportStageResolved = uuidv4();
+
+	await db.insert(stages).values([
+		{
+			id: supportStageIncoming,
+			boardId: supportBoardId,
+			name: 'Incoming',
+			orderIndex: generateKeyBetween(null, null)
+		},
+		{
+			id: supportStageProgress,
+			boardId: supportBoardId,
+			name: 'In Progress',
+			orderIndex: generateKeyBetween(generateKeyBetween(null, null), null)
+		},
+		{
+			id: supportStageResolved,
+			boardId: supportBoardId,
+			name: 'Resolved',
+			orderIndex: generateKeyBetween(generateKeyBetween(generateKeyBetween(null, null), null), null),
+			isCompleted: true
+		}
+	]).onConflictDoNothing();
+
+	// Seed support tickets (Bob Builder is the reporter)
+	await db.insert(tasks).values([
+		{
+			id: uuidv4(),
+			stageId: supportStageIncoming,
+			boardId: supportBoardId,
+			groupId,
+			title: '[Bug] Cannot load dashboards on mobile',
+			description: 'When visiting dashboards on a mobile browser, it spins indefinitely. Tested on iOS Safari.',
+			priority: 'High',
+			orderIndex: generateKeyBetween(null, null),
+			customFields: {
+				reporterId: userId1,
+				ticketType: 'Bug'
+			}
+		}
 	]).onConflictDoNothing();
 
 	console.log('Seed completed successfully!');
