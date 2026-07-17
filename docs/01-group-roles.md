@@ -58,4 +58,17 @@ When a user is soft-deleted, their email remains in the system to preserve audit
 - An `Admin` can submit the email through the invitation flow.
 - The service uses a database upsert (`onConflictDoUpdate` on the email field) to reset `deletedAt` to `null`, update the user's role, and re-assign the group ID, cleanly restoring the user account without violating unique key constraints.
 
+## Helpdesk Scoped Support Board Isolation
 
+To allow standard users (`Member` / `Viewer`) to file and track support issues without granting them visibility into other company support requests or private board tasks, we enforce a specialized Helpdesk access pattern.
+
+### Scoping Rules
+*   **The Support Project:** A private project named `"System Support & Tickets"` is created per group.
+*   **Permissions Matrix:**
+    *   **Admins & Project Members (Developers):** Are invited as members of the private project. They have full access to view, update, and manage the board, columns, assignments, and all support tickets.
+    *   **Standard Users:** Have no access to the `"System Support & Tickets"` project.
+*   **User Portal Access Guard:**
+    *   To query a ticket (task) or submit a comment inside the Helpdesk Portal (`/helpdesk/tickets/[id]`), the service verifies:
+        1.  The user is a Group Admin OR a member of the `"System Support & Tickets"` project.
+        2.  Or, the task's JSONB `customFields` contains `reporterId` equal to the user's ID.
+    *   Any other access is rejected with a `403 Access Denied` error.
