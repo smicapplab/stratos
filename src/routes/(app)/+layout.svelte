@@ -19,7 +19,9 @@
 		Sun,
 		Moon,
 		PanelLeft,
-		LayoutDashboard
+		LayoutDashboard,
+		LifeBuoy,
+		User
 	} from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 
@@ -186,6 +188,7 @@
 	// Derived store to check active routes
 	let currentPath = $derived($page.url.pathname);
 	let isCommandPaletteOpen = $state(false);
+	let isUserMenuOpen = $state(false);
 </script>
 
 <div class="flex h-screen bg-zinc-50 dark:bg-zinc-950 overflow-hidden font-sans text-zinc-900 dark:text-zinc-100">
@@ -375,23 +378,55 @@
 		</nav>
 
 		<!-- User Footer -->
-		<div class="p-4 border-t border-zinc-200/50 dark:border-zinc-800/50">
-			<div class="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors group relative cursor-pointer">
-				<a href="/settings/profile" class="flex items-center gap-3 truncate flex-1" title="Go to My Profile">
-					<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold shadow-inner flex-shrink-0">
-						{user?.name?.charAt(0).toUpperCase()}
-					</div>
-					<div class="truncate">
-						<div class="text-sm font-medium truncate">{user?.name}</div>
-						<div class="text-xs text-zinc-500 dark:text-zinc-400 truncate">{user?.role}</div>
-					</div>
-				</a>
-				<form method="POST" action="/api/logout">
-					<button type="submit" class="text-zinc-400 hover:text-red-500 transition-colors ml-2" title="Sign out">
-						<LogOut class="w-4 h-4" />
-					</button>
-				</form>
-			</div>
+		<div class="p-4 border-t border-zinc-200/50 dark:border-zinc-800/50 relative user-menu-container">
+			{#if isUserMenuOpen}
+				<div 
+					class="absolute bottom-full left-4 right-4 mb-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg py-1.5 z-50 overflow-hidden"
+				>
+					<a 
+						href="/settings/profile" 
+						class="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors min-h-[44px]"
+						onclick={() => isUserMenuOpen = false}
+					>
+						<User class="w-4 h-4 text-zinc-500" />
+						<span>My Profile</span>
+					</a>
+					<a 
+						href="/helpdesk/tickets" 
+						class="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors min-h-[44px]"
+						onclick={() => isUserMenuOpen = false}
+					>
+						<LifeBuoy class="w-4 h-4 text-zinc-500" />
+						<span>Helpdesk Portal</span>
+					</a>
+					<hr class="border-zinc-200 dark:border-zinc-800 my-1" />
+					<form method="POST" action="/api/logout">
+						<button 
+							type="submit" 
+							class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors min-h-[44px]"
+							onclick={() => isUserMenuOpen = false}
+						>
+							<LogOut class="w-4 h-4" />
+							<span>Sign Out</span>
+						</button>
+					</form>
+				</div>
+			{/if}
+
+			<button 
+				onclick={() => isUserMenuOpen = !isUserMenuOpen}
+				class="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors group cursor-pointer text-left min-h-[44px]"
+				title="Toggle User Menu"
+			>
+				<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold shadow-inner flex-shrink-0">
+					{user?.name?.charAt(0).toUpperCase()}
+				</div>
+				<div class="truncate flex-1">
+					<div class="text-sm font-medium truncate text-zinc-900 dark:text-zinc-100">{user?.name}</div>
+					<div class="text-xs text-zinc-500 dark:text-zinc-400 truncate">{user?.role}</div>
+				</div>
+				<ChevronRight class="w-4 h-4 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-transform duration-200 {isUserMenuOpen ? '-rotate-90' : 'rotate-90'}" />
+			</button>
 		</div>
 	</aside>
 
@@ -525,6 +560,12 @@
 
 <CommandPalette bind:isOpen={isCommandPaletteOpen} />
 <CreateBoardModal bind:isOpen={isCreatingBoard} projects={projects} selectedProjectId={selectedProjectIdForBoard} />
+
+<svelte:window onclick={(e) => {
+	if (isUserMenuOpen && e.target && !(e.target as Element).closest('.user-menu-container')) {
+		isUserMenuOpen = false;
+	}
+}} />
 
 <style>
 	/* Subtle custom scrollbar for the workspace */

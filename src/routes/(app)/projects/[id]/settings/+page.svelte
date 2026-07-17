@@ -83,7 +83,10 @@
 	let additionalActivity = $state<any[]>([]);
 	let allActivity = $derived([...activity, ...additionalActivity]);
 	let isLoadingMore = $state(false);
-	let hasMore = $state(data.activity.length === 15);
+	let hasMore = $state(false);
+	$effect(() => {
+		hasMore = data.activity.length === 15;
+	});
 
 	async function loadMoreActivity() {
 		if (isLoadingMore || !hasMore) return;
