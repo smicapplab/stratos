@@ -2,7 +2,7 @@ import { db } from '$lib/server/db/db';
 import { boards, users } from '$lib/server/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { getBoardStages, createStage, updateStage, moveStage } from '$lib/server/services/stages';
-import { getBoardTasks, createTask, moveTask, softDeleteTask, updateTask } from '$lib/server/services/tasks';
+import { getBoardTasks, createTask, moveTask, softDeleteTask, updateTask, type TaskUpdatePayload } from '$lib/server/services/tasks';
 import { updateBoard, deleteBoard } from '$lib/server/services/boards';
 import { getCustomFields, createCustomField, deleteCustomField } from '$lib/server/services/customFields';
 import { getProjectTags } from '$lib/server/services/tags';
@@ -43,7 +43,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		id: users.id,
 		name: users.name,
 		role: users.role
-	}).from(users).where(eq(users.groupId, actor.groupId));
+	}).from(users).where(
+		and(
+			eq(users.groupId, actor.groupId),
+			isNull(users.deletedAt)
+		)
+	);
 
 	// Fetch Custom Fields
 	const customFields = await getCustomFields(actor, boardId);
@@ -74,8 +79,9 @@ export const actions: Actions = {
 		try {
 			await createStage(locals.user!, params.id, name, previousIndex, nextIndex);
 			return { success: true };
-		} catch (e: any) {
-			return fail(403, { error: e.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	},
 
@@ -90,16 +96,18 @@ export const actions: Actions = {
 				...(projectId ? { projectId } : {})
 			});
 			return { success: true };
-		} catch (err: any) {
-			return fail(400, { error: err.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(400, { error: error.message });
 		}
 	},
 
 	deleteBoard: async ({ params, locals }) => {
 		try {
 			await deleteBoard(locals.user!, params.id);
-		} catch (err: any) {
-			return fail(400, { error: err.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(400, { error: error.message });
 		}
 		throw redirect(303, '/');
 	},
@@ -118,8 +126,9 @@ export const actions: Actions = {
 		try {
 			await moveStage(locals.user!, stageId, previousIndex, nextIndex);
 			return { success: true };
-		} catch (err: any) {
-			return fail(400, { error: err.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(400, { error: error.message });
 		}
 	},
 	updateStage: async ({ request, locals }) => {
@@ -136,8 +145,9 @@ export const actions: Actions = {
 				...(data.has('isCompleted') ? { isCompleted } : {})
 			});
 			return { success: true };
-		} catch (err: any) {
-			return fail(400, { error: err.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(400, { error: error.message });
 		}
 	},
 	createTask: async ({ request, locals }) => {
@@ -153,8 +163,9 @@ export const actions: Actions = {
 		try {
 			await createTask(locals.user!, stageId, title, previousIndex, nextIndex, parentTaskId);
 			return { success: true };
-		} catch (e: any) {
-			return fail(403, { error: e.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	},
 
@@ -170,8 +181,9 @@ export const actions: Actions = {
 		try {
 			await moveTask(locals.user!, taskId, stageId, previousIndex, nextIndex);
 			return { success: true };
-		} catch (e: any) {
-			return fail(403, { error: e.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	},
 
@@ -184,8 +196,9 @@ export const actions: Actions = {
 		try {
 			await softDeleteTask(locals.user!, taskId);
 			return { success: true };
-		} catch (e: any) {
-			return fail(403, { error: e.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	},
 
@@ -199,22 +212,26 @@ export const actions: Actions = {
 		const dueDate = data.get('dueDate')?.toString() || null;
 		const stageId = data.get('stageId')?.toString();
 		
-		let checklists = [];
+		let checklists: { id: string; text: string; completed: boolean }[] = [];
 		try {
 			checklists = JSON.parse(data.get('checklists')?.toString() || '[]');
-		} catch (e) {}
+		} catch (err) {
+			// ignore parse error
+		}
 
-		let customFields = {};
+		let customFields: Record<string, unknown> = {};
 		try {
 			if (data.has('customFields')) {
 				customFields = JSON.parse(data.get('customFields')?.toString() || '{}');
 			}
-		} catch (e) {}
+		} catch (err) {
+			// ignore parse error
+		}
 
 		if (!taskId || !title) return fail(400, { error: 'Task ID and Title are required' });
 
 		try {
-			const updatePayload: any = { 
+			const updatePayload: TaskUpdatePayload = { 
 				title, description, priority, 
 				assigneeId, 
 				dueDate: dueDate ? new Date(dueDate) : null,
@@ -226,8 +243,9 @@ export const actions: Actions = {
 			}
 			await updateTask(locals.user!, taskId, updatePayload);
 			return { success: true };
-		} catch (e: any) {
-			return fail(403, { error: e.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	},
 
@@ -241,8 +259,9 @@ export const actions: Actions = {
 		try {
 			await updateTask(locals.user!, taskId, { parentTaskId: parentTaskId === '' ? null : parentTaskId });
 			return { success: true };
-		} catch (e: any) {
-			return fail(403, { error: e.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	},
 
@@ -251,18 +270,21 @@ export const actions: Actions = {
 		const name = data.get('name')?.toString();
 		const type = data.get('type')?.toString();
 		
-		let options = [];
+		let options: string[] = [];
 		try {
 			options = JSON.parse(data.get('options')?.toString() || '[]');
-		} catch (e) {}
+		} catch (err) {
+			// ignore parse error
+		}
 
 		if (!name || !type) return fail(400, { error: 'Name and type are required' });
 
 		try {
 			await createCustomField(locals.user!, params.id, name, type, options);
 			return { success: true };
-		} catch (e: any) {
-			return fail(403, { error: e.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	},
 
@@ -274,8 +296,9 @@ export const actions: Actions = {
 		try {
 			await deleteCustomField(locals.user!, fieldId);
 			return { success: true };
-		} catch (e: any) {
-			return fail(403, { error: e.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	}
 };

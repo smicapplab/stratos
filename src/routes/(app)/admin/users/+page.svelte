@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { modalStore } from '$lib/stores/ui.svelte';
 
 	let { data, form } = $props();
 	let users = $derived(data.users);
@@ -98,7 +99,22 @@
 								{#if user.id !== currentUser?.id}
 									<form method="POST" action="?/remove" use:enhance>
 										<input type="hidden" name="userId" value={user.id} />
-										<button type="submit" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium px-3 py-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+										<button 
+											type="button" 
+											onclick={(e) => {
+												modalStore.show({
+													title: 'Remove User',
+													description: `Are you sure you want to remove ${user.name} from the workspace?`,
+													confirmText: 'Remove User',
+													destructive: true,
+													onConfirm: () => {
+														const form = e.currentTarget.closest('form');
+														form?.requestSubmit();
+													}
+												});
+											}}
+											class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium px-3 py-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+										>
 											Remove
 										</button>
 									</form>

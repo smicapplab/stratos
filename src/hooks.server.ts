@@ -10,17 +10,29 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	const { session, user } = await lucia.validateSession(sessionId);
+	if (user && user.deletedAt) {
+		await lucia.invalidateSession(sessionId);
+		const sessionCookie = lucia.createBlankSessionCookie();
+		event.cookies.set(sessionCookie.name, sessionCookie.value, {
+			path: '/',
+			...sessionCookie.attributes
+		});
+		event.locals.user = null;
+		event.locals.session = null;
+		return resolve(event);
+	}
+
 	if (session && session.fresh) {
 		const sessionCookie = lucia.createSessionCookie(session.id);
 		event.cookies.set(sessionCookie.name, sessionCookie.value, {
-			path: '.',
+			path: '/',
 			...sessionCookie.attributes
 		});
 	}
 	if (!session) {
 		const sessionCookie = lucia.createBlankSessionCookie();
 		event.cookies.set(sessionCookie.name, sessionCookie.value, {
-			path: '.',
+			path: '/',
 			...sessionCookie.attributes
 		});
 	}

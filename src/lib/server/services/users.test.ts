@@ -15,6 +15,7 @@ vi.mock('../db/db', () => ({
 	db: {
 		insert: vi.fn().mockReturnThis(),
 		values: vi.fn().mockReturnThis(),
+		onConflictDoUpdate: vi.fn().mockReturnThis(),
 		returning: vi.fn().mockResolvedValue([{ id: 'new-user-id' }]),
 		update: vi.fn().mockReturnThis(),
 		set: vi.fn().mockReturnThis(),

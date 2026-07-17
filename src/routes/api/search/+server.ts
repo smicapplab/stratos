@@ -31,6 +31,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	.where(and(
 		eq(tasks.groupId, groupId), 
 		isNull(tasks.deletedAt),
+		or(isNull(tasks.boardId), isNull(boards.deletedAt)),
 		or(
 			ilike(tasks.title, searchPattern),
 			ilike(sql`concat(${boards.prefix}, '-', ${tasks.number})`, searchPattern)
@@ -40,12 +41,24 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	const matchingBoards = await db.select({
 		id: boards.id,
 		name: boards.name
-	}).from(boards).where(and(eq(boards.groupId, groupId), ilike(boards.name, searchPattern))).limit(5);
+	}).from(boards).where(
+		and(
+			eq(boards.groupId, groupId),
+			isNull(boards.deletedAt),
+			ilike(boards.name, searchPattern)
+		)
+	).limit(5);
 
 	const matchingProjects = await db.select({
 		id: projects.id,
 		name: projects.name
-	}).from(projects).where(and(eq(projects.groupId, groupId), ilike(projects.name, searchPattern))).limit(5);
+	}).from(projects).where(
+		and(
+			eq(projects.groupId, groupId),
+			isNull(projects.deletedAt),
+			ilike(projects.name, searchPattern)
+		)
+	).limit(5);
 
 	return json({
 		tasks: matchingTasks,

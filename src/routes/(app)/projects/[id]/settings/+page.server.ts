@@ -1,7 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db/db';
 import { projects, projectMembers, users } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { addProjectMember, removeProjectMember, updateProjectVisibility, getAccessibleProjects, getProjectActivity } from '$lib/server/services/projects';
 import { sendProjectInviteEmail } from '$lib/server/services/email';
 import { getProjectTags } from '$lib/server/services/tags';
@@ -23,7 +23,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		visibility: projects.visibility,
 		groupId: projects.groupId,
 		createdAt: projects.createdAt
-	}).from(projects).where(and(eq(projects.id, projectId), eq(projects.groupId, locals.user!.groupId)));
+	}).from(projects).where(
+		and(
+			eq(projects.id, projectId),
+			eq(projects.groupId, locals.user!.groupId),
+			isNull(projects.deletedAt)
+		)
+	);
 
 	// Fetch members with user details
 	const members = await db.select({
@@ -34,14 +40,24 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	})
 	.from(projectMembers)
 	.innerJoin(users, eq(users.id, projectMembers.userId))
-	.where(eq(projectMembers.projectId, projectId));
+	.where(
+		and(
+			eq(projectMembers.projectId, projectId),
+			isNull(users.deletedAt)
+		)
+	);
 
 	// Fetch group users for the invite dropdown
 	const groupUsers = await db.select({
 		id: users.id,
 		name: users.name,
 		email: users.email
-	}).from(users).where(eq(users.groupId, locals.user!.groupId));
+	}).from(users).where(
+		and(
+			eq(users.groupId, locals.user!.groupId),
+			isNull(users.deletedAt)
+		)
+	);
 
 	// Filter out users who are already members
 	const memberIds = new Set(members.map(m => m.userId));
@@ -70,8 +86,9 @@ export const actions: Actions = {
 		try {
 			await updateProjectVisibility(locals.user!, params.id, visibility);
 			return { success: true };
-		} catch (e: any) {
-			return fail(403, { error: e.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	},
 
@@ -83,7 +100,7 @@ export const actions: Actions = {
 		if (!email) return fail(400, { error: 'Email is required' });
 
 		try {
-			// Find existing user in group
+			// Find existing user in group (ensuring not soft-deleted)
 			let [targetUser] = await db.select({
 				id: users.id,
 				email: users.email,
@@ -93,7 +110,8 @@ export const actions: Actions = {
 			}).from(users).where(
 				and(
 					eq(users.email, email),
-					eq(users.groupId, locals.user!.groupId)
+					eq(users.groupId, locals.user!.groupId),
+					isNull(users.deletedAt)
 				)
 			);
 
@@ -118,8 +136,9 @@ export const actions: Actions = {
 			}
 
 			return { success: true };
-		} catch (e: any) {
-			return fail(403, { error: e.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	},
 
@@ -138,9 +157,11 @@ export const actions: Actions = {
 				throw redirect(303, '/');
 			}
 			return { success: true };
-		} catch (e: any) {
-			if (e.status === 303) throw e;
-			return fail(403, { error: e.message });
+		} catch (err) {
+			// SvelteKit redirect uses a special error/response structure
+			if (err && typeof err === 'object' && 'status' in err && err.status === 303) throw err;
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	},
 
@@ -154,8 +175,9 @@ export const actions: Actions = {
 		try {
 			await addProjectMember(locals.user!, params.id, userId, role);
 			return { success: true };
-		} catch (e: any) {
-			return fail(403, { error: e.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	}
 };

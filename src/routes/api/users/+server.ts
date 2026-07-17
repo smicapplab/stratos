@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db/db';
 import { users } from '$lib/server/db/schema';
-import { eq, and, ilike } from 'drizzle-orm';
+import { eq, and, ilike, isNull } from 'drizzle-orm';
 import { json } from '@sveltejs/kit';
 import { escapeLikePattern } from '$lib/utils';
 
@@ -11,7 +11,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	const q = url.searchParams.get('q');
 	
-	const conditions = [eq(users.groupId, locals.user.groupId)];
+	const conditions = [
+		eq(users.groupId, locals.user.groupId),
+		isNull(users.deletedAt)
+	];
 	if (q && q.trim().length > 0) {
 		conditions.push(ilike(users.name, `%${escapeLikePattern(q)}%`));
 	}

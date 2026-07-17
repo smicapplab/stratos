@@ -43,7 +43,8 @@ export async function deleteBoard(actor: Actor, boardId: string) {
 	const [board] = await db.select({ creatorId: boards.creatorId, projectId: boards.projectId }).from(boards).where(
 		and(
 			eq(boards.id, boardId),
-			eq(boards.groupId, actor.groupId)
+			eq(boards.groupId, actor.groupId),
+			isNull(boards.deletedAt)
 		)
 	);
 	if (!board) throw new Error('Board not found');
@@ -57,7 +58,8 @@ export async function deleteBoard(actor: Actor, boardId: string) {
 		.where(
 			and(
 				eq(boards.id, boardId),
-				eq(boards.groupId, actor.groupId)
+				eq(boards.groupId, actor.groupId),
+				isNull(boards.deletedAt)
 			)
 		);
 
@@ -78,9 +80,14 @@ export async function updateBoard(actor: Actor, boardId: string, updates: { name
 	const [updated] = await db.update(boards).set(updates).where(
 		and(
 			eq(boards.id, boardId),
-			eq(boards.groupId, actor.groupId)
+			eq(boards.groupId, actor.groupId),
+			isNull(boards.deletedAt)
 		)
 	).returning();
+
+	if (!updated) {
+		throw new Error('Board not found');
+	}
 
 	return updated;
 }

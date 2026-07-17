@@ -41,7 +41,12 @@ export async function getAccessibleProjects(actor: Actor) {
 			groupId: projects.groupId,
 			visibility: projects.visibility,
 			createdAt: projects.createdAt
-		}).from(projects).where(eq(projects.groupId, actor.groupId)).orderBy(asc(projects.createdAt));
+		}).from(projects).where(
+			and(
+				eq(projects.groupId, actor.groupId),
+				isNull(projects.deletedAt)
+			)
+		).orderBy(asc(projects.createdAt));
 	}
 
 	// Members/Viewers only see Public projects OR Private projects where they are a member
@@ -64,6 +69,7 @@ export async function getAccessibleProjects(actor: Actor) {
 	}).from(projects).where(
 		and(
 			eq(projects.groupId, actor.groupId),
+			isNull(projects.deletedAt),
 			condition
 		)
 	).orderBy(asc(projects.createdAt));
@@ -91,7 +97,7 @@ export async function getAccessibleBoards(actor: Actor) {
 
 export async function addProjectMember(actor: Actor, projectId: string, targetUserId: string, role: 'Admin' | 'Member' = 'Member') {
 	const [project] = await db.select({ id: projects.id }).from(projects).where(
-		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId))
+		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId), isNull(projects.deletedAt))
 	);
 	if (!project) throw new Error('Project not found or access denied');
 
@@ -128,7 +134,7 @@ export async function addProjectMember(actor: Actor, projectId: string, targetUs
 
 export async function removeProjectMember(actor: Actor, projectId: string, targetUserId: string) {
 	const [project] = await db.select({ id: projects.id }).from(projects).where(
-		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId))
+		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId), isNull(projects.deletedAt))
 	);
 	if (!project) throw new Error('Project not found or access denied');
 
@@ -163,7 +169,7 @@ export async function removeProjectMember(actor: Actor, projectId: string, targe
 
 export async function updateProjectVisibility(actor: Actor, projectId: string, visibility: 'Public' | 'Private') {
 	const [project] = await db.select({ id: projects.id }).from(projects).where(
-		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId))
+		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId), isNull(projects.deletedAt))
 	);
 	if (!project) throw new Error('Project not found or access denied');
 
@@ -182,7 +188,8 @@ export async function updateProjectVisibility(actor: Actor, projectId: string, v
 	await db.update(projects).set({ visibility }).where(
 		and(
 			eq(projects.id, projectId),
-			eq(projects.groupId, actor.groupId)
+			eq(projects.groupId, actor.groupId),
+			isNull(projects.deletedAt)
 		)
 	);
 
@@ -196,13 +203,13 @@ export async function updateProjectVisibility(actor: Actor, projectId: string, v
 }
 
 export async function getProjectActivity(actor: Actor, projectId: string, limitCount: number = 100, offsetCount: number = 0) {
-	// First check access (we can reuse the logic or do it inline)
-	// For simplicity, inline check:
+	// Ensure project exists and is not deleted
+	const [project] = await db.select({ visibility: projects.visibility }).from(projects).where(
+		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId), isNull(projects.deletedAt))
+	);
+	if (!project) throw new Error('Project not found');
+
 	if (actor.role !== 'Admin') {
-		const [project] = await db.select({ visibility: projects.visibility }).from(projects).where(
-			and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId))
-		);
-		if (!project) throw new Error('Project not found');
 		if (project.visibility !== 'Public') {
 			const [member] = await db.select({ role: projectMembers.role }).from(projectMembers).where(
 				and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, actor.id))

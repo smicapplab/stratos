@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db/db';
 import { users } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { inviteUser, removeUser, changeUserRole } from '$lib/server/services/users';
 import { fail, redirect } from '@sveltejs/kit';
 
@@ -8,7 +8,9 @@ import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const actor = locals.user;
-	if (!actor) throw redirect(302, '/');
+	if (!actor || actor.role !== 'Admin') {
+		throw redirect(302, '/');
+	}
 	
 	// Fetch all users for the current group
 	const groupUsers = await db.select({
@@ -18,7 +20,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 		role: users.role,
 		groupId: users.groupId,
 		createdAt: users.createdAt
-	}).from(users).where(eq(users.groupId, actor.groupId));
+	}).from(users).where(
+		and(
+			eq(users.groupId, actor.groupId),
+			isNull(users.deletedAt)
+		)
+	);
 	
 	return {
 		users: groupUsers,
@@ -36,13 +43,19 @@ export const actions: Actions = {
 			return fail(400, { error: 'Email and Role are required' });
 		}
 
+		const VALID_ROLES = ['Admin', 'Member', 'Viewer'];
+		if (!VALID_ROLES.includes(role)) {
+			return fail(400, { error: 'Invalid role selection' });
+		}
+
 		try {
 			const actor = locals.user;
 			if (!actor) return fail(401, { error: 'Unauthorized' });
 			await inviteUser(actor, email, role);
 			return { success: true };
-		} catch (e: any) {
-			return fail(403, { error: e.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	},
 
@@ -52,13 +65,22 @@ export const actions: Actions = {
 
 		if (!userId) return fail(400, { error: 'User ID is required' });
 
+		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+		if (!uuidRegex.test(userId)) {
+			return fail(400, { error: 'Invalid user ID format' });
+		}
+
 		try {
 			const actor = locals.user;
 			if (!actor) return fail(401, { error: 'Unauthorized' });
+			if (userId === actor.id) {
+				return fail(400, { error: 'You cannot remove or change your own role' });
+			}
 			await removeUser(actor, userId);
 			return { success: true };
-		} catch (e: any) {
-			return fail(403, { error: e.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	},
 	
@@ -69,13 +91,27 @@ export const actions: Actions = {
 
 		if (!userId || !role) return fail(400, { error: 'User ID and Role are required' });
 
+		const VALID_ROLES = ['Admin', 'Member', 'Viewer'];
+		if (!VALID_ROLES.includes(role)) {
+			return fail(400, { error: 'Invalid role selection' });
+		}
+
+		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+		if (!uuidRegex.test(userId)) {
+			return fail(400, { error: 'Invalid user ID format' });
+		}
+
 		try {
 			const actor = locals.user;
 			if (!actor) return fail(401, { error: 'Unauthorized' });
+			if (userId === actor.id) {
+				return fail(400, { error: 'You cannot remove or change your own role' });
+			}
 			await changeUserRole(actor, userId, role);
 			return { success: true };
-		} catch (e: any) {
-			return fail(403, { error: e.message });
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
 		}
 	}
 };

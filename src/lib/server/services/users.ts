@@ -1,6 +1,6 @@
 import { db } from '../db/db';
 import { users } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 
 export interface Actor {
 	id: string;
@@ -15,7 +15,12 @@ export async function getGroupUsers(actor: Actor) {
 		email: users.email,
 		role: users.role,
 		createdAt: users.createdAt,
-	}).from(users).where(eq(users.groupId, actor.groupId));
+	}).from(users).where(
+		and(
+			eq(users.groupId, actor.groupId),
+			isNull(users.deletedAt)
+		)
+	);
 }
 
 import { sendGroupInviteEmail } from './email';
@@ -31,6 +36,14 @@ export async function inviteUser(actor: Actor, email: string, role: string) {
 		name: 'Pending Invite', // Placeholder until they set up
 		groupId: actor.groupId,
 		role,
+	}).onConflictDoUpdate({
+		target: users.email,
+		set: {
+			deletedAt: null,
+			name: 'Pending Invite',
+			role: role,
+			groupId: actor.groupId
+		}
 	}).returning();
 
 	const [group] = await db.select({ name: groups.name }).from(groups).where(eq(groups.id, actor.groupId));
