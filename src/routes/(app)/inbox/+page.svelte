@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { 
-		Bell, CheckCircle2, UserPlus, AtSign, Clock, Inbox, Check
+		Bell, CheckCircle2, UserPlus, AtSign, Clock, Inbox, Check, MessageSquare
 	} from 'lucide-svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 
@@ -52,6 +52,7 @@
 			case 'assigned': return { icon: UserPlus, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-500/10' };
 			case 'mentioned': return { icon: AtSign, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-500/10' };
 			case 'status_changed': return { icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10' };
+			case 'comment_added': return { icon: MessageSquare, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-500/10' };
 			default: return { icon: Bell, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-500/10' };
 		}
 	}
@@ -61,6 +62,7 @@
 			case 'assigned': return 'assigned you a task';
 			case 'mentioned': return 'mentioned you in a task';
 			case 'status_changed': return 'changed the status of a task';
+			case 'comment_added': return 'commented on a task';
 			default: return 'notified you';
 		}
 	}

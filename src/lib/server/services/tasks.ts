@@ -6,6 +6,7 @@ import type { Actor } from './users';
 import { generateKeyBetween } from 'fractional-indexing';
 import { emitBoardEvent } from './events';
 import { createNotification } from './notifications';
+import { invalidateDashboardCache } from '../redis';
 
 export async function createTask(actor: Actor, stageId: string, title: string, previousIndex: string | null = null, nextIndex: string | null = null, parentTaskId: string | null = null) {
 	if (actor.role === 'Viewer') {
@@ -54,6 +55,8 @@ export async function createTask(actor: Actor, stageId: string, title: string, p
 	if (boardId) {
 		emitBoardEvent(boardId, 'task_created', { task: newTask });
 	}
+
+	await invalidateDashboardCache(actor.groupId);
 
 	return newTask;
 }
@@ -109,6 +112,8 @@ export async function moveTask(actor: Actor, taskId: string, newStageId: string,
 		emitBoardEvent(boardId, 'task_moved', { task: updated });
 	}
 
+	await invalidateDashboardCache(actor.groupId);
+
 	return updated;
 }
 
@@ -124,6 +129,8 @@ export async function softDeleteTask(actor: Actor, taskId: string) {
 	if (task && task.boardId) {
 		emitBoardEvent(task.boardId, 'task_deleted', { taskId: task.id });
 	}
+
+	await invalidateDashboardCache(actor.groupId);
 }
 
 export interface TaskUpdatePayload {
@@ -237,6 +244,8 @@ export async function updateTask(actor: Actor, taskId: string, updates: TaskUpda
 	if (oldTask.boardId) {
 		emitBoardEvent(oldTask.boardId, 'task_updated', { task: updatedTask });
 	}
+
+	await invalidateDashboardCache(actor.groupId);
 
 	return updatedTask;
 }

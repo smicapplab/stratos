@@ -1,13 +1,13 @@
 import { db } from '../db/db';
 import { notifications, tasks } from '../db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, isNull } from 'drizzle-orm';
 import type { Actor } from './users';
 import { globalEventEmitter } from './events';
 
 export async function createNotification(
 	userId: string,
 	actorId: string,
-	type: 'assigned' | 'mentioned' | 'status_changed',
+	type: 'assigned' | 'mentioned' | 'status_changed' | 'comment_added',
 	taskId: string
 ) {
 	// Don't notify yourself
@@ -64,3 +64,57 @@ export async function markAsRead(actor: Actor, notificationId?: string) {
 			.where(eq(notifications.userId, actor.id));
 	}
 }
+
+/**
+ * Automatically fires notifications of type 'comment_added' to the task assignee
+ * and the task reporter (creator) when a new comment is posted.
+ */
+export async function notifyCommentAdded(authorId: string, taskId: string): Promise<void> {
+	try {
+		const [task] = await db.select({
+			id: tasks.id,
+			assigneeId: tasks.assigneeId,
+			customFields: tasks.customFields
+		})
+		.from(tasks)
+		.where(eq(tasks.id, taskId))
+		.limit(1);
+
+		if (!task) return;
+
+		// 1. Notify assignee (if the author is not the assignee)
+		if (task.assigneeId && task.assigneeId !== authorId) {
+			await createNotification(task.assigneeId, authorId, 'comment_added', taskId);
+		}
+
+		// 2. Notify reporter (if the author is not the reporter and reporter is distinct from assignee)
+		const customFields = (task.customFields || {}) as { reporterId?: string };
+		const reporterId = customFields.reporterId;
+		if (reporterId && reporterId !== authorId && reporterId !== task.assigneeId) {
+			await createNotification(reporterId, authorId, 'comment_added', taskId);
+		}
+	} catch (err) {
+		console.error(`Failed to notify comment added for task ${taskId}:`, err);
+	}
+}
+
+/**
+ * Marks all notifications for a specific task and user as read.
+ */
+export async function markTaskNotificationsAsRead(actor: Actor, taskId: string): Promise<void> {
+	try {
+		await db.update(notifications)
+			.set({ readAt: new Date() })
+			.where(
+				and(
+					eq(notifications.taskId, taskId),
+					eq(notifications.userId, actor.id),
+					isNull(notifications.readAt)
+				)
+			);
+	} catch (err) {
+		console.error(`Failed to mark task notifications read for task ${taskId}:`, err);
+	}
+}
+
+
