@@ -6,36 +6,18 @@
 		Lightbulb, 
 		LifeBuoy, 
 		Send,
-		ArrowLeft
+		ArrowLeft,
+		Paperclip
 	} from 'lucide-svelte';
-
-	let { form } = $props();
-
 	// Form state
 	let ticketType = $state<'Bug' | 'Feature' | 'Support'>('Bug');
 	let title = $state('');
 	let description = $state('');
+	let selectedFileCount = $state(0);
 	let isSubmitting = $state(false);
 
 	// Inline validation errors
 	let errors = $state<{ title?: string; general?: string }>({});
-
-	// Handle response from the server action
-	$effect(() => {
-		if (form) {
-			if (form.error) {
-				errors.general = form.error;
-				toastStore.error(form.error);
-			} else {
-				toastStore.success('Ticket submitted successfully!');
-				// Reset form fields
-				title = '';
-				description = '';
-				ticketType = 'Bug';
-				errors = {};
-			}
-		}
-	});
 
 	function handleSubmit() {
 		errors = {};
@@ -80,13 +62,28 @@
 			<form 
 				method="POST" 
 				action="?/submitTicket" 
+				enctype="multipart/form-data" 
 				use:enhance={({ cancel }) => {
 					if (!handleSubmit()) {
 						cancel();
 					}
-					return async ({ update }) => {
+					return async ({ update, result }) => {
 						isSubmitting = false;
-						await update();
+						if (result.type === 'success') {
+							toastStore.success('Ticket submitted successfully!');
+							title = '';
+							description = '';
+							ticketType = 'Bug';
+							selectedFileCount = 0;
+							errors = {};
+						} else if (result.type === 'failure') {
+							const errorMsg = result.data && typeof result.data.error === 'string'
+								? result.data.error
+								: 'Failed to submit ticket';
+							errors.general = errorMsg;
+							toastStore.error(errorMsg);
+						}
+						await update({ reset: false });
 					};
 				}} 
 				class="space-y-6"
@@ -164,10 +161,38 @@
 						id="description"
 						name="description"
 						bind:value={description}
-						rows="5"
+						rows="12"
 						placeholder="Provide as much context as possible. For bugs, include steps to reproduce..."
-						class="w-full px-4 py-2.5 rounded-xl border text-sm bg-transparent border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 dark:text-zinc-100 resize-none"
+						class="w-full px-4 py-2.5 rounded-xl border text-sm bg-transparent border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 dark:text-zinc-100 resize-y min-h-[220px]"
 					></textarea>
+				</div>
+
+				<!-- Attachments -->
+				<div class="space-y-1.5">
+					<span class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+						Attach Screenshots or Documents
+					</span>
+					<div class="flex items-center justify-center w-full">
+						<label class="flex flex-col items-center justify-center w-full h-28 border-2 border-zinc-200 dark:border-zinc-800 border-dashed rounded-xl cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-950/20 transition-all">
+							<div class="flex flex-col items-center justify-center pt-4 pb-4">
+								<Paperclip class="w-7 h-7 text-zinc-400 mb-1.5" />
+								<p class="text-xs text-zinc-500 dark:text-zinc-400 font-semibold"><span class="text-blue-500">Click to upload</span> or drag and drop</p>
+								<p class="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">Images or Documents (Max 10MB each)</p>
+							</div>
+							<input 
+								type="file" 
+								name="attachments" 
+								multiple 
+								class="hidden" 
+								onchange={(e) => {
+									selectedFileCount = (e.currentTarget as HTMLInputElement).files?.length || 0;
+								}}
+							/>
+						</label>
+					</div>
+					{#if selectedFileCount > 0}
+						<p class="text-xs text-blue-500 dark:text-blue-400 font-semibold pl-1 mt-1">{selectedFileCount} files selected</p>
+					{/if}
 				</div>
 
 				<!-- Form-Level Error -->

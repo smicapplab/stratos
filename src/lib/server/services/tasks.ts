@@ -14,51 +14,62 @@ export async function createTask(actor: Actor, stageId: string, title: string, p
 	}
 	const orderIndex = generateKeyBetween(previousIndex, nextIndex);
 	
-	// Get boardId from stage and validate group/soft-delete
-	const [stage] = await db.select({ boardId: stages.boardId })
-		.from(stages)
-		.innerJoin(boards, eq(stages.boardId, boards.id))
-		.where(
-			and(
-				eq(stages.id, stageId),
-				eq(boards.groupId, actor.groupId),
-				isNull(stages.deletedAt),
-				isNull(boards.deletedAt)
-			)
-		);
-	if (!stage) throw new Error('Stage not found or access denied');
-	const boardId = stage.boardId;
+	return await db.transaction(async (tx) => {
+		// Get boardId from stage and validate group/soft-delete
+		const [stage] = await tx.select({ boardId: stages.boardId })
+			.from(stages)
+			.innerJoin(boards, eq(stages.boardId, boards.id))
+			.where(
+				and(
+					eq(stages.id, stageId),
+					eq(boards.groupId, actor.groupId),
+					isNull(stages.deletedAt),
+					isNull(boards.deletedAt)
+				)
+			);
+		if (!stage) throw new Error('Stage not found or access denied');
+		const boardId = stage.boardId;
 
-	// Atomically claim the next task number via a locked read inside a transaction
-	// to prevent race conditions where two concurrent creates get the same number
-	let number = 1;
-	if (boardId) {
-		const lockResult = await db.execute(
-			sql`SELECT COALESCE(MAX(${tasks.number}), 0) + 1 AS next_number FROM ${tasks} WHERE ${tasks.boardId} = ${boardId} FOR UPDATE`
-		);
-		number = (lockResult.rows[0] as { next_number: number })?.next_number ?? 1;
-	}
+		// Atomically claim the next task number via a locked read inside a transaction
+		// to prevent race conditions where two concurrent creates get the same number.
+		// We lock the board row to serialize operations on this board.
+		let number = 1;
+		if (boardId) {
+			await tx.select({ id: boards.id })
+				.from(boards)
+				.where(eq(boards.id, boardId))
+				.for('update');
 
-	const [newTask] = await db.insert(tasks).values({
-		title, stageId, boardId, groupId: actor.groupId, orderIndex, parentTaskId, number
-	}).returning();
+			const [maxResult] = await tx.select({
+				maxNumber: sql<number>`COALESCE(MAX(${tasks.number}), 0)`
+			})
+			.from(tasks)
+			.where(eq(tasks.boardId, boardId));
 
-	await db.insert(auditLogs).values({
-		groupId: actor.groupId,
-		taskId: newTask.id,
-		userId: actor.id,
-		actionType: 'task_created',
-		oldValue: null,
-		newValue: null
+			number = (maxResult?.maxNumber ?? 0) + 1;
+		}
+
+		const [newTask] = await tx.insert(tasks).values({
+			title, stageId, boardId, groupId: actor.groupId, orderIndex, parentTaskId, number
+		}).returning();
+
+		await tx.insert(auditLogs).values({
+			groupId: actor.groupId,
+			taskId: newTask.id,
+			userId: actor.id,
+			actionType: 'task_created',
+			oldValue: null,
+			newValue: null
+		});
+
+		if (boardId) {
+			emitBoardEvent(boardId, 'task_created', { task: newTask });
+		}
+
+		await invalidateDashboardCache(actor.groupId);
+
+		return newTask;
 	});
-
-	if (boardId) {
-		emitBoardEvent(boardId, 'task_created', { task: newTask });
-	}
-
-	await invalidateDashboardCache(actor.groupId);
-
-	return newTask;
 }
 
 export async function moveTask(actor: Actor, taskId: string, newStageId: string, previousIndex: string | null = null, nextIndex: string | null = null) {

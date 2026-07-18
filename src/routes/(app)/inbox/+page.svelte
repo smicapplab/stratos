@@ -99,19 +99,30 @@
 	<div class="flex-1 overflow-y-auto px-6 sm:px-10 pb-20 custom-scrollbar">
 		<div class="max-w-4xl w-full mx-auto">
 			{#if notifications.length === 0}
-				<div class="flex flex-col items-center justify-center py-32 px-4 text-center">
-					<div class="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mb-6">
-						<Inbox class="w-10 h-10 text-emerald-500" />
+				<div class="flex flex-col items-center justify-center py-28 px-4 text-center space-y-6">
+					<div class="relative w-24 h-24 flex items-center justify-center">
+						<!-- Double breathing glowing halo -->
+						<div class="absolute inset-0 bg-emerald-400/20 dark:bg-emerald-500/10 rounded-full calm-pulse"></div>
+						<div class="absolute inset-2 bg-emerald-50 dark:bg-emerald-950/40 rounded-full border border-emerald-100 dark:border-emerald-800/25"></div>
+						
+						<!-- Floating animated icon -->
+						<div class="relative calm-float p-4 text-emerald-600 dark:text-emerald-400">
+							<Inbox class="w-10 h-10" />
+						</div>
 					</div>
-					<h3 class="text-xl font-bold text-zinc-900 dark:text-white mb-2">You're all caught up! 🎉</h3>
-					<p class="text-zinc-500 dark:text-zinc-400 max-w-sm">There are no new notifications. Enjoy the rest of your day!</p>
+					<div class="max-w-md space-y-2">
+						<h3 class="text-xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">All caught up! 🌿</h3>
+						<p class="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+							Your inbox is clear and peaceful. No new activities require your response. Take a moment to enjoy the quiet!
+						</p>
+					</div>
 				</div>
 			{:else}
 				<div class="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl shadow-sm overflow-hidden flex flex-col divide-y divide-zinc-100 dark:divide-white/5">
 					{#each notifications as notif}
 						{@const IconInfo = getNotificationIcon(notif.type)}
 						<a 
-							href="/boards/{notif.taskId ? `unknown?task=${notif.taskId}` : ''}" 
+							href="/tasks/{notif.taskId || ''}" 
 							onclick={() => {
 								if (!notif.readAt) {
 									markAsRead(notif.id);
@@ -159,3 +170,20 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	@keyframes floatCalm {
+		0%, 100% { transform: translateY(0); }
+		50% { transform: translateY(-6px); }
+	}
+	@keyframes pulseCalm {
+		0%, 100% { transform: scale(1); opacity: 0.15; }
+		50% { transform: scale(1.08); opacity: 0.3; }
+	}
+	.calm-float {
+		animation: floatCalm 4s ease-in-out infinite;
+	}
+	.calm-pulse {
+		animation: pulseCalm 3s ease-in-out infinite;
+	}
+</style>

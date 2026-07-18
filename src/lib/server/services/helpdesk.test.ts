@@ -9,16 +9,19 @@ const { mockSelectChain } = vi.hoisted(() => {
 		where: vi.fn().mockReturnThis(),
 		limit: vi.fn().mockReturnThis(),
 		orderBy: vi.fn().mockReturnThis(),
+		for: vi.fn().mockReturnThis(),
 		execute: vi.fn().mockResolvedValue({
 			rows: [{ next_number: 5 }]
 		}),
-		then: vi.fn()
+		then: vi.fn().mockImplementation((onFulfilled) => {
+			return Promise.resolve([]).then(onFulfilled);
+		})
 	};
 	return { mockSelectChain: chain };
 });
 
-vi.mock('../db/db', () => ({
-	db: {
+vi.mock('../db/db', () => {
+	const mockTx = {
 		insert: vi.fn().mockReturnThis(),
 		values: vi.fn().mockReturnThis(),
 		returning: vi.fn().mockResolvedValue([{ id: 'new-ticket-id', title: '[Bug] Login error' }]),
@@ -29,8 +32,15 @@ vi.mock('../db/db', () => ({
 		execute: vi.fn().mockResolvedValue({
 			rows: [{ next_number: 5 }]
 		})
-	}
-}));
+	};
+
+	return {
+		db: {
+			...mockTx,
+			transaction: vi.fn().mockImplementation((callback) => callback(mockTx))
+		}
+	};
+});
 
 vi.mock('./events', () => ({
 	emitBoardEvent: vi.fn()
@@ -41,8 +51,10 @@ describe('Helpdesk Service (TDD Suite)', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		// Reset then mock to default implementation
 		mockSelectChain.then.mockReset();
+		mockSelectChain.then.mockImplementation((onFulfilled) => {
+			return Promise.resolve([]).then(onFulfilled);
+		});
 	});
 
 	describe('createHelpdeskTicket()', () => {

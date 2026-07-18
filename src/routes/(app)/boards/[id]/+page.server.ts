@@ -1,6 +1,7 @@
 import { db } from '$lib/server/db/db';
 import { boards, users } from '$lib/server/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
+import { getAccessibleProjects } from '$lib/server/services/projects';
 import { getBoardStages, createStage, updateStage, moveStage } from '$lib/server/services/stages';
 import { getBoardTasks, createTask, moveTask, softDeleteTask, updateTask, type TaskUpdatePayload } from '$lib/server/services/tasks';
 import { updateBoard, deleteBoard } from '$lib/server/services/boards';
@@ -13,6 +14,11 @@ import type { PageServerLoad, Actions } from './$types';
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const actor = locals.user!;
 	const boardId = params.id;
+	
+	const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+	if (!uuidRegex.test(boardId)) {
+		throw error(404, 'Board not found');
+	}
 	
 	// Fetch Board
 	const [board] = await db.select({
@@ -28,6 +34,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		)
 	);
 	if (!board || board.groupId !== actor.groupId) {
+		throw error(404, 'Board not found');
+	}
+
+	// Ensure the user has visibility permissions on this board's parent project
+	const accessibleProjects = await getAccessibleProjects(actor);
+	if (!accessibleProjects.find(p => p.id === board.projectId)) {
 		throw error(404, 'Board not found');
 	}
 
@@ -157,11 +169,25 @@ export const actions: Actions = {
 		const previousIndex = data.get('previousIndex')?.toString() || null;
 		const nextIndex = data.get('nextIndex')?.toString() || null;
 		const parentTaskId = data.get('parentTaskId')?.toString() || null;
+		const dueDateStr = data.get('dueDate')?.toString() || null;
+		const assigneeId = data.get('assigneeId')?.toString() || null;
 
 		if (!title || !stageId) return fail(400, { error: 'Title and Stage are required' });
 
 		try {
-			await createTask(locals.user!, stageId, title, previousIndex, nextIndex, parentTaskId);
+			const newTask = await createTask(locals.user!, stageId, title, previousIndex, nextIndex, parentTaskId);
+			
+			const updatePayload: any = {};
+			if (dueDateStr) {
+				updatePayload.dueDate = new Date(dueDateStr);
+			}
+			if (assigneeId) {
+				updatePayload.assigneeId = assigneeId;
+			}
+			
+			if (Object.keys(updatePayload).length > 0) {
+				await updateTask(locals.user!, newTask.id, updatePayload);
+			}
 			return { success: true };
 		} catch (err) {
 			const error = err as Error;
