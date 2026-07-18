@@ -24,6 +24,7 @@
 		User
 	} from 'lucide-svelte';
 	import { enhance } from '$app/forms';
+	import BrandLogoType from '$lib/components/ui/BrandLogoType.svelte';
 
 	let { data, children } = $props();
 	let user = $derived(data.user);
@@ -189,6 +190,20 @@
 	let currentPath = $derived($page.url.pathname);
 	let isCommandPaletteOpen = $state(false);
 	let isUserMenuOpen = $state(false);
+
+	async function handleSignOut() {
+		isUserMenuOpen = false;
+		try {
+			const response = await fetch('/api/logout', {
+				method: 'POST'
+			});
+			if (response.ok || response.redirected) {
+				window.location.href = '/';
+			}
+		} catch (e) {
+			console.error('Logout failed:', e);
+		}
+	}
 </script>
 
 <div class="flex h-screen bg-zinc-50 dark:bg-zinc-950 overflow-hidden font-sans text-zinc-900 dark:text-zinc-100">
@@ -197,10 +212,8 @@
 	<aside class="hidden lg:flex w-64 flex-shrink-0 flex-col bg-white/70 dark:bg-zinc-900/50 backdrop-blur-xl border-r border-zinc-200/80 dark:border-zinc-800/80 z-20 transition-all duration-300 ease-in-out {isSidebarOpen ? 'ml-0' : '-ml-64'}">
 		<!-- Brand Header -->
 		<div class="h-16 flex items-center px-6 border-b border-zinc-200/50 dark:border-zinc-800/50">
-			<div class="flex items-center gap-3">
-				<div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md flex items-center justify-center">
-					<span class="text-white font-bold text-sm tracking-tighter">ST</span>
-				</div>
+			<div class="flex items-center gap-2.5">
+				<BrandLogoType class="w-6 h-6 text-blue-600 dark:text-blue-500 shrink-0" />
 				<span class="font-bold text-lg tracking-tight">Stratos</span>
 			</div>
 		</div>
@@ -400,16 +413,14 @@
 						<span>Helpdesk Portal</span>
 					</a>
 					<hr class="border-zinc-200 dark:border-zinc-800 my-1" />
-					<form method="POST" action="/api/logout">
-						<button 
-							type="submit" 
-							class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors min-h-[44px]"
-							onclick={() => isUserMenuOpen = false}
-						>
-							<LogOut class="w-4 h-4" />
-							<span>Sign Out</span>
-						</button>
-					</form>
+					<button 
+						type="button" 
+						class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors min-h-[44px] cursor-pointer"
+						onclick={handleSignOut}
+					>
+						<LogOut class="w-4 h-4" />
+						<span>Sign Out</span>
+					</button>
 				</div>
 			{/if}
 

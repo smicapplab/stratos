@@ -7,9 +7,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	try {
 		const data = await request.json();
-		await markAsRead(locals.user, data.notificationId);
+		const notificationId = data.notificationId;
+		if (notificationId === undefined || typeof notificationId !== 'string' || !notificationId.trim()) {
+			return json({ error: 'notificationId is required and must be a non-empty string' }, { status: 400 });
+		}
+		await markAsRead(locals.user, notificationId);
 		return json({ success: true });
 	} catch (e) {
-		return json({ error: 'Failed' }, { status: 500 });
+		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 };

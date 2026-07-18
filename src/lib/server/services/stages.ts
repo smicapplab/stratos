@@ -31,7 +31,7 @@ export async function createStage(actor: Actor, boardId: string, name: string, p
 export async function getBoardStages(actor: Actor, boardId: string) {
 	// Verify board belongs to actor's group
 	const [board] = await db.select({ id: boards.id }).from(boards).where(
-		and(eq(boards.id, boardId), eq(boards.groupId, actor.groupId))
+		and(eq(boards.id, boardId), eq(boards.groupId, actor.groupId), isNull(boards.deletedAt))
 	);
 	if (!board) throw new Error('Board not found or unauthorized.');
 

@@ -9,18 +9,22 @@ const { mockSelectChain } = vi.hoisted(() => {
 		where: vi.fn().mockReturnThis(),
 		limit: vi.fn().mockReturnThis(),
 		orderBy: vi.fn().mockReturnThis(),
+		for: vi.fn().mockReturnThis(),
 		execute: vi.fn().mockResolvedValue({
 			rows: [{ next_number: 5 }]
 		}),
-		then: vi.fn()
+		then: vi.fn().mockImplementation((onFulfilled) => {
+			return Promise.resolve([]).then(onFulfilled);
+		})
 	};
 	return { mockSelectChain: chain };
 });
 
-vi.mock('../db/db', () => ({
-	db: {
+vi.mock('../db/db', () => {
+	const mockTx = {
 		insert: vi.fn().mockReturnThis(),
 		values: vi.fn().mockReturnThis(),
+		onConflictDoNothing: vi.fn().mockReturnThis(),
 		returning: vi.fn().mockResolvedValue([{ id: 'new-ticket-id', title: '[Bug] Login error' }]),
 		update: vi.fn().mockReturnThis(),
 		set: vi.fn().mockReturnThis(),
@@ -29,25 +33,34 @@ vi.mock('../db/db', () => ({
 		execute: vi.fn().mockResolvedValue({
 			rows: [{ next_number: 5 }]
 		})
-	}
-}));
+	};
+
+	return {
+		db: {
+			...mockTx,
+			transaction: vi.fn().mockImplementation((callback) => callback(mockTx))
+		}
+	};
+});
 
 vi.mock('./events', () => ({
 	emitBoardEvent: vi.fn()
 }));
 
 describe('Helpdesk Service (TDD Suite)', () => {
-	const userActor = { id: 'user-123', role: 'Member', groupId: 'group-abc' };
+	const userActor = { id: 'user-123', role: 'Member' as const, groupId: 'group-abc' };
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		// Reset then mock to default implementation
 		mockSelectChain.then.mockReset();
+		mockSelectChain.then.mockImplementation((onFulfilled) => {
+			return Promise.resolve([]).then(onFulfilled);
+		});
 	});
 
 	describe('createHelpdeskTicket()', () => {
 		it('should throw an error if actor lacks a groupId', async () => {
-			const invalidActor = { id: 'user-123', role: 'Member', groupId: '' };
+			const invalidActor = { id: 'user-123', role: 'Member' as const, groupId: '' };
 			await expect(createHelpdeskTicket(invalidActor, 'Bug', 'Test', 'Description'))
 				.rejects.toThrow('Unauthorized');
 		});

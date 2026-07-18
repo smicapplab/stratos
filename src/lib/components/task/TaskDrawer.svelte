@@ -28,7 +28,9 @@
 		Check,
 		Link as LinkIcon,
 		Unlink,
-		Layers
+		Layers,
+		Download,
+		File as FileIcon
 	} from "lucide-svelte";
 	import { Editor } from "@tiptap/core";
 	import StarterKit from "@tiptap/starter-kit";
@@ -605,7 +607,7 @@
 	})());
 
 	function handleMarkComplete() {
-		const doneStage = stages?.find(s => s.isCompleted === true);
+		const doneStage = stages?.find(s => (!task.boardId || s.boardId === task.boardId) && s.isCompleted === true);
 		if (doneStage && task.stageId !== doneStage.id) {
 			task.stageId = doneStage.id;
 			handlePropertyChange();
@@ -613,7 +615,7 @@
 	}
 
 	function handleUnmarkComplete() {
-		const todoStage = stages?.find(s => !s.isCompleted);
+		const todoStage = stages?.find(s => (!task.boardId || s.boardId === task.boardId) && !s.isCompleted);
 		if (todoStage && task.stageId !== todoStage.id) {
 			task.stageId = todoStage.id;
 			handlePropertyChange();
@@ -634,6 +636,101 @@
 			console.error("Failed to fetch attachments", e);
 		}
 	}
+
+	let previewAttachment = $state<any>(null);
+	let previewTextContent = $state<string | null>(null);
+	let loadingText = $state(false);
+
+	function isImageFile(file: any) {
+		if (!file) return false;
+		const type = (file.mimeType || '').toLowerCase();
+		const name = (file.fileName || '').toLowerCase();
+		if (type.startsWith('image/')) return true;
+		const imgExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
+		return imgExts.some(ext => name.endsWith(ext));
+	}
+
+	function isPdfFile(file: any) {
+		if (!file) return false;
+		const type = (file.mimeType || '').toLowerCase();
+		const name = (file.fileName || '').toLowerCase();
+		if (type === 'application/pdf') return true;
+		return name.endsWith('.pdf');
+	}
+
+	function isTextFile(file: any) {
+		if (!file) return false;
+		const type = (file.mimeType || '').toLowerCase();
+		const name = (file.fileName || '').toLowerCase();
+		
+		if (type.startsWith('text/') || type === 'application/json' || type === 'application/javascript' || type === 'application/x-typescript') {
+			return true;
+		}
+
+		const txtExtensions = ['.env', '.json', '.md', '.js', '.ts', '.html', '.css', '.yaml', '.yml', '.sh', '.py', '.ini', '.conf', '.log', '.csv', '.txt'];
+		return txtExtensions.some(ext => name.endsWith(ext));
+	}
+
+	function isOfficeDoc(file: any) {
+		if (!file) return false;
+		const type = (file.mimeType || '').toLowerCase();
+		const name = (file.fileName || '').toLowerCase();
+
+		const isOfficeMime = type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+			type === 'application/msword' ||
+			type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+			type === 'application/vnd.ms-excel' ||
+			type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+			type === 'application/vnd.ms-powerpoint';
+		if (isOfficeMime) return true;
+
+		const docExtensions = ['.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt'];
+		return docExtensions.some(ext => name.endsWith(ext));
+	}
+
+	async function openPreview(file: any) {
+		previewAttachment = file;
+		previewTextContent = null;
+
+		if (isTextFile(file)) {
+			loadingText = true;
+			try {
+				const res = await fetch(file.fileUrl);
+				if (res.ok) {
+					const contentLength = res.headers.get('Content-Length');
+					if (contentLength && parseInt(contentLength) > 1 * 1024 * 1024) {
+						previewTextContent = 'This file exceeds the 1MB inline preview limit. Please download the file to view its full contents.';
+					} else {
+						const text = await res.text();
+						if (text.length > 1 * 1024 * 1024) {
+							previewTextContent = 'This file exceeds the 1MB inline preview limit. Please download the file to view its full contents.';
+						} else {
+							previewTextContent = text;
+						}
+					}
+				} else {
+					previewTextContent = 'Error: Failed to load preview text content.';
+				}
+			} catch (err) {
+				previewTextContent = 'Error: Failed to fetch preview.';
+			} finally {
+				loadingText = false;
+			}
+		}
+	}
+
+	function isLocalhost() {
+		if (typeof window === 'undefined') return true;
+		const host = window.location.hostname;
+		return host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.') || host.startsWith('172.16.');
+	}
+
+	let absoluteOfficeUrl = $derived.by(() => {
+		if (!previewAttachment) return '';
+		const origin = window.location.origin;
+		const absTokenUrl = `${origin}${previewAttachment.fileUrl}`;
+		return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(absTokenUrl)}`;
+	});
 
 	async function handleFileUpload(e: Event) {
 		const input = e.target as HTMLInputElement;
@@ -998,6 +1095,27 @@
 			return;
 		}
 		if (e.key === "Escape") onClose();
+
+		if (e.key.toLowerCase() === "c") {
+			if (commentEditor) {
+				e.preventDefault();
+				commentEditor.commands.focus();
+			}
+		} else if (e.key.toLowerCase() === "a") {
+			const assigneeBtn = document.querySelector("#assignee-wrapper button") as HTMLButtonElement | null;
+			if (assigneeBtn) {
+				e.preventDefault();
+				assigneeBtn.click();
+				assigneeBtn.focus();
+			}
+		} else if (e.key.toLowerCase() === "p") {
+			const priorityBtn = document.querySelector("#priority-wrapper button") as HTMLButtonElement | null;
+			if (priorityBtn) {
+				e.preventDefault();
+				priorityBtn.click();
+				priorityBtn.focus();
+			}
+		}
 	}
 
 	// ... Checklist logic
@@ -1188,23 +1306,48 @@
 						
 						<div class="flex flex-col gap-3">
 							{#each taskAttachments as att (att.id)}
+								{@const canPreview = isImageFile(att) || isPdfFile(att) || isTextFile(att) || isOfficeDoc(att)}
 								<div class="flex items-center justify-between p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-white/5">
-									<div class="flex items-center gap-3 min-w-0">
-										{#if att.mimeType?.startsWith('image/')}
-											<img src={att.fileUrl} alt={att.fileName} class="w-8 h-8 rounded object-cover" />
+									<div class="flex items-center gap-3 min-w-0 flex-1">
+										{#if isImageFile(att)}
+											<!-- svelte-ignore a11y_click_events_have_key_events -->
+											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+											<img src={att.fileUrl} alt={att.fileName} class="w-8 h-8 rounded object-cover shrink-0 cursor-pointer" onclick={() => openPreview(att)} />
 										{:else}
 											<div class="w-8 h-8 rounded bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center shrink-0">
 												<FileText class="w-4 h-4 text-zinc-500" />
 											</div>
 										{/if}
-										<div class="flex flex-col min-w-0">
-											<a href={att.fileUrl} target="_blank" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline truncate">{att.fileName}</a>
+										<div class="flex flex-col min-w-0 flex-1">
+											{#if canPreview}
+												<button 
+													type="button" 
+													onclick={() => openPreview(att)} 
+													class="text-sm font-medium text-left text-blue-600 dark:text-blue-400 hover:underline truncate"
+												>
+													{att.fileName}
+												</button>
+											{:else}
+												<a href={att.fileUrl} download={att.fileName} class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline truncate">
+													{att.fileName}
+												</a>
+											{/if}
 											<span class="text-xs text-zinc-500">{new Date(att.createdAt).toLocaleDateString()}</span>
 										</div>
 									</div>
-									<button type="button" onclick={() => deleteAttachment(att.id)} class="p-2 text-zinc-400 hover:text-red-500 transition-colors shrink-0">
-										<Trash2 class="w-4 h-4" />
-									</button>
+									<div class="flex items-center gap-1 shrink-0">
+										{#if canPreview}
+											<button type="button" onclick={() => openPreview(att)} class="p-2 text-zinc-400 hover:text-blue-500 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center" title="Preview">
+												<Eye class="w-4 h-4" />
+											</button>
+										{/if}
+										<a href={att.fileUrl} download={att.fileName} class="p-2 text-zinc-400 hover:text-blue-500 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center" title="Download">
+											<Download class="w-4 h-4" />
+										</a>
+										<button type="button" onclick={() => deleteAttachment(att.id)} class="p-2 text-zinc-400 hover:text-red-500 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center">
+											<Trash2 class="w-4 h-4" />
+										</button>
+									</div>
 								</div>
 							{/each}
 
@@ -1572,3 +1715,83 @@
 		</div>
 	</div>
 </div>
+
+{#if previewAttachment}
+	<!-- Modal backdrop -->
+	<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+	<div 
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 sm:p-6"
+		onclick={(e) => { if (e.target === e.currentTarget) previewAttachment = null; }}
+		onkeydown={(e) => { if (e.key === 'Escape') previewAttachment = null; }}
+	>
+		<!-- Modal box -->
+		<div 
+			class="w-full max-w-4xl bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200"
+		>
+			<!-- Modal Header -->
+			<div class="px-6 py-4 border-b border-zinc-800 flex justify-between items-center text-white bg-zinc-950/40">
+				<div class="flex items-center gap-3 min-w-0">
+					<FileIcon class="w-5 h-5 text-blue-500 shrink-0" />
+					<h3 class="font-bold text-sm truncate">{previewAttachment.fileName}</h3>
+				</div>
+				<div class="flex items-center gap-3">
+					<a 
+						href={previewAttachment.fileUrl} 
+						download={previewAttachment.fileName}
+						class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold rounded-lg transition-colors min-h-[36px]"
+					>
+						<Download class="w-3.5 h-3.5" />
+						Download
+					</a>
+					<button 
+						type="button" 
+						onclick={() => previewAttachment = null} 
+						class="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors"
+					>
+						<X class="w-5 h-5" />
+					</button>
+				</div>
+			</div>
+
+			<!-- Modal Body (Preview Area) -->
+			<div class="p-6 flex-1 max-h-[75vh] overflow-y-auto flex items-center justify-center bg-zinc-950/20">
+				{#if loadingText}
+					<div class="flex flex-col items-center gap-3 py-12 text-zinc-400">
+						<div class="w-8 h-8 border-3 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+						<span class="text-xs">Loading text preview...</span>
+					</div>
+				{:else if isImageFile(previewAttachment)}
+					<img src={previewAttachment.fileUrl} alt={previewAttachment.fileName} class="max-w-full max-h-[65vh] object-contain rounded-lg shadow-md" />
+				{:else if isPdfFile(previewAttachment)}
+					<iframe sandbox="allow-scripts" src={previewAttachment.fileUrl} title={previewAttachment.fileName} class="w-full h-[65vh] border-0 rounded-lg bg-white"></iframe>
+				{:else if isOfficeDoc(previewAttachment)}
+					{#if isLocalhost()}
+						<div class="text-center py-12 text-zinc-400 space-y-4 max-w-md mx-auto">
+							<FileIcon class="w-12 h-12 mx-auto text-blue-500" />
+							<p class="text-sm font-semibold text-zinc-200">Office Preview Disabled on Localhost</p>
+							<p class="text-xs text-zinc-400">Microsoft Office Online requires a publicly accessible URL to download and render documents. It cannot connect to your local development server.</p>
+							<a 
+								href={previewAttachment.fileUrl} 
+								download={previewAttachment.fileName}
+								class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors min-h-[38px] shadow"
+							>
+								<Download class="w-4 h-4" />
+								Download to View Locally
+							</a>
+						</div>
+					{:else}
+						<iframe sandbox="allow-scripts allow-same-origin allow-forms allow-popups" src={absoluteOfficeUrl} title={previewAttachment.fileName} class="w-full h-[65vh] border-0 rounded-lg bg-white"></iframe>
+					{/if}
+				{:else if previewTextContent !== null}
+					<pre class="w-full bg-zinc-950 text-zinc-100 p-5 rounded-xl font-mono text-xs overflow-auto max-h-[65vh] whitespace-pre-wrap select-text border border-zinc-800">{previewTextContent}</pre>
+				{:else}
+					<div class="text-center py-12 text-zinc-400 space-y-3">
+						<FileIcon class="w-12 h-12 mx-auto text-zinc-600" />
+						<p class="text-sm">Preview not supported for this file type.</p>
+						<p class="text-xs text-zinc-500">Please download the file to view it locally.</p>
+					</div>
+				{/if}
+			</div>
+		</div>
+	</div>
+{/if}

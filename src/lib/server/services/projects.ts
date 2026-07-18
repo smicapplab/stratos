@@ -8,28 +8,30 @@ export async function createProject(actor: Actor, name: string, visibility: 'Pub
 		throw new Error('Unauthorized: Only Admins can create projects.');
 	}
 
-	const [newProject] = await db.insert(projects).values({
-		name,
-		groupId: actor.groupId,
-		visibility
-	}).returning();
+	return await db.transaction(async (tx) => {
+		const [newProject] = await tx.insert(projects).values({
+			name,
+			groupId: actor.groupId,
+			visibility
+		}).returning();
 
-	// Automatically add the creator as a Project Admin so they can manage it
-	await db.insert(projectMembers).values({
-		projectId: newProject.id,
-		userId: actor.id,
-		role: 'Admin'
+		// Automatically add the creator as a Project Admin so they can manage it
+		await tx.insert(projectMembers).values({
+			projectId: newProject.id,
+			userId: actor.id,
+			role: 'Admin'
+		});
+
+		await tx.insert(auditLogs).values({
+			groupId: actor.groupId,
+			projectId: newProject.id,
+			userId: actor.id,
+			actionType: 'project_created',
+			details: { name, visibility }
+		});
+
+		return newProject;
 	});
-
-	await db.insert(auditLogs).values({
-		groupId: actor.groupId,
-		projectId: newProject.id,
-		userId: actor.id,
-		actionType: 'project_created',
-		details: { name, visibility }
-	});
-
-	return newProject;
 }
 
 export async function getAccessibleProjects(actor: Actor) {
@@ -112,6 +114,21 @@ export async function addProjectMember(actor: Actor, projectId: string, targetUs
 		if (!member || member.role !== 'Admin') {
 			throw new Error('Unauthorized: Only Project Admins can manage members.');
 		}
+	}
+
+	// Verify that the target user belongs to the actor's group and is not deleted
+	const [targetUser] = await db.select({ id: users.id })
+		.from(users)
+		.where(
+			and(
+				eq(users.id, targetUserId),
+				eq(users.groupId, actor.groupId),
+				isNull(users.deletedAt)
+			)
+		)
+		.limit(1);
+	if (!targetUser) {
+		throw new Error('UserNotFound');
 	}
 
 	await db.insert(projectMembers).values({

@@ -1,6 +1,7 @@
 import { db } from '$lib/server/db/db';
 import { boards, projects } from '$lib/server/db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, inArray } from 'drizzle-orm';
+import { getAccessibleProjects } from '$lib/server/services/projects';
 import { createBoard, deleteBoard } from '$lib/server/services/boards';
 import { fail } from '@sveltejs/kit';
 
@@ -9,34 +10,35 @@ import type { PageServerLoad, Actions } from './$types';
 export const load: PageServerLoad = async ({ locals }) => {
 	const actor = locals.user!; // Layout guard ensures this exists
 	
-	// Fetch boards with their parent project names using Drizzle relational queries or joins
-	const groupBoards = await db
-		.select({
-			id: boards.id,
-			name: boards.name,
-			createdAt: boards.createdAt,
-			projectName: projects.name
-		})
-		.from(boards)
-		.innerJoin(projects, eq(boards.projectId, projects.id))
-		.where(
-			and(
-				eq(boards.groupId, actor.groupId),
-				isNull(boards.deletedAt)
-			)
-		);
+	const accessibleProjects = await getAccessibleProjects(actor);
+	const projectIds = accessibleProjects.map(p => p.id);
 
-	const groupProjects = await db.select({
-		id: projects.id,
-		name: projects.name,
-		visibility: projects.visibility
-	}).from(projects).where(eq(projects.groupId, actor.groupId));
+	let groupBoards: any[] = [];
+	if (projectIds.length > 0) {
+		groupBoards = await db
+			.select({
+				id: boards.id,
+				name: boards.name,
+				createdAt: boards.createdAt,
+				projectName: projects.name
+			})
+			.from(boards)
+			.innerJoin(projects, eq(boards.projectId, projects.id))
+			.where(
+				and(
+					eq(boards.groupId, actor.groupId),
+					isNull(boards.deletedAt),
+					isNull(projects.deletedAt),
+					inArray(boards.projectId, projectIds)
+				)
+			);
+	}
 	
 	return {
 		boards: groupBoards,
-		projects: groupProjects
+		projects: accessibleProjects
 	};
-}
+};
 
 export const actions: Actions = {
 	create: async ({ request, locals }) => {

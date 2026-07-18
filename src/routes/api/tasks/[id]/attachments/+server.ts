@@ -1,7 +1,8 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db/db';
 import { attachments, tasks } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
+import { generateFileToken } from '$lib/server/generateFileToken';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -9,8 +10,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 	const taskId = params.id;
 
-	// Verify the task belongs to the user's group
-	const [task] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.groupId, locals.user.groupId)));
+	// Verify the task belongs to the user's group and is not deleted
+	const [task] = await db.select({ id: tasks.id })
+		.from(tasks)
+		.where(and(eq(tasks.id, taskId), eq(tasks.groupId, locals.user.groupId), isNull(tasks.deletedAt)));
 	if (!task) return json({ error: 'Task not found' }, { status: 404 });
 
 	const taskAttachments = await db.select({
@@ -23,5 +26,19 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		createdAt: attachments.createdAt
 	}).from(attachments).where(eq(attachments.taskId, taskId)).orderBy(attachments.createdAt);
 
-	return json(taskAttachments);
+	const processed = [];
+	for (const att of taskAttachments) {
+		const token = await generateFileToken(
+			locals.user,
+			att.fileUrl,
+			att.mimeType || 'application/octet-stream',
+			att.fileName
+		);
+		processed.push({
+			...att,
+			fileUrl: `/api/files/${token}`
+		});
+	}
+
+	return json(processed);
 };

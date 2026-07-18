@@ -24,3 +24,36 @@ Because the old version of the app is still running while the database migrates,
   3. **Deploy 3:** Drop the old column.
 - **Concurrent Indexing:** Standard `CREATE INDEX` locks the table against writes. When adding an index to a large table (like `tasks` or `audit_logs`), you MUST use `CREATE INDEX CONCURRENTLY`. This prevents production write-outages during deployment. Drizzle supports this natively but it requires disabling Drizzle's wrapping transactions for that specific migration.
 - Breaking these rules will cause `500 Internal Server Error` spikes or database lockups during deployments.
+
+---
+
+## 4. Environment Setup & Database Seeding
+
+Stratos provides a unified environment setup and seeding utility to initialize databases for both development and production.
+
+### A. Root Setup Script (`setup.sh`)
+A master shell script is provided at the root of the workspace to initialize the system end-to-end:
+```bash
+./setup.sh [prod|dev]
+```
+If no argument is supplied, it defaults to `prod`.
+
+*   **Development Mode (`dev`):**
+    1. Boots local Docker container stack for PostgreSQL and Redis if not already running.
+    2. Installs npm dependencies inside the SvelteKit app.
+    3. Deploys the database schema via `drizzle-kit push`.
+    4. Configures database level triggers (e.g. task depth limits).
+    5. Seeds the database with rich development mock data (multiple users, tasks, subtasks, helpdesk tickets, comments, audit logs).
+*   **Production Mode (`prod`):**
+    1. Installs SvelteKit application dependencies.
+    2. Deploys the database schema.
+    3. Configures database level triggers.
+    4. Seeds the database with minimal system data (creates the default `Acme Corp` group and the initial `Alice Admin` system administrator account).
+
+### B. Seeding Command
+Seeding can also be run directly within the SvelteKit app directory using:
+```bash
+npm run db:seed -- [prod|dev]
+```
+This maps to `tsx src/lib/server/db/seed.ts [prod|dev]`. Defaults to `prod`.
+

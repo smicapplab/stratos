@@ -1,12 +1,19 @@
+import { json } from '@sveltejs/kit';
 import { globalEventEmitter } from '$lib/server/services/events';
 import { db } from '$lib/server/db/db';
 import { boards } from '$lib/server/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 
+interface BoardSyncEvent {
+	type: string;
+	payload: Record<string, unknown>;
+	timestamp: number;
+}
+
 export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) {
-		return new Response('Unauthorized', { status: 401 });
+		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const boardId = params.id;
@@ -16,16 +23,16 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		and(eq(boards.id, boardId), eq(boards.groupId, locals.user.groupId), isNull(boards.deletedAt))
 	);
 	if (!board) {
-		return new Response('Board not found', { status: 404 });
+		return json({ error: 'Board not found' }, { status: 404 });
 	}
 
 	let pingInterval: ReturnType<typeof setInterval>;
-	let listener: (data: { type: string; payload: Record<string, unknown>; timestamp: number }) => void;
+	let listener: (data: BoardSyncEvent) => void;
 	const eventName = `board:${boardId}`;
 
 	const stream = new ReadableStream({
 		start(controller) {
-			listener = (data) => {
+			listener = (data: BoardSyncEvent) => {
 				try {
 					controller.enqueue(`data: ${JSON.stringify(data)}\n\n`);
 				} catch (e) {
@@ -33,6 +40,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 				}
 			};
 
+			// Prevent Node.js MaxListenersExceededWarning under load
+			globalEventEmitter.setMaxListeners(0);
 			globalEventEmitter.on(eventName, listener);
 
 			// Keep alive ping

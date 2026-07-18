@@ -35,6 +35,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	invite: async ({ request, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		const data = await request.formData();
 		const email = data.get('email')?.toString();
 		const role = data.get('role')?.toString();
@@ -43,14 +46,12 @@ export const actions: Actions = {
 			return fail(400, { error: 'Email and Role are required' });
 		}
 
-		const VALID_ROLES = ['Admin', 'Member', 'Viewer'];
+		const VALID_ROLES = ['Admin', 'Manager', 'Member', 'Viewer'];
 		if (!VALID_ROLES.includes(role)) {
 			return fail(400, { error: 'Invalid role selection' });
 		}
 
 		try {
-			const actor = locals.user;
-			if (!actor) return fail(401, { error: 'Unauthorized' });
 			await inviteUser(actor, email, role);
 			return { success: true };
 		} catch (err) {
@@ -60,6 +61,9 @@ export const actions: Actions = {
 	},
 
 	remove: async ({ request, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		const data = await request.formData();
 		const userId = data.get('userId')?.toString();
 
@@ -71,8 +75,6 @@ export const actions: Actions = {
 		}
 
 		try {
-			const actor = locals.user;
-			if (!actor) return fail(401, { error: 'Unauthorized' });
 			if (userId === actor.id) {
 				return fail(400, { error: 'You cannot remove or change your own role' });
 			}
@@ -85,13 +87,16 @@ export const actions: Actions = {
 	},
 	
 	updateRole: async ({ request, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		const data = await request.formData();
 		const userId = data.get('userId')?.toString();
 		const role = data.get('role')?.toString();
 
 		if (!userId || !role) return fail(400, { error: 'User ID and Role are required' });
 
-		const VALID_ROLES = ['Admin', 'Member', 'Viewer'];
+		const VALID_ROLES = ['Admin', 'Manager', 'Member', 'Viewer'];
 		if (!VALID_ROLES.includes(role)) {
 			return fail(400, { error: 'Invalid role selection' });
 		}
@@ -102,8 +107,6 @@ export const actions: Actions = {
 		}
 
 		try {
-			const actor = locals.user;
-			if (!actor) return fail(401, { error: 'Unauthorized' });
 			if (userId === actor.id) {
 				return fail(400, { error: 'You cannot remove or change your own role' });
 			}

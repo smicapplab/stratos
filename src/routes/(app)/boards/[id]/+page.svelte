@@ -10,6 +10,7 @@
 	import TaskCard from '$lib/components/ui/TaskCard.svelte';
 	import TableView from '$lib/components/ui/TableView.svelte';
 	import CalendarView from '$lib/components/ui/CalendarView.svelte';
+	import ReportsView from '$lib/components/ui/ReportsView.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import { modalStore } from '$lib/stores/ui.svelte';
 
@@ -290,9 +291,58 @@
 			goto(url.pathname + url.search, { replaceState: true, noScroll: true, keepFocus: true });
 		}
 	}
-	let activeView = $state<'board' | 'table' | 'calendar'>('board');
+	let activeView = $state<'board' | 'table' | 'calendar' | 'reports'>('board');
 	let settingsOpen = $state(false);
 	let settingsTab = $state<'general' | 'fields'>('general');
+
+	let showCalendarCreateModal = $state(false);
+	let selectedCalendarDate = $state<Date | null>(null);
+	let calendarTaskTitle = $state('');
+	let selectedCalendarStageId = $state('');
+	let selectedCalendarAssigneeId = $state('');
+
+	function handleCalendarAddEvent(date: Date) {
+		selectedCalendarDate = date;
+		calendarTaskTitle = '';
+		selectedCalendarAssigneeId = user?.id || '';
+		
+		if (stages && stages.length > 0) {
+			const sorted = [...stages].sort((a: any, b: any) => a.orderIndex.localeCompare(b.orderIndex));
+			selectedCalendarStageId = sorted[0].id;
+		} else {
+			selectedCalendarStageId = '';
+		}
+		
+		showCalendarCreateModal = true;
+	}
+
+	async function handleReschedule(task: any, targetDate: Date) {
+		const oldDate = task.dueDate;
+		
+		// Optimistic update
+		task.dueDate = targetDate.toISOString();
+		
+		const formData = new FormData();
+		formData.append('taskId', task.id);
+		formData.append('title', task.title);
+		formData.append('description', task.description || '');
+		formData.append('priority', task.priority || 'Medium');
+		formData.append('assigneeId', task.assigneeId || '');
+		formData.append('dueDate', targetDate.toISOString());
+		
+		try {
+			const res = await fetch('?/updateTask', {
+				method: 'POST',
+				body: formData
+			});
+			if (!res.ok) {
+				task.dueDate = oldDate;
+			}
+			await invalidateAll();
+		} catch (err) {
+			task.dueDate = oldDate;
+		}
+	}
 	
 	let newFieldName = $state('');
 	let newFieldType = $state('text');
@@ -313,7 +363,7 @@
 
 	$effect(() => {
 		const stored = localStorage.getItem(`board-view-${board.id}`);
-		if (stored === 'table' || stored === 'calendar' || stored === 'board') {
+		if (stored === 'table' || stored === 'calendar' || stored === 'board' || (stored === 'reports' && (user?.role === 'Admin' || user?.role === 'Manager'))) {
 			activeView = stored;
 		}
 	});
@@ -346,6 +396,9 @@
 			<button class="px-3 py-1.5 text-xs font-semibold rounded-md transition-all {activeView === 'board' ? 'bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}" onclick={() => activeView = 'board'}>Board</button>
 			<button class="px-3 py-1.5 text-xs font-semibold rounded-md transition-all {activeView === 'table' ? 'bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}" onclick={() => activeView = 'table'}>Table</button>
 			<button class="px-3 py-1.5 text-xs font-semibold rounded-md transition-all {activeView === 'calendar' ? 'bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}" onclick={() => activeView = 'calendar'}>Calendar</button>
+			{#if user.role === 'Admin' || user.role === 'Manager'}
+				<button class="px-3 py-1.5 text-xs font-semibold rounded-md transition-all {activeView === 'reports' ? 'bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}" onclick={() => activeView = 'reports'}>Reports</button>
+			{/if}
 		</div>
 
 		<div class="flex items-center gap-3 relative">
@@ -606,7 +659,16 @@
 	</div>
 	{:else if activeView === 'calendar'}
 	<div class="flex-1 overflow-auto custom-scrollbar">
-		<CalendarView {tasks} onTaskClick={(t: any) => activeTask = t} />
+		<CalendarView 
+			{tasks} 
+			onTaskClick={(t: any) => activeTask = t} 
+			onReschedule={handleReschedule}
+			onAddEvent={handleCalendarAddEvent}
+		/>
+	</div>
+	{:else if activeView === 'reports' && (user.role === 'Admin' || user.role === 'Manager')}
+	<div class="flex-1 overflow-auto custom-scrollbar bg-zinc-50 dark:bg-[#09090b]">
+		<ReportsView boardId={board.id} onTaskClick={(t: any) => activeTask = t} />
 	</div>
 	{/if}
 
@@ -653,4 +715,98 @@
 		</div>
 	</div>
 {/if}
+
+	{#if showCalendarCreateModal && selectedCalendarDate}
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" onclick={() => showCalendarCreateModal = false}>
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div class="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 w-[450px] max-w-full space-y-5" onclick={e => e.stopPropagation()}>
+				<div>
+					<h3 class="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">Schedule New Task</h3>
+					<p class="text-xs text-zinc-500 mt-1">Add a task on {selectedCalendarDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}.</p>
+				</div>
+
+				<form 
+					method="POST" 
+					action="?/createTask" 
+					use:enhance={() => {
+						return async ({ result }) => {
+							if (result.type === 'success') {
+								showCalendarCreateModal = false;
+								await invalidateAll();
+							}
+						};
+					}}
+					class="space-y-4"
+				>
+					<input type="hidden" name="dueDate" value={selectedCalendarDate.toISOString()} />
+
+					<!-- Title -->
+					<div class="space-y-1.5">
+						<label for="board-calendar-task-title" class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Task Title</label>
+						<input 
+							id="board-calendar-task-title"
+							type="text" 
+							name="title" 
+							bind:value={calendarTaskTitle}
+							placeholder="What needs to be done?" 
+							required 
+							class="w-full px-3.5 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
+						/>
+					</div>
+
+					<!-- Stage Select -->
+					<div class="space-y-1.5">
+						<label for="board-calendar-stage-select" class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Stage</label>
+						<select 
+							id="board-calendar-stage-select"
+							name="stageId"
+							bind:value={selectedCalendarStageId}
+							class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-zinc-900 dark:text-zinc-100 min-h-[40px]"
+						>
+							{#each stages as stage}
+								<option value={stage.id}>{stage.name}</option>
+							{/each}
+						</select>
+					</div>
+
+					<!-- Assignee Select -->
+					<div class="space-y-1.5">
+						<label for="board-calendar-assignee-select" class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Assignee</label>
+						<select 
+							id="board-calendar-assignee-select"
+							name="assigneeId"
+							bind:value={selectedCalendarAssigneeId}
+							class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-zinc-900 dark:text-zinc-100 min-h-[40px]"
+						>
+							<option value="">Unassigned</option>
+							{#each groupUsers as gu}
+								<option value={gu.id}>{gu.name}</option>
+							{/each}
+						</select>
+					</div>
+
+					<!-- Actions -->
+					<div class="flex items-center justify-end gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+						<button 
+							type="button" 
+							class="px-4 py-2 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-xs font-bold rounded-xl transition-all min-h-[40px]"
+							onclick={() => showCalendarCreateModal = false}
+						>
+							Cancel
+						</button>
+						<button 
+							type="submit" 
+							disabled={!selectedCalendarStageId || !calendarTaskTitle}
+							class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all transform hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px]"
+						>
+							Create Task
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	{/if}
 </div>

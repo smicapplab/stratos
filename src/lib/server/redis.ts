@@ -2,6 +2,9 @@ import Redis from 'ioredis';
 import { env } from '$env/dynamic/private';
 
 // Fetch Redis URL from dynamic environment variables, default to local docker port
+if (!env.REDIS_URL) {
+	console.warn('[Redis] REDIS_URL environment variable is not set. Falling back to default: redis://localhost:6379');
+}
 const redisUrl = env.REDIS_URL || 'redis://localhost:6379';
 
 export const redis = new Redis(redisUrl, {

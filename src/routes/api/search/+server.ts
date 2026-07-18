@@ -8,11 +8,15 @@ import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	if (!locals.user) {
-		return new Response('Unauthorized', { status: 401 });
+		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const query = url.searchParams.get('q');
 	if (!query || query.length < 2) {
+		return json({ tasks: [], boards: [], projects: [] });
+	}
+
+	if (query.length > 200) {
 		return json({ tasks: [], boards: [], projects: [] });
 	}
 
