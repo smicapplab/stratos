@@ -40,7 +40,6 @@
 
 	// Trigger navigation when user selects preset
 	function selectRange(range: string) {
-		if (range === 'custom') return;
 		goto(`/dashboard?range=${range}`);
 	}
 
@@ -138,7 +137,7 @@
 					60 Days
 				</button>
 				<button 
-					onclick={() => {}} 
+					onclick={() => selectRange('custom')} 
 					class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all {data.selectedRange === 'custom' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400'}"
 				>
 					Custom

@@ -1,5 +1,5 @@
 import { db } from '../db/db';
-import { projects, projectMembers, boards, stages, tasks, auditLogs, comments, users } from '../db/schema';
+import { projects, projectMembers, boards, stages, tasks, auditLogs, comments, users, attachments } from '../db/schema';
 import { eq, and, isNull, sql, asc, desc } from 'drizzle-orm';
 import type { Actor } from './users';
 import { generateKeyBetween } from 'fractional-indexing';
@@ -113,41 +113,54 @@ export async function createHelpdeskTicket(
 		]);
 	}
 
-	// 4. Claim next task number for the board (Atomic locking)
-	const lockResult = await db.execute(
-		sql`SELECT COALESCE(MAX(${tasks.number}), 0) + 1 AS next_number FROM ${tasks} WHERE ${tasks.groupId} = ${actor.groupId} AND ${tasks.boardId} = ${helpdeskBoard.id} FOR UPDATE`
-	);
-	const number = (lockResult.rows[0] as { next_number: number })?.next_number ?? 1;
-	const orderIndex = generateKeyBetween(null, null);
+	// 4. Claim next task number for the board (Atomic locking) and insert task inside a transaction
+	const { newTask, helpdeskBoardId } = await db.transaction(async (tx) => {
+		// Lock the board row to serialize operations on this board
+		await tx.select({ id: boards.id })
+			.from(boards)
+			.where(eq(boards.id, helpdeskBoard.id))
+			.for('update');
 
-	// 5. Insert the task directly, storing reporterId in customFields
-	const [newTask] = await db.insert(tasks).values({
-		title: `[${type}] ${title}`,
-		description,
-		stageId: incomingStage.id,
-		boardId: helpdeskBoard.id,
-		projectId: supportProject.id,
-		groupId: actor.groupId,
-		orderIndex,
-		number,
-		priority: 'Medium',
-		customFields: {
-			reporterId: actor.id,
-			ticketType: type
-		}
-	}).returning();
+		const [maxResult] = await tx.select({
+			maxNumber: sql<number>`COALESCE(MAX(${tasks.number}), 0)`
+		})
+		.from(tasks)
+		.where(eq(tasks.boardId, helpdeskBoard.id));
 
-	// 6. Audit log & Board event
-	await db.insert(auditLogs).values({
-		groupId: actor.groupId,
-		projectId: supportProject.id,
-		taskId: newTask.id,
-		userId: actor.id,
-		actionType: 'task_created',
-		details: { ticketType: type }
+		const number = (maxResult?.maxNumber ?? 0) + 1;
+		const orderIndex = generateKeyBetween(null, null);
+
+		// 5. Insert the task directly, storing reporterId in customFields
+		const [newTask] = await tx.insert(tasks).values({
+			title: `[${type}] ${title}`,
+			description,
+			stageId: incomingStage.id,
+			boardId: helpdeskBoard.id,
+			projectId: supportProject.id,
+			groupId: actor.groupId,
+			orderIndex,
+			number,
+			priority: 'Medium',
+			customFields: {
+				reporterId: actor.id,
+				ticketType: type
+			}
+		}).returning();
+
+		// 6. Audit log
+		await tx.insert(auditLogs).values({
+			groupId: actor.groupId,
+			projectId: supportProject.id,
+			taskId: newTask.id,
+			userId: actor.id,
+			actionType: 'task_created',
+			details: { ticketType: type }
+		});
+
+		return { newTask, helpdeskBoardId: helpdeskBoard.id };
 	});
 
-	emitBoardEvent(helpdeskBoard.id, 'task_created', { task: newTask });
+	emitBoardEvent(helpdeskBoardId, 'task_created', { task: newTask });
 
 	return newTask;
 }
@@ -286,10 +299,28 @@ export async function getHelpdeskTicket(actor: Actor, ticketId: string) {
 	.where(eq(auditLogs.taskId, ticketId))
 	.orderBy(asc(auditLogs.createdAt));
 
+	// Fetch Attachments
+	const taskAttachments = await db.select({
+		id: attachments.id,
+		fileName: attachments.fileName,
+		fileUrl: attachments.fileUrl,
+		mimeType: attachments.mimeType,
+		createdAt: attachments.createdAt,
+		uploader: {
+			id: users.id,
+			name: users.name
+		}
+	})
+	.from(attachments)
+	.innerJoin(users, eq(attachments.uploaderId, users.id))
+	.where(eq(attachments.taskId, ticketId))
+	.orderBy(desc(attachments.createdAt));
+
 	return {
 		task,
 		comments: taskComments,
-		auditLogs: taskAudits
+		auditLogs: taskAudits,
+		attachments: taskAttachments
 	};
 }
 

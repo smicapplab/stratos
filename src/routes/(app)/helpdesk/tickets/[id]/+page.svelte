@@ -6,7 +6,10 @@
 		Send, 
 		MessageSquare, 
 		Activity, 
-		PlusCircle
+		PlusCircle,
+		Paperclip,
+		Download,
+		File
 	} from 'lucide-svelte';
 
 	interface HelpdeskTicket {
@@ -38,14 +41,16 @@
 		actorName?: string;
 	}
 
-	let { data, form } = $props();
+	let { data } = $props();
 	let ticket = $derived(data.ticket as HelpdeskTicket);
 	let comments = $derived(data.comments || []);
 	let auditLogs = $derived(data.auditLogs || []);
+	let attachments = $derived(data.attachments || []);
 
 	// State
 	let replyContent = $state('');
 	let isSubmitting = $state(false);
+	let isUploading = $state(false);
 
 	// Construct chronologically sorted timeline of comments & audit logs
 	let timeline = $derived(
@@ -108,19 +113,11 @@
 
 
 	// Handle form reply response
-	$effect(() => {
-		if (form) {
-			if (form.success) {
-				replyContent = '';
-				isSubmitting = false;
-				toastStore.success('Reply posted successfully!');
-			} else if (form.error) {
-				isSubmitting = false;
-				toastStore.error(form.error);
-			}
-		}
-	});
 </script>
+
+<svelte:head>
+	<title>Ticket #TIC-{ticket.number} | Stratos</title>
+</svelte:head>
 
 <div class="space-y-6 p-6 sm:p-8 max-w-4xl mx-auto">
 	<!-- Breadcrumb / Back Button -->
@@ -132,7 +129,7 @@
 			<ArrowLeft class="w-4 h-4" />
 			Back to Tickets
 		</a>
-		<div class="text-xs text-zinc-400 dark:text-zinc-500">
+		<div class="text-xs text-zinc-400 dark:text-zinc-400">
 			Ticket #TIC-{ticket.number}
 		</div>
 	</div>
@@ -141,7 +138,7 @@
 	<div class="bg-white dark:bg-zinc-900 shadow-sm rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 overflow-hidden">
 		<div class="p-6 space-y-4">
 			<div class="flex flex-wrap items-center justify-between gap-3">
-				<h1 class="text-xl font-bold text-zinc-900 dark:text-zinc-50">{ticket.title}</h1>
+				<h1 class="text-xl font-bold text-zinc-900 dark:text-white">{ticket.title}</h1>
 				<!-- Category Badge -->
 				<span class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50">
 					{ticket.customFields?.ticketType || 'Support'}
@@ -149,18 +146,104 @@
 			</div>
 
 			{#if ticket.description}
-				<div class="text-sm text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-850 p-4 rounded-xl border border-zinc-200/50 dark:border-zinc-800/30 whitespace-pre-wrap">
+				<div class="text-sm text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-950/40 p-4 rounded-xl border border-zinc-200/50 dark:border-zinc-800/30 whitespace-pre-wrap">
 					{ticket.description}
 				</div>
 			{/if}
 
 			<div class="flex flex-wrap items-center gap-6 text-xs text-zinc-500 dark:text-zinc-400">
 				<div>
-					<span class="font-medium text-zinc-400">Submitted:</span> {formatDate(ticket.createdAt)}
+					<span class="font-medium text-zinc-400 dark:text-zinc-500">Submitted:</span> {formatDate(ticket.createdAt)}
 				</div>
 				<div>
-					<span class="font-medium text-zinc-400">Priority:</span> {ticket.priority}
+					<span class="font-medium text-zinc-400 dark:text-zinc-500">Priority:</span> {ticket.priority}
 				</div>
+			</div>
+
+			<!-- Attachments Grid -->
+			{#if attachments && attachments.length > 0}
+				<div class="space-y-2 pt-4 border-t border-zinc-100 dark:border-zinc-800/60">
+					<h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Attachments</h3>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						{#each attachments as file}
+							<div class="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-950/20 border border-zinc-200/50 dark:border-zinc-800/30 rounded-xl">
+								<div class="flex items-center gap-3 min-w-0">
+									{#if file.mimeType && file.mimeType.startsWith('image/')}
+										<div class="w-10 h-10 rounded-lg overflow-hidden bg-zinc-100 dark:bg-zinc-800 flex-shrink-0 flex items-center justify-center border border-zinc-200/50 dark:border-zinc-800/30">
+											<img src={file.fileUrl} alt={file.fileName} class="w-full h-full object-cover" />
+										</div>
+									{:else}
+										<div class="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex-shrink-0 flex items-center justify-center border border-zinc-200/50 dark:border-zinc-800/30 text-zinc-400">
+											<File class="w-5 h-5" />
+										</div>
+									{/if}
+									<div class="min-w-0">
+										<p class="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{file.fileName}</p>
+										<p class="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">Uploaded by {file.uploader.name}</p>
+									</div>
+								</div>
+								<a 
+									href={file.fileUrl} 
+									download={file.fileName}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="p-2 text-zinc-400 hover:text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+									title="Download"
+								>
+									<Download class="w-4 h-4" />
+								</a>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Inline File Attach Uploader -->
+			<div class="pt-4 border-t border-zinc-100 dark:border-zinc-800/60">
+				<form 
+					method="POST" 
+					action="?/uploadAttachment" 
+					enctype="multipart/form-data"
+					use:enhance={() => {
+						isUploading = true;
+						return async ({ update, result }) => {
+							isUploading = false;
+							if (result.type === 'success') {
+								toastStore.success('File uploaded successfully!');
+							} else if (result.type === 'failure') {
+								const errorMsg = result.data && typeof result.data.error === 'string'
+									? result.data.error
+									: 'Failed to upload file';
+								toastStore.error(errorMsg);
+							}
+							await update({ reset: false });
+						};
+					}}
+					class="flex items-center gap-3"
+				>
+					<label class="cursor-pointer inline-flex items-center gap-2 px-3.5 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-bold rounded-xl transition-all min-h-[40px]">
+						<Paperclip class="w-3.5 h-3.5" />
+						Attach File
+						<input 
+							type="file" 
+							name="files" 
+							multiple 
+							class="hidden" 
+							onchange={(e) => {
+								const input = e.currentTarget as HTMLInputElement;
+								if (input.files && input.files.length > 0) {
+									input.form?.requestSubmit();
+								}
+							}}
+						/>
+					</label>
+					{#if isUploading}
+						<div class="flex items-center gap-2 text-xs text-zinc-400">
+							<div class="w-4 h-4 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+							<span>Uploading...</span>
+						</div>
+					{/if}
+				</form>
 			</div>
 		</div>
 	</div>
@@ -237,9 +320,18 @@
 			action="?/postComment" 
 			use:enhance={() => {
 				isSubmitting = true;
-				return async ({ update }) => {
+				return async ({ update, result }) => {
 					isSubmitting = false;
-					await update();
+					if (result.type === 'success') {
+						replyContent = '';
+						toastStore.success('Reply posted successfully!');
+					} else if (result.type === 'failure') {
+						const errorMsg = result.data && typeof result.data.error === 'string'
+							? result.data.error
+							: 'Failed to post reply';
+						toastStore.error(errorMsg);
+					}
+					await update({ reset: false });
 				};
 			}}
 			class="space-y-4"

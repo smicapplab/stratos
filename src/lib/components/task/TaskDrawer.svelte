@@ -605,7 +605,7 @@
 	})());
 
 	function handleMarkComplete() {
-		const doneStage = stages?.find(s => s.isCompleted === true);
+		const doneStage = stages?.find(s => (!task.boardId || s.boardId === task.boardId) && s.isCompleted === true);
 		if (doneStage && task.stageId !== doneStage.id) {
 			task.stageId = doneStage.id;
 			handlePropertyChange();
@@ -613,7 +613,7 @@
 	}
 
 	function handleUnmarkComplete() {
-		const todoStage = stages?.find(s => !s.isCompleted);
+		const todoStage = stages?.find(s => (!task.boardId || s.boardId === task.boardId) && !s.isCompleted);
 		if (todoStage && task.stageId !== todoStage.id) {
 			task.stageId = todoStage.id;
 			handlePropertyChange();

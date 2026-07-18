@@ -6,8 +6,7 @@
 		Play, 
 		CheckCircle, 
 		ChevronRight, 
-		Search,
-		AlertCircle
+		Search
 	} from 'lucide-svelte';
 
 	let { data } = $props();
@@ -153,17 +152,25 @@
 
 	<!-- Tickets Table / List -->
 	{#if filteredTickets.length === 0}
-		<!-- Empty State -->
-		<div class="flex flex-col items-center justify-center p-12 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 text-center space-y-4">
-			<div class="p-4 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl text-zinc-400 dark:text-zinc-600">
-				<AlertCircle class="w-10 h-10" />
+		<div class="flex flex-col items-center justify-center p-12 py-20 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 text-center space-y-6">
+			<div class="relative w-20 h-20 flex items-center justify-center">
+				<!-- Calming halo -->
+				<div class="absolute inset-0 bg-indigo-400/20 dark:bg-indigo-500/10 rounded-full calm-pulse"></div>
+				<div class="absolute inset-1.5 bg-indigo-50 dark:bg-indigo-950/40 rounded-full border border-indigo-100 dark:border-indigo-800/25"></div>
+				
+				<!-- Animated support icon -->
+				<div class="relative calm-float p-3 text-indigo-600 dark:text-indigo-400">
+					<LifeBuoy class="w-8 h-8 animate-spin" style="animation-duration: 25s;" />
+				</div>
 			</div>
-			<div class="max-w-md space-y-1">
-				<h3 class="font-bold text-zinc-900 dark:text-zinc-100">No tickets found</h3>
-				<p class="text-sm text-zinc-500 dark:text-zinc-400">
+			<div class="max-w-md space-y-2">
+				<h3 class="font-bold text-zinc-900 dark:text-zinc-100 text-lg tracking-tight">
+					{searchQuery || filterType !== 'all' ? 'No matching tickets' : 'All clear! 🌟'}
+				</h3>
+				<p class="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
 					{searchQuery || filterType !== 'all' 
-						? 'Try adjusting your search query or status filter.' 
-						: 'You have not submitted any support tickets yet. Click "Submit a Ticket" to file your first bug or request.'}
+						? 'We couldn\'t find any tickets matching your search query or selected status filters.' 
+						: 'No active support tickets currently require your attention. Need help? You can file a new support request below.'}
 				</p>
 			</div>
 			{#if !searchQuery && filterType === 'all'}
@@ -172,7 +179,7 @@
 					class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium text-sm rounded-xl shadow-md transition-colors min-h-[44px]"
 				>
 					<Plus class="w-4 h-4" />
-					Submit your first ticket
+					Submit a support ticket
 				</a>
 			{/if}
 		</div>
@@ -234,3 +241,20 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	@keyframes floatCalm {
+		0%, 100% { transform: translateY(0); }
+		50% { transform: translateY(-6px); }
+	}
+	@keyframes pulseCalm {
+		0%, 100% { transform: scale(1); opacity: 0.15; }
+		50% { transform: scale(1.08); opacity: 0.3; }
+	}
+	.calm-float {
+		animation: floatCalm 4s ease-in-out infinite;
+	}
+	.calm-pulse {
+		animation: pulseCalm 3s ease-in-out infinite;
+	}
+</style>

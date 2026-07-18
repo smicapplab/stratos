@@ -17,10 +17,12 @@
 	let { task = $bindable(), groupUsers = [], stages = [], customFields = [], projectTags = [], projectId, handlePropertyChange }: Props = $props();
 
 	let stageOptions = $derived(
-		stages.map((s) => ({
-			value: s.id,
-			label: s.name,
-		}))
+		stages
+			.filter((s) => !task.boardId || s.boardId === task.boardId)
+			.map((s) => ({
+				value: s.id,
+				label: s.name,
+			}))
 	);
 
 	let assigneeOptions = $derived(

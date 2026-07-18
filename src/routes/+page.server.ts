@@ -37,7 +37,7 @@ function checkRateLimit(ip: string): boolean {
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.session) {
-		throw redirect(302, '/admin/users'); // Redirect to dashboard if logged in
+		throw redirect(302, '/dashboard'); // Redirect to dashboard if logged in
 	}
 	return {};
 }
@@ -92,6 +92,6 @@ export const actions: Actions = {
 			...sessionCookie.attributes
 		});
 
-		throw redirect(302, '/admin/users');
+		throw redirect(302, '/dashboard');
 	}
 };
