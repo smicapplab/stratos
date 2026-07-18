@@ -1,20 +1,26 @@
+import { json } from '@sveltejs/kit';
 import { globalEventEmitter } from '$lib/server/services/events';
 import type { RequestHandler } from './$types';
 
+interface SyncEvent {
+	type: string;
+	payload: Record<string, unknown>;
+}
+
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) {
-		return new Response('Unauthorized', { status: 401 });
+		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const userId = locals.user.id;
 
 	let pingInterval: ReturnType<typeof setInterval>;
-	let listener: (data: any) => void;
+	let listener: (data: SyncEvent) => void;
 	const eventName = `user:${userId}`;
 
 	const stream = new ReadableStream({
 		start(controller) {
-			listener = (data: any) => {
+			listener = (data: SyncEvent) => {
 				try {
 					controller.enqueue(`data: ${JSON.stringify(data)}\n\n`);
 				} catch (e) {
@@ -22,6 +28,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 				}
 			};
 
+			// Prevent Node.js MaxListenersExceededWarning under load
+			globalEventEmitter.setMaxListeners(0);
 			globalEventEmitter.on(eventName, listener);
 
 			// Keep alive ping

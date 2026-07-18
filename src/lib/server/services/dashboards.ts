@@ -1,6 +1,7 @@
 import { db } from '../db/db';
-import { tasks, stages, users, boards, notifications } from '../db/schema';
+import { tasks, stages, users, boards, notifications, projects, projectMembers, auditLogs } from '../db/schema';
 import { eq, and, isNull, sql, lt, gt, inArray, desc } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { Actor } from './users';
 import { getCachedDashboardData, setCachedDashboardData } from '../redis';
 
@@ -314,6 +315,384 @@ export async function getDashboardWidgets(actor: Actor) {
 	const result = {
 		activeSupportTickets,
 		unreadNotificationsList
+	};
+
+	await setCachedDashboardData(cacheKey, result, 300);
+	return result;
+}
+
+export interface BoardReports {
+	velocity: {
+		assigneeId: string | null;
+		assigneeName: string | null;
+		currentCount: number;
+		priorCount: number;
+	}[];
+	reopenedRate: number;
+	reopenedRateColor: 'green' | 'amber' | 'red';
+	reopenedTasks: {
+		taskId: string | null;
+		taskTitle: string;
+		taskNumber: number;
+		reopenedBy: string;
+		oldStageName: string;
+		newStageName: string;
+		reopenedAt: Date;
+	}[];
+	cycleTime: {
+		globalAverageDays: number;
+		priorityAverages: {
+			Low: number;
+			Medium: number;
+			High: number;
+			Urgent: number;
+		};
+	};
+	bottlenecks: {
+		stageId: string;
+		stageName: string;
+		count: number;
+	}[];
+	risks: {
+		overdue: {
+			id: string;
+			title: string;
+			number: number;
+			dueDate: Date | null;
+			assigneeName: string | null;
+		}[];
+		stale: {
+			id: string;
+			title: string;
+			number: number;
+			updatedAt: Date;
+			assigneeName: string | null;
+		}[];
+	};
+}
+
+export async function getBoardReports(
+	actor: Actor,
+	boardId: string,
+	startDate: Date,
+	endDate: Date
+): Promise<BoardReports> {
+	const startStr = startDate.toISOString().split('T')[0];
+	const endStr = endDate.toISOString().split('T')[0];
+	const cacheKey = `dashboard:reports:group:${actor.groupId}:board:${boardId}:start:${startStr}:end:${endStr}`;
+
+	const cached = await getCachedDashboardData<BoardReports>(cacheKey);
+	if (cached) return cached;
+
+	// Verify project access first (security guard)
+	const [board] = await db.select({ projectId: boards.projectId, groupId: boards.groupId })
+		.from(boards)
+		.where(and(eq(boards.id, boardId), isNull(boards.deletedAt)))
+		.limit(1);
+
+	if (!board) {
+		throw new Error('Board not found');
+	}
+
+	if (board.groupId !== actor.groupId) {
+		throw new Error('Unauthorized');
+	}
+
+	if (actor.role !== 'Admin') {
+		const [project] = await db.select({ visibility: projects.visibility })
+			.from(projects)
+			.where(and(eq(projects.id, board.projectId), isNull(projects.deletedAt)))
+			.limit(1);
+			
+		if (!project) throw new Error('Project not found');
+		
+		if (project.visibility !== 'Public') {
+			const [member] = await db.select({ role: projectMembers.role })
+				.from(projectMembers)
+				.where(and(eq(projectMembers.projectId, board.projectId), eq(projectMembers.userId, actor.id)))
+				.limit(1);
+			if (!member) {
+				throw new Error('Unauthorized');
+			}
+		}
+	}
+
+	const duration = endDate.getTime() - startDate.getTime();
+	const priorStart = new Date(startDate.getTime() - duration);
+	const priorEnd = startDate;
+
+	// 1. Current Completed Tasks (Velocity)
+	const currentCompleted = await db.select({
+		assigneeId: tasks.assigneeId,
+		assigneeName: users.name,
+		count: sql<number>`cast(count(${tasks.id}) as int)`
+	})
+	.from(tasks)
+	.innerJoin(stages, eq(tasks.stageId, stages.id))
+	.leftJoin(users, eq(tasks.assigneeId, users.id))
+	.where(
+		and(
+			eq(tasks.groupId, actor.groupId),
+			eq(tasks.boardId, boardId),
+			isNull(tasks.deletedAt),
+			eq(stages.isCompleted, true),
+			gt(tasks.updatedAt, startDate),
+			lt(tasks.updatedAt, endDate)
+		)
+	)
+	.groupBy(tasks.assigneeId, users.name);
+
+	// 2. Prior Completed Tasks (Velocity)
+	const priorCompleted = await db.select({
+		assigneeId: tasks.assigneeId,
+		count: sql<number>`cast(count(${tasks.id}) as int)`
+	})
+	.from(tasks)
+	.innerJoin(stages, eq(tasks.stageId, stages.id))
+	.where(
+		and(
+			eq(tasks.groupId, actor.groupId),
+			eq(tasks.boardId, boardId),
+			isNull(tasks.deletedAt),
+			eq(stages.isCompleted, true),
+			gt(tasks.updatedAt, priorStart),
+			lt(tasks.updatedAt, priorEnd)
+		)
+	)
+	.groupBy(tasks.assigneeId);
+
+	// Merge Current & Prior counts per assignee
+	const priorMap = new Map<string | null, number>();
+	for (const row of priorCompleted) {
+		priorMap.set(row.assigneeId, row.count);
+	}
+
+	const velocity = currentCompleted.map(row => ({
+		assigneeId: row.assigneeId,
+		assigneeName: row.assigneeName || 'Unassigned',
+		currentCount: row.count,
+		priorCount: priorMap.get(row.assigneeId) || 0
+	}));
+
+	// 3. Reopened Tasks
+	const oldStage = alias(stages, 'old_stage');
+	const newStage = alias(stages, 'new_stage');
+
+	const reopenedRows = await db.select({
+		taskId: auditLogs.taskId,
+		taskTitle: tasks.title,
+		taskNumber: tasks.number,
+		reopenedBy: users.name,
+		oldStageName: oldStage.name,
+		newStageName: newStage.name,
+		reopenedAt: auditLogs.createdAt
+	})
+	.from(auditLogs)
+	.innerJoin(tasks, eq(auditLogs.taskId, tasks.id))
+	.innerJoin(users, eq(auditLogs.userId, users.id))
+	.innerJoin(oldStage, eq(sql`cast(${oldStage.id} as text)`, auditLogs.oldValue))
+	.innerJoin(newStage, eq(sql`cast(${newStage.id} as text)`, auditLogs.newValue))
+	.where(
+		and(
+			eq(auditLogs.groupId, actor.groupId),
+			eq(tasks.boardId, boardId),
+			eq(auditLogs.actionType, 'stage_change'),
+			eq(oldStage.isCompleted, true),
+			eq(newStage.isCompleted, false),
+			gt(auditLogs.createdAt, startDate),
+			lt(auditLogs.createdAt, endDate)
+		)
+	);
+
+	const totalCompletedCount = currentCompleted.reduce((acc, row) => acc + row.count, 0);
+	const reopenedCount = reopenedRows.length;
+	const reopenedRate = (totalCompletedCount + reopenedCount) > 0
+		? (reopenedCount / (totalCompletedCount + reopenedCount)) * 100
+		: 0;
+
+	let reopenedRateColor: 'green' | 'amber' | 'red' = 'green';
+	if (reopenedRate > 25) {
+		reopenedRateColor = 'red';
+	} else if (reopenedRate >= 10) {
+		reopenedRateColor = 'amber';
+	}
+
+	const reopenedTasks = reopenedRows.map(row => ({
+		taskId: row.taskId,
+		taskTitle: row.taskTitle || 'Untitled Task',
+		taskNumber: row.taskNumber || 0,
+		reopenedBy: row.reopenedBy || 'System',
+		oldStageName: row.oldStageName,
+		newStageName: row.newStageName,
+		reopenedAt: row.reopenedAt
+	}));
+
+	// 4. Cycle Time (Time-to-Resolution)
+	// Get completed stage IDs for this board
+	const boardStages = await db.select({
+		id: stages.id,
+		orderIndex: stages.orderIndex,
+		isCompleted: stages.isCompleted,
+		name: stages.name
+	})
+	.from(stages)
+	.where(and(eq(stages.boardId, boardId), isNull(stages.deletedAt)))
+	.orderBy(stages.orderIndex);
+
+	const completedStageIds = boardStages.filter(s => s.isCompleted).map(s => s.id);
+	const activeStageIds = boardStages.filter(s => !s.isCompleted).map(s => s.id);
+	const initialStageId = boardStages[0]?.id;
+
+	let cycleTime = {
+		globalAverageDays: 0,
+		priorityAverages: { Low: 0, Medium: 0, High: 0, Urgent: 0 }
+	};
+
+	if (completedStageIds.length > 0) {
+		const completedLogs = await db.select({
+			taskId: auditLogs.taskId,
+			completedAt: auditLogs.createdAt,
+			taskCreatedAt: tasks.createdAt,
+			priority: tasks.priority
+		})
+		.from(auditLogs)
+		.innerJoin(tasks, eq(auditLogs.taskId, tasks.id))
+		.where(
+			and(
+				eq(auditLogs.groupId, actor.groupId),
+				eq(tasks.boardId, boardId),
+				isNull(tasks.deletedAt),
+				eq(auditLogs.actionType, 'stage_change'),
+				inArray(auditLogs.newValue, completedStageIds.map(id => id.toString())),
+				gt(auditLogs.createdAt, startDate),
+				lt(auditLogs.createdAt, endDate)
+			)
+		)
+		.orderBy(desc(auditLogs.createdAt));
+
+		// Find the latest completed transition per unique task
+		const latestCompletionPerTask = new Map<string, { completedAt: Date; taskCreatedAt: Date; priority: string }>();
+		for (const log of completedLogs) {
+			if (log.taskId && !latestCompletionPerTask.has(log.taskId)) {
+				latestCompletionPerTask.set(log.taskId, {
+					completedAt: log.completedAt,
+					taskCreatedAt: log.taskCreatedAt,
+					priority: log.priority
+				});
+			}
+		}
+
+		let totalDurationMs = 0;
+		let count = 0;
+		const priorityDurations: Record<string, { totalMs: number; count: number }> = {
+			Low: { totalMs: 0, count: 0 },
+			Medium: { totalMs: 0, count: 0 },
+			High: { totalMs: 0, count: 0 },
+			Urgent: { totalMs: 0, count: 0 }
+		};
+
+		for (const [_, info] of latestCompletionPerTask) {
+			const durationMs = info.completedAt.getTime() - info.taskCreatedAt.getTime();
+			totalDurationMs += durationMs;
+			count++;
+
+			const prio = info.priority;
+			if (priorityDurations[prio] !== undefined) {
+				priorityDurations[prio].totalMs += durationMs;
+				priorityDurations[prio].count++;
+			}
+		}
+
+		cycleTime = {
+			globalAverageDays: count > 0 ? (totalDurationMs / count) / (1000 * 60 * 60 * 24) : 0,
+			priorityAverages: {
+				Low: priorityDurations.Low.count > 0 ? (priorityDurations.Low.totalMs / priorityDurations.Low.count) / (1000 * 60 * 60 * 24) : 0,
+				Medium: priorityDurations.Medium.count > 0 ? (priorityDurations.Medium.totalMs / priorityDurations.Medium.count) / (1000 * 60 * 60 * 24) : 0,
+				High: priorityDurations.High.count > 0 ? (priorityDurations.High.totalMs / priorityDurations.High.count) / (1000 * 60 * 60 * 24) : 0,
+				Urgent: priorityDurations.Urgent.count > 0 ? (priorityDurations.Urgent.totalMs / priorityDurations.Urgent.count) / (1000 * 60 * 60 * 24) : 0
+			}
+		};
+	}
+
+	// 5. Bottlenecks (WIP / Stage Distribution)
+	const bottlenecks = await db.select({
+		stageId: tasks.stageId,
+		stageName: stages.name,
+		count: sql<number>`cast(count(${tasks.id}) as int)`
+	})
+	.from(tasks)
+	.innerJoin(stages, eq(tasks.stageId, stages.id))
+	.where(
+		and(
+			eq(tasks.groupId, actor.groupId),
+			eq(tasks.boardId, boardId),
+			isNull(tasks.deletedAt),
+			eq(stages.isCompleted, false),
+			isNull(stages.deletedAt)
+		)
+	)
+	.groupBy(tasks.stageId, stages.name);
+
+	// 6. Risks (Overdue & Stale)
+	let overdue: any[] = [];
+	if (activeStageIds.length > 0) {
+		overdue = await db.select({
+			id: tasks.id,
+			title: tasks.title,
+			number: tasks.number,
+			dueDate: tasks.dueDate,
+			assigneeName: users.name
+		})
+		.from(tasks)
+		.leftJoin(users, eq(tasks.assigneeId, users.id))
+		.where(
+			and(
+				eq(tasks.groupId, actor.groupId),
+				eq(tasks.boardId, boardId),
+				isNull(tasks.deletedAt),
+				inArray(tasks.stageId, activeStageIds),
+				lt(tasks.dueDate, new Date())
+			)
+		);
+	}
+
+	const staleCutoff = new Date();
+	staleCutoff.setDate(staleCutoff.getDate() - 14);
+
+	const inProgressStageIds = activeStageIds.filter(id => id !== initialStageId);
+	let stale: any[] = [];
+	if (inProgressStageIds.length > 0) {
+		stale = await db.select({
+			id: tasks.id,
+			title: tasks.title,
+			number: tasks.number,
+			updatedAt: tasks.updatedAt,
+			assigneeName: users.name
+		})
+		.from(tasks)
+		.leftJoin(users, eq(tasks.assigneeId, users.id))
+		.where(
+			and(
+				eq(tasks.groupId, actor.groupId),
+				eq(tasks.boardId, boardId),
+				isNull(tasks.deletedAt),
+				inArray(tasks.stageId, inProgressStageIds),
+				lt(tasks.updatedAt, staleCutoff)
+			)
+		);
+	}
+
+	const result: BoardReports = {
+		velocity,
+		reopenedRate,
+		reopenedRateColor,
+		reopenedTasks,
+		cycleTime,
+		bottlenecks,
+		risks: {
+			overdue,
+			stale
+		}
 	};
 
 	await setCachedDashboardData(cacheKey, result, 300);

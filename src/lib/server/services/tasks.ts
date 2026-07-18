@@ -14,7 +14,7 @@ export async function createTask(actor: Actor, stageId: string, title: string, p
 	}
 	const orderIndex = generateKeyBetween(previousIndex, nextIndex);
 	
-	return await db.transaction(async (tx) => {
+	const result = await db.transaction(async (tx) => {
 		// Get boardId from stage and validate group/soft-delete
 		const [stage] = await tx.select({ boardId: stages.boardId })
 			.from(stages)
@@ -33,21 +33,18 @@ export async function createTask(actor: Actor, stageId: string, title: string, p
 		// Atomically claim the next task number via a locked read inside a transaction
 		// to prevent race conditions where two concurrent creates get the same number.
 		// We lock the board row to serialize operations on this board.
-		let number = 1;
-		if (boardId) {
-			await tx.select({ id: boards.id })
-				.from(boards)
-				.where(eq(boards.id, boardId))
-				.for('update');
+		await tx.select({ id: boards.id })
+			.from(boards)
+			.where(eq(boards.id, boardId))
+			.for('update');
 
-			const [maxResult] = await tx.select({
-				maxNumber: sql<number>`COALESCE(MAX(${tasks.number}), 0)`
-			})
-			.from(tasks)
-			.where(eq(tasks.boardId, boardId));
+		const [maxResult] = await tx.select({
+			maxNumber: sql<number>`COALESCE(MAX(${tasks.number}), 0)`
+		})
+		.from(tasks)
+		.where(eq(tasks.boardId, boardId));
 
-			number = (maxResult?.maxNumber ?? 0) + 1;
-		}
+		const number = (maxResult?.maxNumber ?? 0) + 1;
 
 		const [newTask] = await tx.insert(tasks).values({
 			title, stageId, boardId, groupId: actor.groupId, orderIndex, parentTaskId, number
@@ -62,14 +59,14 @@ export async function createTask(actor: Actor, stageId: string, title: string, p
 			newValue: null
 		});
 
-		if (boardId) {
-			emitBoardEvent(boardId, 'task_created', { task: newTask });
-		}
-
-		await invalidateDashboardCache(actor.groupId);
-
-		return newTask;
+		return { newTask, boardId };
 	});
+
+	emitBoardEvent(result.boardId, 'task_created', { task: result.newTask });
+
+	await invalidateDashboardCache(actor.groupId);
+
+	return result.newTask;
 }
 
 export async function moveTask(actor: Actor, taskId: string, newStageId: string, previousIndex: string | null = null, nextIndex: string | null = null) {
@@ -100,23 +97,32 @@ export async function moveTask(actor: Actor, taskId: string, newStageId: string,
 		boardId = newStage.boardId;
 	}
 
-	const [updated] = await db.update(tasks)
-		.set({ stageId: newStageId, orderIndex, boardId })
-		.where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)))
-		.returning();
+	let sendNotification = false;
 
-	if (oldTask.stageId !== newStageId) {
-		await db.insert(auditLogs).values({
-			groupId: actor.groupId,
-			taskId,
-			userId: actor.id,
-			actionType: 'stage_change',
-			oldValue: oldTask.stageId,
-			newValue: newStageId
-		});
-		if (oldTask.assigneeId) {
-			await createNotification(oldTask.assigneeId, actor.id, 'status_changed', taskId);
+	const updated = await db.transaction(async (tx) => {
+		const [updated] = await tx.update(tasks)
+			.set({ stageId: newStageId, orderIndex, boardId })
+			.where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)))
+			.returning();
+
+		if (oldTask.stageId !== newStageId) {
+			await tx.insert(auditLogs).values({
+				groupId: actor.groupId,
+				taskId,
+				userId: actor.id,
+				actionType: 'stage_change',
+				oldValue: oldTask.stageId,
+				newValue: newStageId
+			});
+			if (oldTask.assigneeId) {
+				sendNotification = true;
+			}
 		}
+		return updated;
+	});
+
+	if (sendNotification && oldTask.assigneeId) {
+		await createNotification(oldTask.assigneeId, actor.id, 'status_changed', taskId);
 	}
 
 	if (boardId) {
@@ -152,9 +158,8 @@ export interface TaskUpdatePayload {
 	dueDate?: Date | null;
 	checklists?: { id: string; text: string; completed: boolean }[];
 	stageId?: string;
-	boardId?: string;
 	parentTaskId?: string | null;
-	customFields?: Record<string, unknown>;
+	customFields?: Record<string, string | number | boolean | null>;
 }
 
 export async function updateTask(actor: Actor, taskId: string, updates: TaskUpdatePayload) {
@@ -173,6 +178,18 @@ export async function updateTask(actor: Actor, taskId: string, updates: TaskUpda
 	}).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId), isNull(tasks.deletedAt)));
 	if (!oldTask) throw new Error('Task not found');
 
+	// Whitelist parameters to prevent cross-tenant/unsafe property injection
+	const setPayload: Record<string, any> = {};
+	if (updates.title !== undefined) setPayload.title = updates.title;
+	if (updates.description !== undefined) setPayload.description = updates.description;
+	if (updates.priority !== undefined) setPayload.priority = updates.priority;
+	if (updates.assigneeId !== undefined) setPayload.assigneeId = updates.assigneeId;
+	if (updates.dueDate !== undefined) setPayload.dueDate = updates.dueDate;
+	if (updates.checklists !== undefined) setPayload.checklists = updates.checklists;
+	if (updates.parentTaskId !== undefined) setPayload.parentTaskId = updates.parentTaskId;
+	if (updates.customFields !== undefined) setPayload.customFields = updates.customFields;
+	setPayload.updatedAt = new Date();
+
 	if (updates.stageId && updates.stageId !== oldTask.stageId) {
 		const [newStage] = await db.select({ boardId: stages.boardId })
 			.from(stages)
@@ -186,74 +203,94 @@ export async function updateTask(actor: Actor, taskId: string, updates: TaskUpda
 				)
 			);
 		if (!newStage) throw new Error('Stage not found or access denied');
-		updates.boardId = newStage.boardId;
+		setPayload.stageId = updates.stageId;
+		setPayload.boardId = newStage.boardId;
 	}
 
-	const [updatedTask] = await db.update(tasks)
-		.set(updates)
-		.where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)))
-		.returning();
+	const { updatedTask, notificationsToSend } = await db.transaction(async (tx) => {
+		const [updatedTask] = await tx.update(tasks)
+			.set(setPayload)
+			.where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)))
+			.returning();
 
-	const logs: { groupId: string; taskId: string; userId: string; actionType: string; oldValue: string | null; newValue: string | null }[] = [];
-	if (updates.priority && updates.priority !== oldTask.priority) {
-		logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'priority_change', oldValue: oldTask.priority, newValue: updates.priority });
-	}
-	if (updates.assigneeId !== undefined && updates.assigneeId !== oldTask.assigneeId) {
-		logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'assignee_change', oldValue: oldTask.assigneeId || 'unassigned', newValue: updates.assigneeId || 'unassigned' });
-		if (updates.assigneeId) {
-			await createNotification(updates.assigneeId, actor.id, 'assigned', taskId);
-		}
-	}
-	if (updates.title && updates.title !== oldTask.title) {
-		logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'title_change', oldValue: oldTask.title, newValue: updates.title });
-	}
-	if (updates.stageId && updates.stageId !== oldTask.stageId) {
-		logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'stage_change', oldValue: oldTask.stageId, newValue: updates.stageId });
-		if (oldTask.assigneeId) {
-			await createNotification(oldTask.assigneeId, actor.id, 'status_changed', taskId);
-		}
-	}
-	if (updates.dueDate !== undefined) {
-		const oldDateStr = oldTask.dueDate?.toISOString() || 'none';
-		const newDateStr = updates.dueDate?.toISOString() || 'none';
-		if (oldDateStr !== newDateStr) {
-			logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'due_date_change', oldValue: oldDateStr, newValue: newDateStr });
-		}
-	}
-	if (updates.parentTaskId !== undefined && updates.parentTaskId !== oldTask.parentTaskId) {
-		logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'parent_change', oldValue: oldTask.parentTaskId || 'none', newValue: updates.parentTaskId || 'none' });
+		const logs: { groupId: string; taskId: string; userId: string; actionType: string; oldValue: string | null; newValue: string | null }[] = [];
+		const notificationsToSend: { userId: string; type: 'assigned' | 'status_changed' }[] = [];
 
-		if (updates.parentTaskId === null && oldTask.parentTaskId !== null) {
-			const siblings = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.parentTaskId, oldTask.parentTaskId));
-			
-			const newLinks: { sourceTaskId: string; targetTaskId: string; linkType: string }[] = [];
-			newLinks.push({
-				sourceTaskId: taskId,
-				targetTaskId: oldTask.parentTaskId,
-				linkType: 'relates_to'
-			});
-			
-			for (const sib of siblings) {
-				if (sib.id !== taskId) {
-					newLinks.push({
-						sourceTaskId: taskId,
-						targetTaskId: sib.id,
-						linkType: 'relates_to'
-					});
+		if (updates.priority && updates.priority !== oldTask.priority) {
+			logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'priority_change', oldValue: oldTask.priority, newValue: updates.priority });
+		}
+		if (updates.assigneeId !== undefined && updates.assigneeId !== oldTask.assigneeId) {
+			logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'assignee_change', oldValue: oldTask.assigneeId || 'unassigned', newValue: updates.assigneeId || 'unassigned' });
+			if (updates.assigneeId) {
+				notificationsToSend.push({ userId: updates.assigneeId, type: 'assigned' });
+			}
+		}
+		if (updates.title && updates.title !== oldTask.title) {
+			logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'title_change', oldValue: oldTask.title, newValue: updates.title });
+		}
+		if (updates.stageId && updates.stageId !== oldTask.stageId) {
+			logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'stage_change', oldValue: oldTask.stageId, newValue: updates.stageId });
+			if (oldTask.assigneeId) {
+				notificationsToSend.push({ userId: oldTask.assigneeId, type: 'status_changed' });
+			}
+		}
+		if (updates.dueDate !== undefined) {
+			const oldDateStr = oldTask.dueDate?.toISOString() || 'none';
+			const newDateStr = updates.dueDate?.toISOString() || 'none';
+			if (oldDateStr !== newDateStr) {
+				logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'due_date_change', oldValue: oldDateStr, newValue: newDateStr });
+			}
+		}
+		if (updates.parentTaskId !== undefined && updates.parentTaskId !== oldTask.parentTaskId) {
+			logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'parent_change', oldValue: oldTask.parentTaskId || 'none', newValue: updates.parentTaskId || 'none' });
+
+			if (updates.parentTaskId === null && oldTask.parentTaskId !== null) {
+				const siblings = await tx.select({ id: tasks.id })
+					.from(tasks)
+					.where(
+						and(
+							eq(tasks.parentTaskId, oldTask.parentTaskId),
+							eq(tasks.groupId, actor.groupId),
+							isNull(tasks.deletedAt)
+						)
+					);
+				
+				const newLinks: { sourceTaskId: string; targetTaskId: string; linkType: string }[] = [];
+				newLinks.push({
+					sourceTaskId: taskId,
+					targetTaskId: oldTask.parentTaskId,
+					linkType: 'relates_to'
+				});
+				
+				for (const sib of siblings) {
+					if (sib.id !== taskId) {
+						newLinks.push({
+							sourceTaskId: taskId,
+							targetTaskId: sib.id,
+							linkType: 'relates_to'
+						});
+					}
+				}
+				if (newLinks.length > 0) {
+					await tx.insert(taskLinks).values(newLinks);
 				}
 			}
-			if (newLinks.length > 0) {
-				await db.insert(taskLinks).values(newLinks);
-			}
 		}
+
+		if (logs.length > 0) {
+			await tx.insert(auditLogs).values(logs);
+		}
+
+		return { updatedTask, logs, notificationsToSend };
+	});
+
+	for (const note of notificationsToSend) {
+		await createNotification(note.userId, actor.id, note.type, taskId);
 	}
 
-	if (logs.length > 0) {
-		await db.insert(auditLogs).values(logs);
-	}
-
-	if (oldTask.boardId) {
-		emitBoardEvent(oldTask.boardId, 'task_updated', { task: updatedTask });
+	const boardIdToEmit = setPayload.boardId || oldTask.boardId;
+	if (boardIdToEmit && updatedTask) {
+		emitBoardEvent(boardIdToEmit, 'task_updated', { task: updatedTask });
 	}
 
 	await invalidateDashboardCache(actor.groupId);
@@ -301,10 +338,14 @@ export async function getBoardTasks(groupId: string, stageIds: string[]) {
 	.innerJoin(tags, eq(taskTags.tagId, tags.id))
 	.where(inArray(taskTags.taskId, taskIds));
 
-	const tagsMap: Record<string, any[]> = {};
+	const tagsMap: Record<string, { id: string; name: string; color: string }[]> = {};
 	for (const tag of fetchedTags) {
 		if (!tagsMap[tag.taskId]) tagsMap[tag.taskId] = [];
-		tagsMap[tag.taskId].push(tag);
+		tagsMap[tag.taskId].push({
+			id: tag.id,
+			name: tag.name,
+			color: tag.color
+		});
 	}
 
 	return fetchedTasks.map((t) => ({

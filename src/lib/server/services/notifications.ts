@@ -20,7 +20,9 @@ export async function createNotification(
 		taskId
 	}).returning();
 
-	const [taskObj] = await db.select({ title: tasks.title }).from(tasks).where(eq(tasks.id, taskId));
+	const [taskObj] = await db.select({ title: tasks.title }).from(tasks).where(
+		and(eq(tasks.id, taskId), isNull(tasks.deletedAt))
+	);
 
 	globalEventEmitter.emit(`user:${userId}`, {
 		type: 'notification_created',
@@ -46,7 +48,7 @@ export async function getNotifications(actor: Actor) {
 		actorId: notifications.actorId
 	})
 	.from(notifications)
-	.leftJoin(tasks, eq(tasks.id, notifications.taskId))
+	.leftJoin(tasks, and(eq(tasks.id, notifications.taskId), isNull(tasks.deletedAt)))
 	.where(eq(notifications.userId, actor.id))
 	.orderBy(desc(notifications.createdAt))
 	.limit(50);
@@ -77,7 +79,12 @@ export async function notifyCommentAdded(authorId: string, taskId: string): Prom
 			customFields: tasks.customFields
 		})
 		.from(tasks)
-		.where(eq(tasks.id, taskId))
+		.where(
+			and(
+				eq(tasks.id, taskId),
+				isNull(tasks.deletedAt)
+			)
+		)
 		.limit(1);
 
 		if (!task) return;

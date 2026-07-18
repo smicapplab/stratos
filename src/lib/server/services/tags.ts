@@ -5,7 +5,7 @@ import type { Actor } from './users';
 
 async function checkProjectAccess(actor: Actor, projectId: string) {
 	const [project] = await db.select({ visibility: projects.visibility }).from(projects).where(
-		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId))
+		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId), isNull(projects.deletedAt))
 	);
 	
 	if (!project) throw new Error('Project not found or access denied');
@@ -22,7 +22,7 @@ async function checkProjectAccess(actor: Actor, projectId: string) {
 
 async function checkProjectAdmin(actor: Actor, projectId: string) {
 	const [project] = await db.select({ id: projects.id }).from(projects).where(
-		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId))
+		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId), isNull(projects.deletedAt))
 	);
 	
 	if (!project) throw new Error('Project not found or access denied');
@@ -39,7 +39,9 @@ async function checkProjectAdmin(actor: Actor, projectId: string) {
 }
 
 async function getProjectForTag(tagId: string) {
-	const [tag] = await db.select({ projectId: tags.projectId }).from(tags).where(eq(tags.id, tagId));
+	const [tag] = await db.select({ projectId: tags.projectId }).from(tags).where(
+		and(eq(tags.id, tagId), isNull(tags.deletedAt))
+	);
 	if (!tag) throw new Error('Tag not found');
 	return tag.projectId;
 }
@@ -121,9 +123,9 @@ export async function attachTagToTask(actor: Actor, taskId: string, tagId: strin
 	const projectId = await getProjectForTag(tagId);
 	await checkProjectAccess(actor, projectId);
 	
-	// Verify task belongs to this group/project
+	// Verify task belongs to this group/project and is not deleted
 	const [task] = await db.select({ id: tasks.id }).from(tasks).where(
-		and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId))
+		and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId), isNull(tasks.deletedAt))
 	);
 	
 	if (!task) throw new Error('Task not found');
@@ -137,6 +139,12 @@ export async function attachTagToTask(actor: Actor, taskId: string, tagId: strin
 export async function detachTagFromTask(actor: Actor, taskId: string, tagId: string) {
 	const projectId = await getProjectForTag(tagId);
 	await checkProjectAccess(actor, projectId);
+	
+	// Verify that the task belongs to the user's group and is not deleted
+	const [task] = await db.select({ id: tasks.id }).from(tasks).where(
+		and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId), isNull(tasks.deletedAt))
+	);
+	if (!task) throw new Error('Task not found');
 	
 	await db.delete(taskTags).where(
 		and(eq(taskTags.taskId, taskId), eq(taskTags.tagId, tagId))

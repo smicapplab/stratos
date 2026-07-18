@@ -178,7 +178,7 @@
 		</div>
 
 		<!-- Priority -->
-		<div>
+		<div id="priority-wrapper">
 			<div class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-2">
 				<Flag class="w-3.5 h-3.5" /> Priority
 			</div>

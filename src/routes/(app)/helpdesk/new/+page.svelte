@@ -9,6 +9,8 @@
 		ArrowLeft,
 		Paperclip
 	} from 'lucide-svelte';
+	import FileSecurityBadge from '$lib/components/ui/FileSecurityBadge.svelte';
+
 	// Form state
 	let ticketType = $state<'Bug' | 'Feature' | 'Support'>('Bug');
 	let title = $state('');
@@ -17,7 +19,7 @@
 	let isSubmitting = $state(false);
 
 	// Inline validation errors
-	let errors = $state<{ title?: string; general?: string }>({});
+	let errors = $state<{ title?: string; general?: string; attachments?: string }>({});
 
 	function handleSubmit() {
 		errors = {};
@@ -80,6 +82,14 @@
 							const errorMsg = result.data && typeof result.data.error === 'string'
 								? result.data.error
 								: 'Failed to submit ticket';
+							if (errorMsg.toLowerCase().includes('file') || errorMsg.toLowerCase().includes('size') || errorMsg.toLowerCase().includes('type') || errorMsg.toLowerCase().includes('limit') || errorMsg.toLowerCase().includes('allowed')) {
+								errors.attachments = errorMsg;
+							} else {
+								errors.general = errorMsg;
+								toastStore.error(errorMsg);
+							}
+						} else if (result.type === 'error') {
+							const errorMsg = result.error?.message || 'A server error occurred';
 							errors.general = errorMsg;
 							toastStore.error(errorMsg);
 						}
@@ -177,7 +187,7 @@
 							<div class="flex flex-col items-center justify-center pt-4 pb-4">
 								<Paperclip class="w-7 h-7 text-zinc-400 mb-1.5" />
 								<p class="text-xs text-zinc-500 dark:text-zinc-400 font-semibold"><span class="text-blue-500">Click to upload</span> or drag and drop</p>
-								<p class="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">Images or Documents (Max 10MB each)</p>
+								<p class="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">Images or Documents (Max 20MB each, limit 5 files)</p>
 							</div>
 							<input 
 								type="file" 
@@ -190,8 +200,14 @@
 							/>
 						</label>
 					</div>
-					{#if selectedFileCount > 0}
-						<p class="text-xs text-blue-500 dark:text-blue-400 font-semibold pl-1 mt-1">{selectedFileCount} files selected</p>
+					<div class="flex justify-between items-center px-1 mt-1">
+						<FileSecurityBadge label="Your files are stored securely" />
+						{#if selectedFileCount > 0}
+							<p class="text-xs text-blue-500 dark:text-blue-400 font-semibold">{selectedFileCount} files selected</p>
+						{/if}
+					</div>
+					{#if errors.attachments}
+						<p class="text-xs text-red-500 font-medium pl-1 mt-1">{errors.attachments}</p>
 					{/if}
 				</div>
 

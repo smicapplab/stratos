@@ -24,6 +24,7 @@
 		User
 	} from 'lucide-svelte';
 	import { enhance } from '$app/forms';
+	import BrandLogoType from '$lib/components/ui/BrandLogoType.svelte';
 
 	let { data, children } = $props();
 	let user = $derived(data.user);
@@ -211,10 +212,8 @@
 	<aside class="hidden lg:flex w-64 flex-shrink-0 flex-col bg-white/70 dark:bg-zinc-900/50 backdrop-blur-xl border-r border-zinc-200/80 dark:border-zinc-800/80 z-20 transition-all duration-300 ease-in-out {isSidebarOpen ? 'ml-0' : '-ml-64'}">
 		<!-- Brand Header -->
 		<div class="h-16 flex items-center px-6 border-b border-zinc-200/50 dark:border-zinc-800/50">
-			<div class="flex items-center gap-3">
-				<div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md flex items-center justify-center">
-					<span class="text-white font-bold text-sm tracking-tighter">ST</span>
-				</div>
+			<div class="flex items-center gap-2.5">
+				<BrandLogoType class="w-6 h-6 text-blue-600 dark:text-blue-500 shrink-0" />
 				<span class="font-bold text-lg tracking-tight">Stratos</span>
 			</div>
 		</div>
