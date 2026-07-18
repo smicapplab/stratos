@@ -33,6 +33,17 @@ The application is designed to be runtime-agnostic and relies on standard Node.j
 npm run dev
 ```
 
+### Default Credentials (Local Development)
+
+After running the database migrations and seeding the database, you can log in using the following default accounts:
+
+*   **Admin User:**
+    *   Email: `admin@acme.internal`
+    *   Password: `password123`
+*   **Member User:**
+    *   Email: `bob@acme.internal` (or `charlie@acme.internal`)
+    *   Password: `password123`
+
 ## Documentation
 
 This repository enforces strict documentation standards. All architectural decisions, data models, and feature specifications are maintained exclusively inside the `docs/` directory.
