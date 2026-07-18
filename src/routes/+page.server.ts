@@ -7,7 +7,7 @@ import { lucia } from '$lib/server/auth/lucia';
 
 import type { PageServerLoad, Actions } from './$types';
 
-// Simple in-memory rate limiter for login attempts (per-IP, sliding window)
+// Simple in-memory rate limiter for login attempts (per-IP, sliding window - Reset)
 const LOGIN_WINDOW_MS = 60_000; // 60 seconds
 const LOGIN_MAX_ATTEMPTS = 5;
 const loginAttempts = new Map<string, { count: number; firstAttempt: number }>();
