@@ -18,6 +18,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			return json({ error: 'Valid emoji is required' }, { status: 400 });
 		}
 
+		if (emoji.length > 10) {
+			return json({ error: 'Invalid emoji length' }, { status: 400 });
+		}
+
 		// Verify the comment belongs to a task in the user's group
 		const [existing] = await db.select({ id: comments.id })
 			.from(comments)

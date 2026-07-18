@@ -14,6 +14,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		};
 	} catch (err) {
 		const e = err as Error;
-		throw error(500, e.message || 'Failed to load tickets.');
+		console.error('[Helpdesk Tickets List Loader] Error:', e);
+		throw error(500, 'An unexpected error occurred');
 	}
 };

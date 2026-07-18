@@ -1,5 +1,15 @@
 import { lucia } from '$lib/server/auth/lucia';
 import type { Handle } from '@sveltejs/kit';
+import { db } from '$lib/server/db/db';
+import { users } from '$lib/server/db/schema';
+import { eq } from 'drizzle-orm';
+import fs from 'fs';
+import path from 'path';
+
+const uploadsDir = path.resolve('uploads');
+if (!fs.existsSync(uploadsDir)) {
+	fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const sessionId = event.cookies.get(lucia.sessionCookieName);
@@ -10,16 +20,23 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	const { session, user } = await lucia.validateSession(sessionId);
-	if (user && user.deletedAt) {
-		await lucia.invalidateSession(sessionId);
-		const sessionCookie = lucia.createBlankSessionCookie();
-		event.cookies.set(sessionCookie.name, sessionCookie.value, {
-			path: '/',
-			...sessionCookie.attributes
-		});
-		event.locals.user = null;
-		event.locals.session = null;
-		return resolve(event);
+	if (user) {
+		const [dbUser] = await db.select({ deletedAt: users.deletedAt })
+			.from(users)
+			.where(eq(users.id, user.id))
+			.limit(1);
+
+		if (!dbUser || dbUser.deletedAt) {
+			await lucia.invalidateSession(sessionId);
+			const sessionCookie = lucia.createBlankSessionCookie();
+			event.cookies.set(sessionCookie.name, sessionCookie.value, {
+				path: '/',
+				...sessionCookie.attributes
+			});
+			event.locals.user = null;
+			event.locals.session = null;
+			return resolve(event);
+		}
 	}
 
 	if (session && session.fresh) {

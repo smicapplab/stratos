@@ -7,11 +7,13 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgres://postgres:password@localhost:5432/stratos',
 });
 const db = drizzle(pool);
-import { groups, users, projects, projectMembers, boards, stages, tasks, comments, auditLogs } from './schema';
+import { groups, users, projects, projectMembers, boards, stages, tasks, comments, auditLogs, attachments } from './schema';
 import crypto from 'crypto';
 const uuidv4 = () => crypto.randomUUID();
 import argon2 from 'argon2';
 import { generateKeyBetween } from 'fractional-indexing';
+import fs from 'fs';
+import path from 'path';
 
 function daysAgo(days: number): Date {
 	const d = new Date();
@@ -36,6 +38,7 @@ async function main() {
 
 	console.log('Clearing existing data...');
 	await db.delete(comments);
+	await db.delete(attachments);
 	await db.delete(auditLogs);
 	await db.delete(tasks);
 	await db.delete(stages);
@@ -59,10 +62,10 @@ async function main() {
 	const adminId = uuidv4();
 	const userId1 = uuidv4(); // Bob Builder
 	const userId2 = uuidv4(); // Charlie Coder
-	const userId3 = uuidv4(); // Dave Designer
+	const userId3 = uuidv4(); // Dave Designer (Manager!)
 	const userId4 = uuidv4(); // Emma Executive
 
-	// Let's create the users list:
+	// Create the users list
 	const usersList = [
 		{ id: adminId, groupId, email: 'admin@acme.internal', name: 'Alice Admin', role: 'Admin', hashedPassword: passwordHash }
 	];
@@ -70,7 +73,7 @@ async function main() {
 		usersList.push(
 			{ id: userId1, groupId, email: 'bob@acme.internal', name: 'Bob Builder', role: 'Member', hashedPassword: passwordHash },
 			{ id: userId2, groupId, email: 'charlie@acme.internal', name: 'Charlie Coder', role: 'Member', hashedPassword: passwordHash },
-			{ id: userId3, groupId, email: 'dave@acme.internal', name: 'Dave Designer', role: 'Member', hashedPassword: passwordHash },
+			{ id: userId3, groupId, email: 'dave@acme.internal', name: 'Dave Designer', role: 'Manager', hashedPassword: passwordHash }, //Dave is Manager!
 			{ id: userId4, groupId, email: 'emma@acme.internal', name: 'Emma Executive', role: 'Member', hashedPassword: passwordHash }
 		);
 	}
@@ -80,7 +83,6 @@ async function main() {
 
 	if (mode === 'dev') {
 		console.log('Seeding projects & members...');
-		// Create Seeder Project
 		const projectId = uuidv4();
 		await db.insert(projects).values({
 			id: projectId,
@@ -93,7 +95,7 @@ async function main() {
 			{ projectId, userId: adminId, role: 'Admin' },
 			{ projectId, userId: userId1, role: 'Member' },
 			{ projectId, userId: userId2, role: 'Member' },
-			{ projectId, userId: userId3, role: 'Member' },
+			{ projectId, userId: userId3, role: 'Manager' },
 			{ projectId, userId: userId4, role: 'Member' }
 		]).onConflictDoNothing();
 
@@ -123,10 +125,13 @@ async function main() {
 		// Create Tasks
 		const t1 = uuidv4(); const t2 = uuidv4(); const t3 = uuidv4(); const t4 = uuidv4();
 		const t5 = uuidv4(); const t6 = uuidv4(); const t7 = uuidv4();
+		const tCompleted1 = uuidv4(); const tCompleted2 = uuidv4(); const tCompleted3 = uuidv4();
+		const tPrior1 = uuidv4(); const tPrior2 = uuidv4();
+		const tReopened1 = uuidv4();
 
 		console.log('Seeding diverse tasks and subtasks...');
 		await db.insert(tasks).values([
-			// Task 1: Login API - Overdue
+			// Task 1: Login API - Overdue by 3 days
 			{ 
 				id: t1, 
 				stageId: s11, 
@@ -142,7 +147,7 @@ async function main() {
 				createdAt: daysAgo(10),
 				updatedAt: daysAgo(3)
 			},
-			// Task 2: Dashboard UI - In Progress (Due Tomorrow)
+			// Task 2: Dashboard UI - In Progress
 			{ 
 				id: t2, 
 				stageId: s12, 
@@ -158,7 +163,7 @@ async function main() {
 				createdAt: daysAgo(5),
 				updatedAt: daysAgo(1)
 			},
-			// Task 3: Setup DB - Completed (Due 8 days ago, completed 8 days ago)
+			// Task 3: Setup DB - Completed (Done stage, cycle time 4 days)
 			{ 
 				id: t3, 
 				stageId: s13, 
@@ -171,10 +176,10 @@ async function main() {
 				orderIndex: generateKeyBetween(generateKeyBetween(generateKeyBetween(null, null), null), null), 
 				assigneeId: adminId,
 				dueDate: daysAgo(8),
-				createdAt: daysAgo(12),
-				updatedAt: daysAgo(8)
+				createdAt: daysAgo(22),
+				updatedAt: daysAgo(18)
 			},
-			// Task 4: React Native Setup - Backlog (Due in a week)
+			// Task 4: React Native Setup - Backlog
 			{ 
 				id: t4, 
 				stageId: s21, 
@@ -190,7 +195,7 @@ async function main() {
 				createdAt: daysAgo(7),
 				updatedAt: daysAgo(7)
 			},
-			// Task 5: Write API Documentation (To Do, Low Priority, due in 5 days)
+			// Task 5: Write API Documentation
 			{
 				id: t5,
 				stageId: s11,
@@ -206,7 +211,7 @@ async function main() {
 				createdAt: daysAgo(2),
 				updatedAt: daysAgo(2)
 			},
-			// Task 6: Design Brand Assets (In Progress, Medium priority, due today)
+			// Task 6: Design Brand Assets - Stale (updated 16 days ago)
 			{
 				id: t6,
 				stageId: s12,
@@ -218,11 +223,11 @@ async function main() {
 				priority: 'Medium',
 				orderIndex: generateKeyBetween(null, null),
 				assigneeId: userId3,
-				dueDate: new Date(),
-				createdAt: daysAgo(3),
-				updatedAt: new Date()
+				dueDate: daysAgo(5),
+				createdAt: daysAgo(20),
+				updatedAt: daysAgo(16)
 			},
-			// Task 7: Security Compliance Review (To Do, Urgent priority, due in 2 weeks)
+			// Task 7: Security Compliance Review
 			{
 				id: t7,
 				stageId: s11,
@@ -237,6 +242,102 @@ async function main() {
 				dueDate: daysFromNow(14),
 				createdAt: daysAgo(1),
 				updatedAt: daysAgo(1)
+			},
+			// Task Completed 1: Payment Gateway - Completed 5 days ago, cycle time 3 days
+			{
+				id: tCompleted1,
+				stageId: s13,
+				boardId: board1Id,
+				projectId,
+				groupId,
+				title: 'Integrate Stripe Payment Gateway',
+				description: 'Setup webhook endpoints and payment intent logic.',
+				priority: 'High',
+				orderIndex: generateKeyBetween(null, null),
+				assigneeId: userId1,
+				dueDate: daysAgo(6),
+				createdAt: daysAgo(8),
+				updatedAt: daysAgo(5)
+			},
+			// Task Completed 2: Search Engine - Completed 10 days ago, cycle time 5 days
+			{
+				id: tCompleted2,
+				stageId: s13,
+				boardId: board1Id,
+				projectId,
+				groupId,
+				title: 'Build Global Search Index',
+				description: 'Setup trigram index and Postgres full text query methods.',
+				priority: 'Medium',
+				orderIndex: generateKeyBetween(null, null),
+				assigneeId: userId2,
+				dueDate: daysAgo(12),
+				createdAt: daysAgo(15),
+				updatedAt: daysAgo(10)
+			},
+			// Task Completed 3: CI/CD Pipeline - Completed 22 days ago, cycle time 2 days
+			{
+				id: tCompleted3,
+				stageId: s13,
+				boardId: board1Id,
+				projectId,
+				groupId,
+				title: 'Automate Docker Builds in CI/CD',
+				description: 'Setup GitHub Actions pipeline for staging builds.',
+				priority: 'Low',
+				orderIndex: generateKeyBetween(null, null),
+				assigneeId: adminId,
+				dueDate: daysAgo(20),
+				createdAt: daysAgo(24),
+				updatedAt: daysAgo(22)
+			},
+			// Task Prior 1: Landing Page - Completed 40 days ago (prior period completion)
+			{
+				id: tPrior1,
+				stageId: s13,
+				boardId: board1Id,
+				projectId,
+				groupId,
+				title: 'Build Public Landing Page',
+				description: 'Marketing layout with pricing cards and testimonials grid.',
+				priority: 'Low',
+				orderIndex: generateKeyBetween(null, null),
+				assigneeId: userId1,
+				dueDate: daysAgo(42),
+				createdAt: daysAgo(48),
+				updatedAt: daysAgo(40)
+			},
+			// Task Prior 2: Analytics Tracker - Completed 45 days ago (prior period completion)
+			{
+				id: tPrior2,
+				stageId: s13,
+				boardId: board1Id,
+				projectId,
+				groupId,
+				title: 'Integrate Product Analytics',
+				description: 'Add segment events tracking client-side.',
+				priority: 'Medium',
+				orderIndex: generateKeyBetween(null, null),
+				assigneeId: userId2,
+				dueDate: daysAgo(45),
+				createdAt: daysAgo(52),
+				updatedAt: daysAgo(45)
+			},
+			// Task Reopened 1: Password Hashing - Reopened 2 days ago
+			{
+				id: tReopened1,
+				stageId: s12, // back in Progress
+				boardId: board1Id,
+				projectId,
+				groupId,
+				title: 'Implement Argon2 Password Hashing',
+				description: 'Verify hashing work factor is correctly configured.',
+				priority: 'Urgent',
+				orderIndex: generateKeyBetween(null, null),
+				assigneeId: adminId,
+				dueDate: daysAgo(1),
+				createdAt: daysAgo(10),
+				updatedAt: daysAgo(2)
 			}
 		]).onConflictDoNothing();
 
@@ -469,48 +570,123 @@ async function main() {
 		// Seed Audit Logs
 		console.log('Seeding historical audit logs...');
 		await db.insert(auditLogs).values([
+			// Task 3: Setup DB completions
 			{
 				id: uuidv4(),
 				groupId,
 				projectId,
 				taskId: t3,
 				userId: adminId,
-				actionType: 'status_change',
-				oldValue: 'To Do',
-				newValue: 'In Progress',
-				createdAt: daysAgo(11)
+				actionType: 'stage_change',
+				oldValue: s12,
+				newValue: s13,
+				createdAt: daysAgo(18)
+			},
+			// Task Completed 1: Payment Gateway completion
+			{
+				id: uuidv4(),
+				groupId,
+				projectId,
+				taskId: tCompleted1,
+				userId: userId1,
+				actionType: 'stage_change',
+				oldValue: s12,
+				newValue: s13,
+				createdAt: daysAgo(5)
+			},
+			// Task Completed 2: Search Engine completion
+			{
+				id: uuidv4(),
+				groupId,
+				projectId,
+				taskId: tCompleted2,
+				userId: userId2,
+				actionType: 'stage_change',
+				oldValue: s12,
+				newValue: s13,
+				createdAt: daysAgo(10)
+			},
+			// Task Completed 3: CI/CD Pipeline completion
+			{
+				id: uuidv4(),
+				groupId,
+				projectId,
+				taskId: tCompleted3,
+				userId: adminId,
+				actionType: 'stage_change',
+				oldValue: s12,
+				newValue: s13,
+				createdAt: daysAgo(22)
+			},
+			// Task Prior 1: Landing Page completion
+			{
+				id: uuidv4(),
+				groupId,
+				projectId,
+				taskId: tPrior1,
+				userId: userId1,
+				actionType: 'stage_change',
+				oldValue: s12,
+				newValue: s13,
+				createdAt: daysAgo(40)
+			},
+			// Task Prior 2: Analytics Tracker completion
+			{
+				id: uuidv4(),
+				groupId,
+				projectId,
+				taskId: tPrior2,
+				userId: userId2,
+				actionType: 'stage_change',
+				oldValue: s12,
+				newValue: s13,
+				createdAt: daysAgo(45)
+			},
+			// Reopened task transitions
+			{
+				id: uuidv4(),
+				groupId,
+				projectId,
+				taskId: tReopened1,
+				userId: adminId,
+				actionType: 'stage_change',
+				oldValue: s12,
+				newValue: s13,
+				createdAt: daysAgo(6)
 			},
 			{
 				id: uuidv4(),
 				groupId,
 				projectId,
-				taskId: t3,
+				taskId: tReopened1,
 				userId: adminId,
-				actionType: 'status_change',
-				oldValue: 'In Progress',
-				newValue: 'Done',
-				createdAt: daysAgo(8)
+				actionType: 'stage_change',
+				oldValue: s13,
+				newValue: s12,
+				createdAt: daysAgo(2)
 			},
+			// Task 2: Dashboard UI In Progress move
 			{
 				id: uuidv4(),
 				groupId,
 				projectId,
 				taskId: t2,
 				userId: userId2,
-				actionType: 'status_change',
-				oldValue: 'To Do',
-				newValue: 'In Progress',
+				actionType: 'stage_change',
+				oldValue: s11,
+				newValue: s12,
 				createdAt: daysAgo(4)
 			},
+			// Ticket 3 completion
 			{
 				id: uuidv4(),
 				groupId,
 				projectId: supportProjectId,
 				taskId: ticket3Id,
 				userId: adminId,
-				actionType: 'status_change',
-				oldValue: 'Incoming',
-				newValue: 'In Progress',
+				actionType: 'stage_change',
+				oldValue: supportStageIncoming,
+				newValue: supportStageProgress,
 				createdAt: daysAgo(5)
 			},
 			{
@@ -519,10 +695,55 @@ async function main() {
 				projectId: supportProjectId,
 				taskId: ticket3Id,
 				userId: adminId,
-				actionType: 'status_change',
-				oldValue: 'In Progress',
-				newValue: 'Resolved',
+				actionType: 'stage_change',
+				oldValue: supportStageProgress,
+				newValue: supportStageResolved,
 				createdAt: daysAgo(3)
+			}
+		]).onConflictDoNothing();
+
+		// Seed Attachments
+		console.log('Seeding secure ticket attachments...');
+		const uploadsDir = path.resolve('uploads');
+		if (!fs.existsSync(uploadsDir)) {
+			fs.mkdirSync(uploadsDir, { recursive: true });
+		}
+
+		// Write mock files to disk
+		const mockPngPath = path.join(uploadsDir, 'seed-dashboard-error.png');
+		const base64Png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+		fs.writeFileSync(mockPngPath, Buffer.from(base64Png, 'base64'));
+
+		const mockLogPath = path.join(uploadsDir, 'seed-console-logs.txt');
+		fs.writeFileSync(mockLogPath, `[ERROR] Svelte hydration failed at /dashboard:\nTypeError: Cannot read properties of undefined (reading 'boards')\n    at Layout.svelte:24:15\n    at renderComponent (svelte/internal:430:12)\n    ...`);
+
+		const mockDocxPath = path.join(uploadsDir, 'seed-architecture-spec.docx');
+		fs.writeFileSync(mockDocxPath, 'Mock DOCX architecture specification document content.');
+
+		await db.insert(attachments).values([
+			{
+				id: uuidv4(),
+				taskId: ticket1Id,
+				uploaderId: userId1,
+				fileName: 'dashboard-error.png',
+				fileUrl: mockPngPath,
+				mimeType: 'image/png'
+			},
+			{
+				id: uuidv4(),
+				taskId: ticket1Id,
+				uploaderId: userId1,
+				fileName: 'console-logs.txt',
+				fileUrl: mockLogPath,
+				mimeType: 'text/plain'
+			},
+			{
+				id: uuidv4(),
+				taskId: ticket1Id,
+				uploaderId: userId4,
+				fileName: 'architecture-spec.docx',
+				fileUrl: mockDocxPath,
+				mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 			}
 		]).onConflictDoNothing();
 	}

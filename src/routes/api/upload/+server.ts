@@ -1,19 +1,13 @@
 import { json } from '@sveltejs/kit';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import crypto from 'node:crypto';
 import { db } from '$lib/server/db/db';
 import { attachments, tasks } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
-import crypto from 'crypto';
-
+import { eq, and, isNull } from 'drizzle-orm';
+import { validateUploadedFile } from '$lib/server/fileValidation';
+import { generateFileToken } from '$lib/server/generateFileToken';
 import type { RequestHandler } from './$types';
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_MIME_TYPES = new Set([
-	'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
-	'application/pdf',
-	'text/plain', 'text/csv',
-]);
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
@@ -29,50 +23,69 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ error: 'Missing file or taskId' }, { status: 400 });
 		}
 
-		// Verify the task belongs to the user's group
-		const [task] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.groupId, locals.user.groupId)));
-		if (!task) return json({ error: 'Task not found' }, { status: 404 });
-
-		// Validate file size
-		if (file.size > MAX_FILE_SIZE) {
-			return json({ error: `File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB` }, { status: 400 });
+		// Verify the task belongs to the user's group and is not deleted
+		const [task] = await db.select({ id: tasks.id })
+			.from(tasks)
+			.where(and(eq(tasks.id, taskId), eq(tasks.groupId, locals.user.groupId), isNull(tasks.deletedAt)));
+		if (!task) {
+			return json({ error: 'Task not found' }, { status: 404 });
 		}
 
-		// Validate MIME type
-		if (!ALLOWED_MIME_TYPES.has(file.type)) {
-			return json({ error: 'File type not allowed' }, { status: 400 });
+		// Validate file size and type using our robust validation helper
+		const validation = validateUploadedFile(file);
+		if (!validation.valid) {
+			return json({ error: validation.error }, { status: 400 });
 		}
 
-		// Ensure uploads directory exists
-		const uploadDir = join(process.cwd(), 'static', 'uploads');
-		await mkdir(uploadDir, { recursive: true });
+		// Ensure private uploads directory exists
+		const uploadDir = path.resolve('uploads');
+		if (!fs.existsSync(uploadDir)) {
+			fs.mkdirSync(uploadDir, { recursive: true });
+		}
 
-		// Use a safe filename derived from UUID, with extension from MIME type (not user input)
-		const mimeToExt: Record<string, string> = {
-			'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif',
-			'image/webp': 'webp', 'image/svg+xml': 'svg',
-			'application/pdf': 'pdf', 'text/plain': 'txt', 'text/csv': 'csv',
-		};
-		const ext = mimeToExt[file.type] || 'bin';
-		const safeName = `${crypto.randomUUID()}.${ext}`;
-		const filePath = join(uploadDir, safeName);
-		
+		// Generate a safe, unique filename
+		const uniqueId = crypto.randomUUID();
+		const extension = path.extname(file.name);
+		const uniqueFileName = `${uniqueId}${extension}`;
+		const filePath = path.join(uploadDir, uniqueFileName);
+
+		// Write file buffer to private directory
 		const buffer = Buffer.from(await file.arrayBuffer());
-		await writeFile(filePath, buffer);
+		fs.writeFileSync(filePath, buffer);
 
-		const fileUrl = `/uploads/${safeName}`;
-
-		const [attachment] = await db.insert(attachments).values({
+		const [inserted] = await db.insert(attachments).values({
 			taskId,
 			uploaderId: locals.user.id,
 			fileName: file.name,
-			fileUrl: fileUrl,
+			fileUrl: filePath,
 			mimeType: file.type
 		}).returning();
 
-		return json({ url: fileUrl, attachment });
+		// Generate preview token for secure previewing
+		const token = await generateFileToken(
+			locals.user,
+			filePath,
+			file.type || 'application/octet-stream',
+			file.name
+		);
+
+		const tokenUrl = `/api/files/${token}`;
+
+		return json({
+			url: tokenUrl,
+			attachment: {
+				id: inserted.id,
+				taskId: inserted.taskId,
+				uploaderId: inserted.uploaderId,
+				fileName: inserted.fileName,
+				fileUrl: tokenUrl,
+				mimeType: inserted.mimeType,
+				createdAt: inserted.createdAt
+			}
+		});
 	} catch (error) {
 		console.error('Upload error:', error);
-		return json({ error: 'Upload failed' }, { status: 500 });
+		const e = error as Error;
+		return json({ error: e.message || 'Upload failed' }, { status: 400 });
 	}
 };

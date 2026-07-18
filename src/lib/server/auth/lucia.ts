@@ -20,8 +20,7 @@ export const lucia = new Lucia(adapter, {
 			groupId: attributes.groupId,
 			jobTitle: attributes.jobTitle,
 			avatarUrl: attributes.avatarUrl,
-			theme: attributes.theme,
-			deletedAt: attributes.deletedAt
+			theme: attributes.theme
 		};
 	},
 	getSessionAttributes: (attributes) => {
@@ -43,12 +42,11 @@ declare module "lucia" {
 interface DatabaseUserAttributes {
 	email: string;
 	name: string;
-	role: string;
+	role: 'Admin' | 'Manager' | 'Member' | 'Viewer';
 	groupId: string;
 	jobTitle: string | null;
 	avatarUrl: string | null;
 	theme: string;
-	deletedAt: Date | null;
 }
 
 interface DatabaseSessionAttributes {

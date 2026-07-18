@@ -1,5 +1,5 @@
 import { db } from '../db/db';
-import { projects, projectMembers, boards, stages, tasks, auditLogs, comments, users, attachments } from '../db/schema';
+import { projects, projectMembers, boards, stages, tasks, auditLogs, comments, users, attachments, groups } from '../db/schema';
 import { eq, and, isNull, sql, asc, desc } from 'drizzle-orm';
 import type { Actor } from './users';
 import { generateKeyBetween } from 'fractional-indexing';
@@ -21,105 +21,155 @@ export async function createHelpdeskTicket(
 		throw new Error('Unauthorized');
 	}
 
-	// 1. Find or create the Private support project
-	let [supportProject] = await db.select({ id: projects.id }).from(projects).where(
-		and(
-			eq(projects.groupId, actor.groupId),
-			eq(projects.name, 'System Support & Tickets'),
-			isNull(projects.deletedAt)
-		)
-	).limit(1);
+	return await db.transaction(async (tx) => {
+		// Lock the group row to serialize support infrastructure creation for the tenant
+		await tx.select({ id: groups.id })
+			.from(groups)
+			.where(eq(groups.id, actor.groupId))
+			.for('update');
 
-	if (!supportProject) {
-		[supportProject] = await db.insert(projects).values({
-			name: 'System Support & Tickets',
-			groupId: actor.groupId,
-			visibility: 'Private'
-		}).returning();
+		// 1. Find or create the Private support project
+		let [supportProject] = await tx.select({ id: projects.id }).from(projects).where(
+			and(
+				eq(projects.groupId, actor.groupId),
+				eq(projects.name, 'System Support & Tickets'),
+				isNull(projects.deletedAt)
+			)
+		).limit(1);
 
-		// Add Group Admins as members/admins of this project automatically
-		const groupAdmins = await db.select({ id: users.id })
-			.from(users)
-			.where(
-				and(
-					eq(users.groupId, actor.groupId),
-					eq(users.role, 'Admin'),
-					isNull(users.deletedAt)
-				)
-			);
-		
-		if (groupAdmins.length > 0) {
-			await db.insert(projectMembers).values(
-				groupAdmins.map(admin => ({
-					projectId: supportProject.id,
-					userId: admin.id,
-					role: 'Admin'
-				}))
-			);
-		}
-	}
+		if (!supportProject) {
+			const projectResults = await tx.insert(projects).values({
+				name: 'System Support & Tickets',
+				groupId: actor.groupId,
+				visibility: 'Private'
+			}).onConflictDoNothing().returning();
 
-	// 2. Find or create the Helpdesk Tickets board inside this project
-	let [helpdeskBoard] = await db.select({ id: boards.id }).from(boards).where(
-		and(
-			eq(boards.groupId, actor.groupId),
-			eq(boards.projectId, supportProject.id),
-			eq(boards.name, 'Helpdesk Tickets'),
-			isNull(boards.deletedAt)
-		)
-	).limit(1);
-
-	if (!helpdeskBoard) {
-		[helpdeskBoard] = await db.insert(boards).values({
-			name: 'Helpdesk Tickets',
-			projectId: supportProject.id,
-			groupId: actor.groupId,
-			prefix: 'TIC'
-		}).returning();
-	}
-
-	// 3. Find or create the default "Incoming" stage for this board
-	let [incomingStage] = await db.select({ id: stages.id }).from(stages).where(
-		and(
-			eq(stages.boardId, helpdeskBoard.id),
-			eq(stages.name, 'Incoming'),
-			isNull(stages.deletedAt)
-		)
-	).limit(1);
-
-	if (!incomingStage) {
-		const orderIndexIncoming = generateKeyBetween(null, null);
-		[incomingStage] = await db.insert(stages).values({
-			name: 'Incoming',
-			boardId: helpdeskBoard.id,
-			orderIndex: orderIndexIncoming
-		}).returning();
-
-		const orderIndexProgress = generateKeyBetween(orderIndexIncoming, null);
-		const orderIndexResolved = generateKeyBetween(orderIndexProgress, null);
-
-		await db.insert(stages).values([
-			{
-				name: 'In Progress',
-				boardId: helpdeskBoard.id,
-				orderIndex: orderIndexProgress
-			},
-			{
-				name: 'Resolved',
-				boardId: helpdeskBoard.id,
-				orderIndex: orderIndexResolved,
-				isCompleted: true
+			if (projectResults.length > 0) {
+				supportProject = projectResults[0];
+			} else {
+				[supportProject] = await tx.select({ id: projects.id }).from(projects).where(
+					and(
+						eq(projects.groupId, actor.groupId),
+						eq(projects.name, 'System Support & Tickets'),
+						isNull(projects.deletedAt)
+					)
+				).limit(1);
 			}
-		]);
-	}
 
-	// 4. Claim next task number for the board (Atomic locking) and insert task inside a transaction
-	const { newTask, helpdeskBoardId } = await db.transaction(async (tx) => {
-		// Lock the board row to serialize operations on this board
+			// Add Group Admins as members/admins of this project automatically
+			const groupAdmins = await tx.select({ id: users.id })
+				.from(users)
+				.where(
+					and(
+						eq(users.groupId, actor.groupId),
+						eq(users.role, 'Admin'),
+						isNull(users.deletedAt)
+					)
+				);
+			
+			if (groupAdmins.length > 0 && supportProject) {
+				await tx.insert(projectMembers).values(
+					groupAdmins.map(admin => ({
+						projectId: supportProject.id,
+						userId: admin.id,
+						role: 'Admin'
+					}))
+				).onConflictDoNothing();
+			}
+		}
+
+		if (!supportProject) {
+			throw new Error('Failed to initialize support project');
+		}
+
+		// 2. Find or create the Helpdesk Tickets board inside this project
+		let [helpdeskBoard] = await tx.select({ id: boards.id }).from(boards).where(
+			and(
+				eq(boards.groupId, actor.groupId),
+				eq(boards.projectId, supportProject.id),
+				eq(boards.name, 'Helpdesk Tickets'),
+				isNull(boards.deletedAt)
+			)
+		).limit(1);
+
+		if (!helpdeskBoard) {
+			const boardResults = await tx.insert(boards).values({
+				name: 'Helpdesk Tickets',
+				projectId: supportProject.id,
+				groupId: actor.groupId,
+				prefix: 'TIC'
+			}).onConflictDoNothing().returning();
+
+			if (boardResults.length > 0) {
+				helpdeskBoard = boardResults[0];
+			} else {
+				[helpdeskBoard] = await tx.select({ id: boards.id }).from(boards).where(
+					and(
+						eq(boards.groupId, actor.groupId),
+						eq(boards.projectId, supportProject.id),
+						eq(boards.name, 'Helpdesk Tickets'),
+						isNull(boards.deletedAt)
+					)
+				).limit(1);
+			}
+		}
+
+		if (!helpdeskBoard) {
+			throw new Error('Failed to initialize support board');
+		}
+
+		// Lock the board row to serialize task creation number generation on this board
 		await tx.select({ id: boards.id })
 			.from(boards)
 			.where(eq(boards.id, helpdeskBoard.id))
 			.for('update');
+
+		// 3. Find or create the default "Incoming" stage for this board
+		let [incomingStage] = await tx.select({ id: stages.id }).from(stages).where(
+			and(
+				eq(stages.boardId, helpdeskBoard.id),
+				eq(stages.name, 'Incoming'),
+				isNull(stages.deletedAt)
+			)
+		).limit(1);
+
+		if (!incomingStage) {
+			const orderIndexIncoming = generateKeyBetween(null, null);
+			const stageResults = await tx.insert(stages).values({
+				name: 'Incoming',
+				boardId: helpdeskBoard.id,
+				orderIndex: orderIndexIncoming
+			}).onConflictDoNothing().returning();
+
+			if (stageResults.length > 0) {
+				incomingStage = stageResults[0];
+			} else {
+				[incomingStage] = await tx.select({ id: stages.id }).from(stages).where(
+					and(
+						eq(stages.boardId, helpdeskBoard.id),
+						eq(stages.name, 'Incoming'),
+						isNull(stages.deletedAt)
+					)
+				).limit(1);
+			}
+
+			const orderIndexProgress = generateKeyBetween(orderIndexIncoming, null);
+			const orderIndexResolved = generateKeyBetween(orderIndexProgress, null);
+
+			await tx.insert(stages).values([
+				{
+					name: 'In Progress',
+					boardId: helpdeskBoard.id,
+					orderIndex: orderIndexProgress
+				},
+				{
+					name: 'Resolved',
+					boardId: helpdeskBoard.id,
+					orderIndex: orderIndexResolved,
+					isCompleted: true
+				}
+			]).onConflictDoNothing();
+		}
 
 		const [maxResult] = await tx.select({
 			maxNumber: sql<number>`COALESCE(MAX(${tasks.number}), 0)`
@@ -157,12 +207,11 @@ export async function createHelpdeskTicket(
 			details: { ticketType: type }
 		});
 
-		return { newTask, helpdeskBoardId: helpdeskBoard.id };
+		return newTask;
+	}).then((newTask) => {
+		emitBoardEvent(newTask.boardId!, 'task_created', { task: newTask });
+		return newTask;
 	});
-
-	emitBoardEvent(helpdeskBoardId, 'task_created', { task: newTask });
-
-	return newTask;
 }
 
 /**
@@ -222,12 +271,17 @@ export async function getUserHelpdeskTickets(actor: Actor) {
 /**
  * Helper to verify if an actor has access to a specific helpdesk ticket.
  */
-async function verifyTicketAccess(actor: Actor, task: any): Promise<boolean> {
+async function verifyTicketAccess(
+	actor: Actor,
+	task: { projectId: string | null; customFields: unknown }
+): Promise<boolean> {
 	if (actor.role === 'Admin') return true;
 
 	// Check if the actor is the reporter
-	const customFields = (task.customFields || {}) as any;
-	if (customFields.reporterId === actor.id) return true;
+	const customFields = task.customFields as Record<string, unknown> | null;
+	if (customFields && customFields.reporterId === actor.id) return true;
+
+	if (!task.projectId) return false;
 
 	// Check if the actor is an explicitly invited project member
 	const [member] = await db.select({ role: projectMembers.role }).from(projectMembers).where(
@@ -248,7 +302,19 @@ export async function getHelpdeskTicket(actor: Actor, ticketId: string) {
 		throw new Error('Unauthorized');
 	}
 
-	const [task] = await db.select().from(tasks).where(
+	const [task] = await db.select({
+		id: tasks.id,
+		number: tasks.number,
+		title: tasks.title,
+		description: tasks.description,
+		priority: tasks.priority,
+		createdAt: tasks.createdAt,
+		updatedAt: tasks.updatedAt,
+		projectId: tasks.projectId,
+		groupId: tasks.groupId,
+		stageId: tasks.stageId,
+		customFields: tasks.customFields
+	}).from(tasks).where(
 		and(
 			eq(tasks.id, ticketId),
 			eq(tasks.groupId, actor.groupId),
@@ -328,11 +394,21 @@ export async function getHelpdeskTicket(actor: Actor, ticketId: string) {
  * Submits a comment/reply onto a helpdesk ticket.
  */
 export async function submitHelpdeskComment(actor: Actor, ticketId: string, content: string) {
-	if (!actor.groupId || !content.trim()) {
+	if (!actor.groupId) {
 		throw new Error('Unauthorized');
 	}
+	
+	const trimmedContent = content.trim();
+	if (!trimmedContent) {
+		throw new Error('Comment content cannot be empty');
+	}
 
-	const [task] = await db.select().from(tasks).where(
+	const [task] = await db.select({
+		id: tasks.id,
+		groupId: tasks.groupId,
+		projectId: tasks.projectId,
+		customFields: tasks.customFields
+	}).from(tasks).where(
 		and(
 			eq(tasks.id, ticketId),
 			eq(tasks.groupId, actor.groupId),
@@ -352,7 +428,7 @@ export async function submitHelpdeskComment(actor: Actor, ticketId: string, cont
 	const [newComment] = await db.insert(comments).values({
 		taskId: ticketId,
 		authorId: actor.id,
-		content: content.trim()
+		content: trimmedContent
 	}).returning();
 
 	await notifyCommentAdded(actor.id, ticketId);

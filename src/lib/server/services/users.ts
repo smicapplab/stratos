@@ -4,7 +4,7 @@ import { eq, and, isNull } from 'drizzle-orm';
 
 export interface Actor {
 	id: string;
-	role: string;
+	role: 'Admin' | 'Manager' | 'Member' | 'Viewer';
 	groupId: string;
 }
 
@@ -31,20 +31,39 @@ export async function inviteUser(actor: Actor, email: string, role: string) {
 		throw new Error('Unauthorized: Only Admins can invite users.');
 	}
 
-	const [newUser] = await db.insert(users).values({
-		email,
-		name: 'Pending Invite', // Placeholder until they set up
-		groupId: actor.groupId,
-		role,
-	}).onConflictDoUpdate({
-		target: users.email,
-		set: {
+	const VALID_ROLES = ['Admin', 'Manager', 'Member', 'Viewer'];
+	if (!VALID_ROLES.includes(role)) {
+		throw new Error('InvalidRoleSelection');
+	}
+
+	// Prevent cross-tenant user hijacking: Check if email already exists
+	const [existingUser] = await db.select({
+		id: users.id,
+		groupId: users.groupId
+	}).from(users).where(eq(users.email, email)).limit(1);
+
+	let invitedUser;
+
+	if (existingUser) {
+		if (existingUser.groupId !== actor.groupId) {
+			throw new Error('EmailBelongsToAnotherGroup');
+		}
+		// Safe same-group re-invite path
+		const [updatedUser] = await db.update(users).set({
 			deletedAt: null,
 			name: 'Pending Invite',
-			role: role,
-			groupId: actor.groupId
-		}
-	}).returning();
+			role: role
+		}).where(eq(users.id, existingUser.id)).returning();
+		invitedUser = updatedUser;
+	} else {
+		const [newUser] = await db.insert(users).values({
+			email,
+			name: 'Pending Invite',
+			groupId: actor.groupId,
+			role,
+		}).returning();
+		invitedUser = newUser;
+	}
 
 	const [group] = await db.select({ name: groups.name }).from(groups).where(eq(groups.id, actor.groupId));
 	
@@ -53,12 +72,15 @@ export async function inviteUser(actor: Actor, email: string, role: string) {
 
 	await sendGroupInviteEmail(email, group?.name || 'Your Workspace', actorRow?.name || 'An Admin');
 
-	return newUser;
+	return invitedUser;
 }
 
 export async function removeUser(actor: Actor, targetUserId: string) {
 	if (actor.role !== 'Admin') {
 		throw new Error('Unauthorized: Only Admins can remove users.');
+	}
+	if (actor.id === targetUserId) {
+		throw new Error('CannotDeleteSelf');
 	}
 
 	// Make sure they can only remove users from their OWN group
@@ -75,6 +97,11 @@ export async function removeUser(actor: Actor, targetUserId: string) {
 export async function changeUserRole(actor: Actor, targetUserId: string, newRole: string) {
 	if (actor.role !== 'Admin') {
 		throw new Error('Unauthorized: Only Admins can change user roles.');
+	}
+
+	const VALID_ROLES = ['Admin', 'Manager', 'Member', 'Viewer'];
+	if (!VALID_ROLES.includes(newRole)) {
+		throw new Error('InvalidRoleSelection');
 	}
 
 	// Make sure they can only update users in their OWN group

@@ -25,8 +25,8 @@ vi.mock('../db/db', () => ({
 }));
 
 describe('Board Management Service (Security Matrix)', () => {
-	const adminActor = { id: 'admin-1', role: 'Admin', groupId: 'group-1' };
-	const memberActor = { id: 'member-1', role: 'Member', groupId: 'group-1' };
+	const adminActor = { id: 'admin-1', role: 'Admin' as const, groupId: 'group-1' };
+	const memberActor = { id: 'member-1', role: 'Member' as const, groupId: 'group-1' };
 	const projectId = 'project-1';
 
 	beforeEach(() => {

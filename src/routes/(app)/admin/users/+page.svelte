@@ -47,6 +47,7 @@
 						<select name="role" id="role" class="w-full px-4 py-2 bg-transparent border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:bg-zinc-900">
 							<option value="Viewer">Viewer</option>
 							<option value="Member" selected>Member</option>
+							<option value="Manager">Manager</option>
 							<option value="Admin">Admin</option>
 						</select>
 					</div>
@@ -87,6 +88,7 @@
 									<input type="hidden" name="userId" value={user.id} />
 									<select name="role" onchange={(e) => e.currentTarget.form?.requestSubmit()} class="bg-transparent border-0 text-sm font-medium focus:ring-0 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 px-2 py-1 rounded-md transition-colors" disabled={user.id === currentUser?.id}>
 										<option value="Admin" selected={user.role === 'Admin'}>Admin</option>
+										<option value="Manager" selected={user.role === 'Manager'}>Manager</option>
 										<option value="Member" selected={user.role === 'Member'}>Member</option>
 										<option value="Viewer" selected={user.role === 'Viewer'}>Viewer</option>
 									</select>
@@ -102,13 +104,13 @@
 										<button 
 											type="button" 
 											onclick={(e) => {
+												const form = e.currentTarget.closest('form');
 												modalStore.show({
 													title: 'Remove User',
 													description: `Are you sure you want to remove ${user.name} from the workspace?`,
 													confirmText: 'Remove User',
 													destructive: true,
 													onConfirm: () => {
-														const form = e.currentTarget.closest('form');
 														form?.requestSubmit();
 													}
 												});

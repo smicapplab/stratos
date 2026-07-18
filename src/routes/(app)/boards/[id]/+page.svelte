@@ -10,6 +10,7 @@
 	import TaskCard from '$lib/components/ui/TaskCard.svelte';
 	import TableView from '$lib/components/ui/TableView.svelte';
 	import CalendarView from '$lib/components/ui/CalendarView.svelte';
+	import ReportsView from '$lib/components/ui/ReportsView.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import { modalStore } from '$lib/stores/ui.svelte';
 
@@ -290,7 +291,7 @@
 			goto(url.pathname + url.search, { replaceState: true, noScroll: true, keepFocus: true });
 		}
 	}
-	let activeView = $state<'board' | 'table' | 'calendar'>('board');
+	let activeView = $state<'board' | 'table' | 'calendar' | 'reports'>('board');
 	let settingsOpen = $state(false);
 	let settingsTab = $state<'general' | 'fields'>('general');
 
@@ -362,7 +363,7 @@
 
 	$effect(() => {
 		const stored = localStorage.getItem(`board-view-${board.id}`);
-		if (stored === 'table' || stored === 'calendar' || stored === 'board') {
+		if (stored === 'table' || stored === 'calendar' || stored === 'board' || (stored === 'reports' && (user?.role === 'Admin' || user?.role === 'Manager'))) {
 			activeView = stored;
 		}
 	});
@@ -395,6 +396,9 @@
 			<button class="px-3 py-1.5 text-xs font-semibold rounded-md transition-all {activeView === 'board' ? 'bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}" onclick={() => activeView = 'board'}>Board</button>
 			<button class="px-3 py-1.5 text-xs font-semibold rounded-md transition-all {activeView === 'table' ? 'bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}" onclick={() => activeView = 'table'}>Table</button>
 			<button class="px-3 py-1.5 text-xs font-semibold rounded-md transition-all {activeView === 'calendar' ? 'bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}" onclick={() => activeView = 'calendar'}>Calendar</button>
+			{#if user.role === 'Admin' || user.role === 'Manager'}
+				<button class="px-3 py-1.5 text-xs font-semibold rounded-md transition-all {activeView === 'reports' ? 'bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}" onclick={() => activeView = 'reports'}>Reports</button>
+			{/if}
 		</div>
 
 		<div class="flex items-center gap-3 relative">
@@ -661,6 +665,10 @@
 			onReschedule={handleReschedule}
 			onAddEvent={handleCalendarAddEvent}
 		/>
+	</div>
+	{:else if activeView === 'reports' && (user.role === 'Admin' || user.role === 'Manager')}
+	<div class="flex-1 overflow-auto custom-scrollbar bg-zinc-50 dark:bg-[#09090b]">
+		<ReportsView boardId={board.id} onTaskClick={(t: any) => activeTask = t} />
 	</div>
 	{/if}
 

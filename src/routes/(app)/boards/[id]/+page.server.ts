@@ -81,6 +81,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 export const actions: Actions = {
 	createStage: async ({ request, params, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		const data = await request.formData();
 		const name = data.get('name')?.toString();
 		const nextIndex = data.get('nextIndex')?.toString() || null;
@@ -89,7 +92,7 @@ export const actions: Actions = {
 		if (!name) return fail(400, { error: 'Stage name required' });
 
 		try {
-			await createStage(locals.user!, params.id, name, previousIndex, nextIndex);
+			await createStage(actor, params.id, name, previousIndex, nextIndex);
 			return { success: true };
 		} catch (err) {
 			const error = err as Error;
@@ -98,12 +101,15 @@ export const actions: Actions = {
 	},
 
 	updateBoard: async ({ request, params, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		const data = await request.formData();
 		const name = data.get('name')?.toString();
 		const projectId = data.get('projectId')?.toString();
 
 		try {
-			await updateBoard(locals.user!, params.id, {
+			await updateBoard(actor, params.id, {
 				...(name ? { name } : {}),
 				...(projectId ? { projectId } : {})
 			});
@@ -115,8 +121,11 @@ export const actions: Actions = {
 	},
 
 	deleteBoard: async ({ params, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		try {
-			await deleteBoard(locals.user!, params.id);
+			await deleteBoard(actor, params.id);
 		} catch (err) {
 			const error = err as Error;
 			return fail(400, { error: error.message });
@@ -125,6 +134,9 @@ export const actions: Actions = {
 	},
 
 	moveStage: async ({ request, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		const data = await request.formData();
 		const stageId = data.get('stageId')?.toString();
 		let previousIndex = data.get('previousIndex')?.toString() || null;
@@ -136,7 +148,7 @@ export const actions: Actions = {
 		if (!stageId) return fail(400, { error: 'Stage ID is required' });
 		
 		try {
-			await moveStage(locals.user!, stageId, previousIndex, nextIndex);
+			await moveStage(actor, stageId, previousIndex, nextIndex);
 			return { success: true };
 		} catch (err) {
 			const error = err as Error;
@@ -144,6 +156,9 @@ export const actions: Actions = {
 		}
 	},
 	updateStage: async ({ request, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		const data = await request.formData();
 		const stageId = data.get('stageId')?.toString();
 		const name = data.get('name')?.toString();
@@ -152,7 +167,7 @@ export const actions: Actions = {
 		if (!stageId) return fail(400, { error: 'Stage ID required' });
 		
 		try {
-			await updateStage(locals.user!, stageId, { 
+			await updateStage(actor, stageId, { 
 				...(name ? { name } : {}),
 				...(data.has('isCompleted') ? { isCompleted } : {})
 			});
@@ -163,6 +178,9 @@ export const actions: Actions = {
 		}
 	},
 	createTask: async ({ request, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		const data = await request.formData();
 		const title = data.get('title')?.toString();
 		const stageId = data.get('stageId')?.toString();
@@ -174,10 +192,14 @@ export const actions: Actions = {
 
 		if (!title || !stageId) return fail(400, { error: 'Title and Stage are required' });
 
+		if (dueDateStr && isNaN(new Date(dueDateStr).getTime())) {
+			return fail(400, { error: 'Invalid due date format' });
+		}
+
 		try {
-			const newTask = await createTask(locals.user!, stageId, title, previousIndex, nextIndex, parentTaskId);
+			const newTask = await createTask(actor, stageId, title, previousIndex, nextIndex, parentTaskId);
 			
-			const updatePayload: any = {};
+			const updatePayload: TaskUpdatePayload = {};
 			if (dueDateStr) {
 				updatePayload.dueDate = new Date(dueDateStr);
 			}
@@ -186,7 +208,7 @@ export const actions: Actions = {
 			}
 			
 			if (Object.keys(updatePayload).length > 0) {
-				await updateTask(locals.user!, newTask.id, updatePayload);
+				await updateTask(actor, newTask.id, updatePayload);
 			}
 			return { success: true };
 		} catch (err) {
@@ -196,6 +218,9 @@ export const actions: Actions = {
 	},
 
 	moveTask: async ({ request, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		const data = await request.formData();
 		const taskId = data.get('taskId')?.toString();
 		const stageId = data.get('stageId')?.toString();
@@ -205,7 +230,7 @@ export const actions: Actions = {
 		if (!taskId || !stageId) return fail(400, { error: 'Task and Stage are required' });
 
 		try {
-			await moveTask(locals.user!, taskId, stageId, previousIndex, nextIndex);
+			await moveTask(actor, taskId, stageId, previousIndex, nextIndex);
 			return { success: true };
 		} catch (err) {
 			const error = err as Error;
@@ -214,13 +239,16 @@ export const actions: Actions = {
 	},
 
 	softDeleteTask: async ({ request, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		const data = await request.formData();
 		const taskId = data.get('taskId')?.toString();
 
 		if (!taskId) return fail(400, { error: 'Task ID is required' });
 
 		try {
-			await softDeleteTask(locals.user!, taskId);
+			await softDeleteTask(actor, taskId);
 			return { success: true };
 		} catch (err) {
 			const error = err as Error;
@@ -229,6 +257,9 @@ export const actions: Actions = {
 	},
 
 	updateTask: async ({ request, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		const data = await request.formData();
 		const taskId = data.get('taskId')?.toString();
 		const title = data.get('title')?.toString();
@@ -242,19 +273,23 @@ export const actions: Actions = {
 		try {
 			checklists = JSON.parse(data.get('checklists')?.toString() || '[]');
 		} catch (err) {
-			// ignore parse error
+			return fail(400, { error: 'Invalid checklist format' });
 		}
 
-		let customFields: Record<string, unknown> = {};
+		let customFields = {};
 		try {
 			if (data.has('customFields')) {
 				customFields = JSON.parse(data.get('customFields')?.toString() || '{}');
 			}
 		} catch (err) {
-			// ignore parse error
+			return fail(400, { error: 'Invalid custom fields format' });
 		}
 
 		if (!taskId || !title) return fail(400, { error: 'Task ID and Title are required' });
+
+		if (dueDate && isNaN(new Date(dueDate).getTime())) {
+			return fail(400, { error: 'Invalid due date format' });
+		}
 
 		try {
 			const updatePayload: TaskUpdatePayload = { 
@@ -265,9 +300,9 @@ export const actions: Actions = {
 				...(stageId ? { stageId } : {})
 			};
 			if (data.has('customFields')) {
-				updatePayload.customFields = customFields;
+				updatePayload.customFields = customFields as Record<string, string | number | boolean | null>;
 			}
-			await updateTask(locals.user!, taskId, updatePayload);
+			await updateTask(actor, taskId, updatePayload);
 			return { success: true };
 		} catch (err) {
 			const error = err as Error;
@@ -276,6 +311,9 @@ export const actions: Actions = {
 	},
 
 	linkSubtask: async ({ request, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		const data = await request.formData();
 		const taskId = data.get('taskId')?.toString();
 		const parentTaskId = data.get('parentTaskId')?.toString() ?? null;
@@ -283,7 +321,7 @@ export const actions: Actions = {
 		if (!taskId || parentTaskId === null) return fail(400, { error: 'Task ID and Parent Task ID are required' });
 
 		try {
-			await updateTask(locals.user!, taskId, { parentTaskId: parentTaskId === '' ? null : parentTaskId });
+			await updateTask(actor, taskId, { parentTaskId: parentTaskId === '' ? null : parentTaskId });
 			return { success: true };
 		} catch (err) {
 			const error = err as Error;
@@ -292,6 +330,9 @@ export const actions: Actions = {
 	},
 
 	createCustomField: async ({ request, params, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		const data = await request.formData();
 		const name = data.get('name')?.toString();
 		const type = data.get('type')?.toString();
@@ -300,13 +341,13 @@ export const actions: Actions = {
 		try {
 			options = JSON.parse(data.get('options')?.toString() || '[]');
 		} catch (err) {
-			// ignore parse error
+			return fail(400, { error: 'Invalid options format' });
 		}
 
 		if (!name || !type) return fail(400, { error: 'Name and type are required' });
 
 		try {
-			await createCustomField(locals.user!, params.id, name, type, options);
+			await createCustomField(actor, params.id, name, type, options);
 			return { success: true };
 		} catch (err) {
 			const error = err as Error;
@@ -315,12 +356,15 @@ export const actions: Actions = {
 	},
 
 	deleteCustomField: async ({ request, locals }) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
 		const data = await request.formData();
 		const fieldId = data.get('fieldId')?.toString();
 		if (!fieldId) return fail(400, { error: 'Field ID required' });
 		
 		try {
-			await deleteCustomField(locals.user!, fieldId);
+			await deleteCustomField(actor, fieldId);
 			return { success: true };
 		} catch (err) {
 			const error = err as Error;

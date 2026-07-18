@@ -24,6 +24,7 @@ vi.mock('../db/db', () => {
 	const mockTx = {
 		insert: vi.fn().mockReturnThis(),
 		values: vi.fn().mockReturnThis(),
+		onConflictDoNothing: vi.fn().mockReturnThis(),
 		returning: vi.fn().mockResolvedValue([{ id: 'new-ticket-id', title: '[Bug] Login error' }]),
 		update: vi.fn().mockReturnThis(),
 		set: vi.fn().mockReturnThis(),
@@ -47,7 +48,7 @@ vi.mock('./events', () => ({
 }));
 
 describe('Helpdesk Service (TDD Suite)', () => {
-	const userActor = { id: 'user-123', role: 'Member', groupId: 'group-abc' };
+	const userActor = { id: 'user-123', role: 'Member' as const, groupId: 'group-abc' };
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -59,7 +60,7 @@ describe('Helpdesk Service (TDD Suite)', () => {
 
 	describe('createHelpdeskTicket()', () => {
 		it('should throw an error if actor lacks a groupId', async () => {
-			const invalidActor = { id: 'user-123', role: 'Member', groupId: '' };
+			const invalidActor = { id: 'user-123', role: 'Member' as const, groupId: '' };
 			await expect(createHelpdeskTicket(invalidActor, 'Bug', 'Test', 'Description'))
 				.rejects.toThrow('Unauthorized');
 		});

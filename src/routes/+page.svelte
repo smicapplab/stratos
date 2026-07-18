@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { Mail, Lock, Eye, EyeOff } from 'lucide-svelte';
+	import BrandLogo from '$lib/components/ui/BrandLogo.svelte';
 
 	let { form } = $props();
 	let showPassword = $state(false);
@@ -16,12 +17,8 @@
 	<!-- Dot grid pattern overlay -->
 	<div class="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)] opacity-60 pointer-events-none"></div>
 
-	<div class="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center mb-2">
-		<div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-600/10 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200/30 dark:border-blue-500/20 mb-4 shadow-sm">
-			<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-			</svg>
-		</div>
+	<div class="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center mb-2 flex flex-col items-center">
+		<BrandLogo class="h-12 w-auto mb-6 text-blue-600 dark:text-blue-500" />
 		<h2 class="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
 			Welcome back
 		</h2>
