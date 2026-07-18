@@ -104,13 +104,13 @@
 										<button 
 											type="button" 
 											onclick={(e) => {
+												const form = e.currentTarget.closest('form');
 												modalStore.show({
 													title: 'Remove User',
 													description: `Are you sure you want to remove ${user.name} from the workspace?`,
 													confirmText: 'Remove User',
 													destructive: true,
 													onConfirm: () => {
-														const form = e.currentTarget.closest('form');
 														form?.requestSubmit();
 													}
 												});

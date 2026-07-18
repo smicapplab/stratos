@@ -1721,14 +1721,12 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
 	<div 
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 sm:p-6"
-		onclick={() => previewAttachment = null}
+		onclick={(e) => { if (e.target === e.currentTarget) previewAttachment = null; }}
 		onkeydown={(e) => { if (e.key === 'Escape') previewAttachment = null; }}
 	>
 		<!-- Modal box -->
-		<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
 		<div 
 			class="w-full max-w-4xl bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200"
-			onclick={(e) => e.stopPropagation()}
 		>
 			<!-- Modal Header -->
 			<div class="px-6 py-4 border-b border-zinc-800 flex justify-between items-center text-white bg-zinc-950/40">
