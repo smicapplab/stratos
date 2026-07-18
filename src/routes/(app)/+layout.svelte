@@ -189,6 +189,20 @@
 	let currentPath = $derived($page.url.pathname);
 	let isCommandPaletteOpen = $state(false);
 	let isUserMenuOpen = $state(false);
+
+	async function handleSignOut() {
+		isUserMenuOpen = false;
+		try {
+			const response = await fetch('/api/logout', {
+				method: 'POST'
+			});
+			if (response.ok || response.redirected) {
+				window.location.href = '/';
+			}
+		} catch (e) {
+			console.error('Logout failed:', e);
+		}
+	}
 </script>
 
 <div class="flex h-screen bg-zinc-50 dark:bg-zinc-950 overflow-hidden font-sans text-zinc-900 dark:text-zinc-100">
@@ -400,16 +414,14 @@
 						<span>Helpdesk Portal</span>
 					</a>
 					<hr class="border-zinc-200 dark:border-zinc-800 my-1" />
-					<form method="POST" action="/api/logout">
-						<button 
-							type="submit" 
-							class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors min-h-[44px]"
-							onclick={() => isUserMenuOpen = false}
-						>
-							<LogOut class="w-4 h-4" />
-							<span>Sign Out</span>
-						</button>
-					</form>
+					<button 
+						type="button" 
+						class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors min-h-[44px] cursor-pointer"
+						onclick={handleSignOut}
+					>
+						<LogOut class="w-4 h-4" />
+						<span>Sign Out</span>
+					</button>
 				</div>
 			{/if}
 

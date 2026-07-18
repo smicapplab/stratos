@@ -10,6 +10,19 @@
 		{ name: 'Security', href: '/settings/security', icon: Shield },
 		{ name: 'Helpdesk', href: '/helpdesk/tickets', icon: LifeBuoy },
 	];
+
+	async function handleSignOut() {
+		try {
+			const response = await fetch('/api/logout', {
+				method: 'POST'
+			});
+			if (response.ok || response.redirected) {
+				window.location.href = '/';
+			}
+		} catch (e) {
+			console.error('Logout failed:', e);
+		}
+	}
 </script>
 
 <div class="flex flex-col md:flex-row h-full w-full bg-white dark:bg-[#1C1C1E]">
@@ -33,14 +46,13 @@
 		</nav>
 		
 		<div class="p-4 border-t border-gray-200 dark:border-white/[0.05]">
-			<form method="POST" action="/api/logout">
-				<button 
-					type="submit" 
-					class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-white/[0.05] rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1C1C1E] hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors"
-				>
-					Sign out
-				</button>
-			</form>
+			<button 
+				type="button" 
+				onclick={handleSignOut}
+				class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-white/[0.05] rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1C1C1E] hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors cursor-pointer"
+			>
+				Sign out
+			</button>
 		</div>
 	</div>
 
