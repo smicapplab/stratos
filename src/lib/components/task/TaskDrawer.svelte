@@ -800,7 +800,8 @@
 				if (
 					editor &&
 					editor.getHTML() !== task.description &&
-					task.description
+					task.description &&
+					!editor.isFocused
 				) {
 					editor.commands.setContent(task.description);
 				}
