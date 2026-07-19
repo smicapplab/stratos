@@ -7,8 +7,9 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgres://postgres:password@localhost:5432/stratos',
 });
 const db = drizzle(pool);
-import { groups, users, projects, projectMembers, boards, stages, tasks, comments, auditLogs, attachments } from './schema';
+import { groups, users, projects, projectMembers, boards, stages, tasks, comments, auditLogs, attachments, apiTokens } from './schema';
 import crypto from 'crypto';
+import { eq } from 'drizzle-orm';
 const uuidv4 = () => crypto.randomUUID();
 import argon2 from 'argon2';
 import { generateKeyBetween } from 'fractional-indexing';
@@ -748,8 +749,42 @@ async function main() {
 		]).onConflictDoNothing();
 	}
 
+	// --- API Token Seeding (--api-seed flag) ---
+	// Inserts a deterministic test token for Alice Admin so E2E test scripts
+	// can authenticate without going through the UI. The plaintext token is
+	// printed once to stdout so shell scripts can capture it via $(...).
+	const isApiSeed = args.includes('--api-seed');
+	if (isApiSeed) {
+		// Find Alice's user & group from the newly seeded data
+		const [aliceRow] = await db.select({ id: users.id, groupId: users.groupId })
+			.from(users)
+			.where(eq(users.email, 'admin@acme.internal'))
+			.limit(1);
+
+		if (!aliceRow) {
+			console.error('[api-seed] Could not find admin user — run with --dev first.');
+			process.exit(1);
+		}
+
+		// Use a fixed test secret so the script is deterministic and idempotent
+		const testPlaintextToken = 'stratos_tok_TEST_LOCAL_DEV_DO_NOT_USE_IN_PRODUCTION';
+		const testTokenHash = crypto.createHash('sha256').update(testPlaintextToken).digest('hex');
+
+		await db.delete(apiTokens).where(eq(apiTokens.userId, aliceRow.id));
+		await db.insert(apiTokens).values({
+			name: 'E2E Test Token (seed)',
+			tokenHash: testTokenHash,
+			groupId: aliceRow.groupId,
+			userId: aliceRow.id
+		});
+
+		// Print in a machine-readable format for shell capture
+		console.log(`[api-seed] Token ready.`);
+		console.log(`API_TOKEN=${testPlaintextToken}`);
+	}
+
 	console.log('=========================================');
-	console.log('🎉 Seed completed successfully!');
+	console.log('Seed completed successfully!');
 	console.log('=========================================');
 	process.exit(0);
 }
