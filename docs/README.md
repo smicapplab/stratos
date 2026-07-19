@@ -21,6 +21,7 @@ This directory serves as the living documentation engine for the AI. It acts as 
 - [14-disaster-recovery.md](./14-disaster-recovery.md): Operational requirements for PITR database backups and storage redundancy.
 - [15-deploy-migrations.md](./15-deploy-migrations.md): Zero-downtime deployment rules and decoupled database migration execution.
 - [16-project-management.md](./16-project-management.md): Project isolation, access control, and membership rules for restricted projects.
+- [17-programmatic-integration.md](./17-programmatic-integration.md): Integration Protocol and developer guidelines for external AI agents or programmatic clients.
 
 ## Secrets & Environment Configuration
 
