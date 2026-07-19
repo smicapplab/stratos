@@ -102,7 +102,7 @@ All error responses return a JSON body: `{ "error": "<message>" }`.
 | `201 Created` | Resource created | POST task, comment, tag |
 | `204 No Content` | Success, no body | DELETE task/tag |
 | `304 Not Modified` | No changes since `If-Modified-Since` | GET /api/v1/tasks with unchanged data |
-| `400 Bad Request` | Invalid payload | Missing required field, invalid UUID, malformed JSON |
+| `400 Bad Request` | Invalid payload | Missing required field, invalid UUID, malformed JSON, invalid `updatedSince` value |
 | `401 Unauthorized` | Token missing or invalid | No `Authorization` header, unrecognised or revoked token |
 | `403 Forbidden` | Insufficient role | Viewer attempting write, Manager attempting Admin-only action |
 | `404 Not Found` | Resource does not exist | Task/stage/project not found within the token's group |
@@ -111,3 +111,111 @@ All error responses return a JSON body: `{ "error": "<message>" }`.
 | `422 Unprocessable Entity` | Failed validation | Custom field value fails board schema validation |
 | `429 Too Many Requests` | Rate limit exceeded | Per-token (60/min) or per-group (300/min) limit hit |
 | `500 Internal Server Error` | Unexpected server failure | Database error, unhandled exception |
+
+---
+
+## 6. Local Testing Guide
+
+This section documents how to run the full E2E API test suite against a local dev environment.
+
+### 6.1 Prerequisites
+
+- PostgreSQL and Redis running locally (default ports)
+- `jq` installed (`brew install jq`)
+- Dev server running (`npm run dev`)
+
+### 6.2 Step 1 — Seed the Database with a Test Token
+
+The test suite uses a **fixed deterministic token** inserted by the seed script. This avoids needing to log in and generate a token via the UI for every test run.
+
+```bash
+npm run db:seed:api
+```
+
+This runs `seed.ts --dev --api-seed` which:
+1. Wipes and reseeds the entire database with the standard dev fixture (Acme Corp, 5 users, 2 projects, 2 boards, ~20 tasks)
+2. Inserts a test `api_tokens` row for `admin@acme.internal` with a fixed plaintext token:
+   ```
+   stratos_tok_TEST_LOCAL_DEV_DO_NOT_USE_IN_PRODUCTION
+   ```
+3. Prints `API_TOKEN=<token>` to stdout for confirmation
+
+> **Important:** This token is only for local development. It uses a fixed secret with no entropy. Never use it outside of a local dev database.
+
+### 6.3 Step 2 — Start the Dev Server
+
+```bash
+npm run dev
+```
+
+The test suite defaults to `http://localhost:5173`. To test against a different port or host:
+
+```bash
+bash scripts/test-api.sh http://localhost:4173
+```
+
+### 6.4 Step 3 — Run the E2E Test Suite
+
+```bash
+npm run test:api
+```
+
+Or directly:
+
+```bash
+bash scripts/test-api.sh
+```
+
+### 6.5 What the Suite Tests
+
+The script in `scripts/test-api.sh` covers 12 sections:
+
+| Section | What it validates |
+|---|---|
+| **1. Auth Guards** | Unauthenticated and invalid-token requests return `401` |
+| **2. Projects** | `GET /api/v1/projects` returns a typed array with at least one project |
+| **3. Boards** | `GET /api/v1/boards?projectId=` filters correctly |
+| **4. Users** | `GET /api/v1/users` returns users with `id` and `name` fields |
+| **5. Tasks — List** | `GET /api/v1/tasks` with no filter, `?projectId`, valid `?updatedSince`, garbage `?updatedSince` (→ 400), `?includeDeleted` |
+| **6. Tasks — Create** | `POST /api/v1/tasks` with valid payload (→ 201), missing `stageId` (→ 400), missing `title` (→ 400) |
+| **7. Tasks — Get by ID** | `GET /api/v1/tasks/[id]` found (→ 200), nonexistent UUID (→ 404) |
+| **8. Tasks — Update** | `PATCH /api/v1/tasks/[id]` priority and description updates (→ 200) |
+| **9. Comments** | `POST /api/v1/tasks/[id]/comments` valid (→ 201), empty content (→ 400) |
+| **10. Bulk Import** | `POST /api/v1/tasks/bulk` valid (→ 201), duplicate `sourceId` (→ 409), missing `sourceId` (→ 400), missing `epic` (→ 400) |
+| **11. Delete Task** | `DELETE /api/v1/tasks/[id]` (→ 204), verify `GET` returns 404 without `includeDeleted`, returns 200 with `includeDeleted=true` and `deletedAt` set |
+| **12. Rate Limit** | Normal requests are not rate-limited (baseline sanity check) |
+
+### 6.6 Interpreting Results
+
+```
+══ 6. Tasks — Create ══
+  PASS POST /tasks → 201 (got 201)
+  PASS Created task has id
+  PASS Created task has correct title
+  FAIL POST /tasks missing stageId → 400 (expected 400, got 500)
+       Response: {"error":"..."}
+```
+
+- Green `PASS` lines indicate the assertion passed.
+- Red `FAIL` lines include the expected vs actual status code and the raw response body for diagnosis.
+- Exit code `0` = all tests passed. Exit code `1` = at least one failure.
+
+### 6.7 Adding New Test Cases
+
+All test cases live in `scripts/test-api.sh`. The helper functions are:
+
+```bash
+# Assert an HTTP status code
+assert_status "label" "expected_code" "$actual_code"
+
+# Assert a jq expression evaluates to true on a JSON body
+assert_json "label" '.field == "value"' "$body"
+
+# Make an authenticated API call
+response=$(api GET /api/v1/tasks)
+STATUS=$(status_of "$response")
+BODY=$(body_of "$response")
+```
+
+Add new sections following the existing numbered pattern. Each section should use `section "N. Name"` to group related assertions.
+

@@ -8,13 +8,21 @@ import { emitBoardEvent } from './events';
 import { createNotification } from './notifications';
 import { invalidateDashboardCache } from '../redis';
 
-export async function createTask(actor: Actor, stageId: string, title: string, previousIndex: string | null = null, nextIndex: string | null = null, parentTaskId: string | null = null) {
+export async function createTask(
+	actor: Actor,
+	stageId: string,
+	title: string,
+	previousIndex: string | null = null,
+	nextIndex: string | null = null,
+	parentTaskId: string | null = null,
+	txClient?: any
+) {
 	if (actor.role === 'Viewer') {
 		throw new Error('Unauthorized: Viewers cannot create tasks.');
 	}
 	const orderIndex = generateKeyBetween(previousIndex, nextIndex);
 	
-	const result = await db.transaction(async (tx) => {
+	const runInTransaction = async (tx: any) => {
 		// Get boardId from stage and validate group/soft-delete
 		const [stage] = await tx.select({ boardId: stages.boardId })
 			.from(stages)
@@ -60,11 +68,17 @@ export async function createTask(actor: Actor, stageId: string, title: string, p
 		});
 
 		return { newTask, boardId };
-	});
+	};
 
-	emitBoardEvent(result.boardId, 'task_created', { task: result.newTask });
+	const result = txClient ? await runInTransaction(txClient) : await db.transaction(runInTransaction);
 
-	await invalidateDashboardCache(actor.groupId);
+	// Only emit side effects when this call owns its own transaction.
+	// If a txClient was passed, the outer caller owns the transaction and must
+	// emit events after its own commit to prevent ghost events on rollback.
+	if (!txClient) {
+		emitBoardEvent(result.boardId, 'task_created', { task: result.newTask });
+		await invalidateDashboardCache(actor.groupId);
+	}
 
 	return result.newTask;
 }
@@ -138,13 +152,22 @@ export async function softDeleteTask(actor: Actor, taskId: string) {
 	if (actor.role === 'Viewer') {
 		throw new Error('Unauthorized: Viewers cannot delete tasks.');
 	}
-	const [task] = await db.update(tasks)
-		.set({ deletedAt: new Date() })
-		.where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)))
-		.returning();
+	const result = await db.transaction(async (tx) => {
+		const [task] = await tx.update(tasks)
+			.set({ deletedAt: new Date() })
+			.where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)))
+			.returning();
 
-	if (task && task.boardId) {
-		emitBoardEvent(task.boardId, 'task_deleted', { taskId: task.id });
+		if (task) {
+			await tx.update(tasks)
+				.set({ parentTaskId: null })
+				.where(and(eq(tasks.parentTaskId, taskId), eq(tasks.groupId, actor.groupId)));
+		}
+		return task;
+	});
+
+	if (result && result.boardId) {
+		emitBoardEvent(result.boardId, 'task_deleted', { taskId: result.id });
 	}
 
 	await invalidateDashboardCache(actor.groupId);
@@ -162,7 +185,12 @@ export interface TaskUpdatePayload {
 	customFields?: Record<string, string | number | boolean | null>;
 }
 
-export async function updateTask(actor: Actor, taskId: string, updates: TaskUpdatePayload) {
+export async function updateTask(
+	actor: Actor,
+	taskId: string,
+	updates: TaskUpdatePayload,
+	txClient?: any
+) {
 	if (actor.role === 'Viewer') {
 		throw new Error('Unauthorized: Viewers cannot edit tasks.');
 	}
@@ -179,7 +207,7 @@ export async function updateTask(actor: Actor, taskId: string, updates: TaskUpda
 	if (!oldTask) throw new Error('Task not found');
 
 	// Whitelist parameters to prevent cross-tenant/unsafe property injection
-	const setPayload: Record<string, any> = {};
+	const setPayload: Partial<typeof tasks.$inferInsert> = {};
 	if (updates.title !== undefined) setPayload.title = updates.title;
 	if (updates.description !== undefined) setPayload.description = updates.description;
 	if (updates.priority !== undefined) setPayload.priority = updates.priority;
@@ -207,7 +235,7 @@ export async function updateTask(actor: Actor, taskId: string, updates: TaskUpda
 		setPayload.boardId = newStage.boardId;
 	}
 
-	const { updatedTask, notificationsToSend } = await db.transaction(async (tx) => {
+	const runInTransaction = async (tx: any) => {
 		const [updatedTask] = await tx.update(tasks)
 			.set(setPayload)
 			.where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)))
@@ -282,7 +310,11 @@ export async function updateTask(actor: Actor, taskId: string, updates: TaskUpda
 		}
 
 		return { updatedTask, logs, notificationsToSend };
-	});
+	};
+
+	const { updatedTask, notificationsToSend } = txClient 
+		? await runInTransaction(txClient) 
+		: await db.transaction(runInTransaction);
 
 	for (const note of notificationsToSend) {
 		await createNotification(note.userId, actor.id, note.type, taskId);
@@ -336,7 +368,7 @@ export async function getBoardTasks(groupId: string, stageIds: string[]) {
 		color: tags.color
 	}).from(taskTags)
 	.innerJoin(tags, eq(taskTags.tagId, tags.id))
-	.where(inArray(taskTags.taskId, taskIds));
+	.where(and(inArray(taskTags.taskId, taskIds), isNull(tags.deletedAt)));
 
 	const tagsMap: Record<string, { id: string; name: string; color: string }[]> = {};
 	for (const tag of fetchedTags) {

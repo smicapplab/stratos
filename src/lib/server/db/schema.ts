@@ -84,12 +84,20 @@ export const tasks = pgTable('tasks', {
 	checklists: jsonb('checklists').default([]),
 	assigneeId: uuid('assignee_id').references(() => users.id),
 	dueDate: timestamp('due_date', { withTimezone: true }),
-	orderIndex: varchar('order_index', { length: 255 }).notNull(),
+	orderIndex: text('order_index').notNull(),
 	customFields: jsonb('custom_fields').default({}),
+	sourceId: varchar('source_id', { length: 255 }),
 	deletedAt: timestamp('deleted_at', { withTimezone: true }),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
-});
+}, (t) => ({
+	groupIdIdx: index('tasks_group_id_idx').on(t.groupId),
+	boardIdIdx: index('tasks_board_id_idx').on(t.boardId),
+	stageIdIdx: index('tasks_stage_id_idx').on(t.stageId),
+	parentTaskIdIdx: index('tasks_parent_task_id_idx').on(t.parentTaskId),
+	updatedAtIdx: index('tasks_updated_at_idx').on(t.updatedAt),
+	sourceIdGroupIdx: index('tasks_source_id_group_idx').on(t.groupId, t.sourceId) // Note: PostgreSQL partial index handles this cleanly, we can build it as a standard index or a raw SQL migration, standard multi-column index works well for multi-tenant lookup.
+}));
 
 // Self-referencing foreign key has to be done carefully in some ORMs, but Drizzle supports it natively if we use a separate relations block, or just rely on the UUID field. For Postgres, we can leave it as a loose UUID or define it strictly.
 
@@ -182,4 +190,17 @@ export const taskTags = pgTable('task_tags', {
 	tagId: uuid('tag_id').references(() => tags.id, { onDelete: 'cascade' }).notNull(),
 }, (t) => ({
 	pk: primaryKey({ columns: [t.taskId, t.tagId] })
+}));
+
+export const apiTokens = pgTable('api_tokens', {
+	id: uuid('id').defaultRandom().primaryKey(),
+	name: varchar('name', { length: 255 }).notNull(),
+	tokenHash: varchar('token_hash', { length: 255 }).notNull().unique(), // SHA-256 hash of the bearer token
+	groupId: uuid('group_id').references(() => groups.id, { onDelete: 'cascade' }).notNull(),
+	userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(), // Creator/Owner
+	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+	lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+}, (t) => ({
+	groupIdIdx: index('api_tokens_group_id_idx').on(t.groupId),
+	tokenHashIdx: index('api_tokens_token_hash_idx').on(t.tokenHash)
 }));

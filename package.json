@@ -12,7 +12,9 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"db:push": "drizzle-kit push",
 		"db:seed": "tsx src/lib/server/db/seed.ts",
-		"test": "vitest run"
+		"db:seed:api": "tsx src/lib/server/db/seed.ts --dev --api-seed",
+		"test": "vitest run",
+		"test:api": "bash scripts/test-api.sh"
 	},
 	"devDependencies": {
 		"@fontsource/plus-jakarta-sans": "^5.2.8",
@@ -58,6 +60,7 @@
 		"md5": "^2.3.0",
 		"nodemailer": "^9.0.3",
 		"pg": "^8.22.0",
+		"rate-limiter-flexible": "^11.2.0",
 		"resend": "^6.17.2",
 		"svelte-chartjs": "^4.0.1",
 		"svelte-dnd-action": "^0.9.70",
