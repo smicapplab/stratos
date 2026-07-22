@@ -14,6 +14,7 @@
 		X
 	} from 'lucide-svelte';
 	import FileSecurityBadge from '$lib/components/ui/FileSecurityBadge.svelte';
+	import VideoPlayer from '$lib/components/ui/VideoPlayer.svelte';
 
 	interface HelpdeskTicket {
 		id: string;
@@ -196,6 +197,14 @@
 		return docExtensions.some(ext => name.endsWith(ext));
 	}
 
+	function isVideoAttachment(file: { mimeType?: string | null; fileName?: string | null }): boolean {
+		if (!file) return false;
+		const type = (file.mimeType || '').toLowerCase();
+		const name = (file.fileName || '').toLowerCase();
+		if (type.startsWith('video/')) return true;
+		return ['.mp4', '.webm', '.ogg', '.mov', '.mkv'].some(ext => name.endsWith(ext));
+	}
+
 	function isLocalhost() {
 		if (typeof window === 'undefined') return true;
 		const host = window.location.hostname;
@@ -264,18 +273,35 @@
 				{#if attachments && attachments.length > 0}
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						{#each attachments as file}
+							{@const isVideo = isVideoAttachment(file)}
 							{@const isImage = isImageFile(file)}
 							{@const isPdf = isPdfFile(file)}
 							{@const isText = isTextFile(file)}
 							{@const isDoc = isOfficeDoc(file)}
-							{@const canPreview = isImage || isPdf || isText || isDoc}
+							{@const canPreview = isVideo || isImage || isPdf || isText || isDoc}
 
 							<div class="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-950/20 border border-zinc-200/50 dark:border-zinc-800/30 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
 								<div class="flex items-center gap-3 min-w-0">
-									{#if isImage}
-										<div class="w-10 h-10 rounded-lg overflow-hidden bg-zinc-100 dark:bg-zinc-800 flex-shrink-0 flex items-center justify-center border border-zinc-200/50 dark:border-zinc-800/30">
+									{#if isVideo}
+										<button 
+											type="button" 
+											onclick={() => openPreview(file)} 
+											aria-label={`Preview ${file.fileName}`}
+											class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex-shrink-0 flex items-center justify-center border border-zinc-200/50 dark:border-zinc-800/30 text-blue-500 cursor-pointer min-h-[44px] min-w-[44px]"
+										>
+											<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+												<polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+											</svg>
+										</button>
+									{:else if isImage}
+										<button 
+											type="button" 
+											onclick={() => openPreview(file)} 
+											aria-label={`Preview ${file.fileName}`}
+											class="w-10 h-10 rounded-lg overflow-hidden bg-zinc-100 dark:bg-zinc-800 flex-shrink-0 flex items-center justify-center border border-zinc-200/50 dark:border-zinc-800/30 min-h-[44px] min-w-[44px]"
+										>
 											<img src={file.tokenUrl} alt={file.fileName} class="w-full h-full object-cover" />
-										</div>
+										</button>
 									{:else}
 										<div class="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex-shrink-0 flex items-center justify-center border border-zinc-200/50 dark:border-zinc-800/30 text-zinc-400">
 											<File class="w-5 h-5" />
@@ -348,6 +374,7 @@
 							name="files" 
 							multiple 
 							class="hidden" 
+							accept="image/*,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.csv,.txt,.json,.log,.md,.mp4,.webm,.ogg,.mov,.mkv"
 							onchange={(e) => {
 								const input = e.currentTarget as HTMLInputElement;
 								if (input.files && input.files.length > 0) {
@@ -356,7 +383,7 @@
 							}}
 						/>
 					</label>
-					<span class="text-[10px] text-zinc-400 dark:text-zinc-500">Max 20MB per file</span>
+					<span class="text-[10px] text-zinc-400 dark:text-zinc-500">Max 20MB for files, 100MB for video</span>
 					{#if isUploading}
 						<div class="flex items-center gap-2 text-xs text-zinc-400">
 							<div class="w-4 h-4 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
@@ -527,6 +554,12 @@
 						<div class="w-8 h-8 border-3 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
 						<span class="text-xs">Loading text preview...</span>
 					</div>
+				{:else if isVideoAttachment(previewAttachment)}
+					<VideoPlayer
+						src={previewAttachment.tokenUrl}
+						mimeType={previewAttachment.mimeType || 'video/mp4'}
+						fileName={previewAttachment.fileName}
+					/>
 				{:else if isImageFile(previewAttachment)}
 					<img src={previewAttachment.tokenUrl} alt={previewAttachment.fileName} class="max-w-full max-h-[65vh] object-contain rounded-lg shadow-md" />
 				{:else if isPdfFile(previewAttachment)}
