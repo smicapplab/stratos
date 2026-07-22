@@ -143,6 +143,7 @@ export const attachments = pgTable('attachments', {
 	fileName: varchar('file_name', { length: 255 }).notNull(),
 	fileUrl: text('file_url').notNull(),
 	mimeType: varchar('mime_type', { length: 100 }),
+	storageBackend: varchar('storage_backend', { length: 10 }).notNull().default('local'),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
 });
 

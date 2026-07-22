@@ -43,6 +43,7 @@
 	import TaskChecklists from "$lib/components/task/TaskChecklists.svelte";
 	import { toastStore, modalStore } from "$lib/stores/ui.svelte";
 	import { getTaskIdentifier } from "$lib/utils";
+	import VideoPlayer from "$lib/components/ui/VideoPlayer.svelte";
 
 	type GroupUser = { id: string; name: string };
 	type ActivityFeedItem = {
@@ -688,6 +689,15 @@
 		return docExtensions.some(ext => name.endsWith(ext));
 	}
 
+	function isVideoFile(file: any) {
+		if (!file) return false;
+		const type = (file.mimeType || '').toLowerCase();
+		const name = (file.fileName || '').toLowerCase();
+		if (type.startsWith('video/')) return true;
+		const videoExts = ['.mp4', '.webm', '.ogg', '.mov', '.mkv'];
+		return videoExts.some(ext => name.endsWith(ext));
+	}
+
 	async function openPreview(file: any) {
 		previewAttachment = file;
 		previewTextContent = null;
@@ -1307,10 +1317,18 @@
 						
 						<div class="flex flex-col gap-3">
 							{#each taskAttachments as att (att.id)}
-								{@const canPreview = isImageFile(att) || isPdfFile(att) || isTextFile(att) || isOfficeDoc(att)}
+								{@const canPreview = isVideoFile(att) || isImageFile(att) || isPdfFile(att) || isTextFile(att) || isOfficeDoc(att)}
 								<div class="flex items-center justify-between p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-white/5">
 									<div class="flex items-center gap-3 min-w-0 flex-1">
-										{#if isImageFile(att)}
+										{#if isVideoFile(att)}
+											<!-- svelte-ignore a11y_click_events_have_key_events -->
+											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+											<div class="w-8 h-8 rounded bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0 cursor-pointer" onclick={() => openPreview(att)}>
+												<svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+													<polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+												</svg>
+											</div>
+										{:else if isImageFile(att)}
 											<!-- svelte-ignore a11y_click_events_have_key_events -->
 											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 											<img src={att.fileUrl} alt={att.fileName} class="w-8 h-8 rounded object-cover shrink-0 cursor-pointer" onclick={() => openPreview(att)} />
@@ -1353,7 +1371,7 @@
 							{/each}
 
 							<div class="relative">
-								<input type="file" id="file-upload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange={handleFileUpload} disabled={isUploading} />
+								<input type="file" id="file-upload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.csv,.txt,.json,.log,.md,.js,.ts,.mp4,.webm,.ogg,.mov,.mkv" onchange={handleFileUpload} disabled={isUploading} />
 								<div class="flex items-center justify-center gap-2 w-full py-4 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-500 hover:bg-zinc-50 dark:hover:bg-white/5 transition-all">
 									{#if isUploading}
 										<div class="animate-spin w-4 h-4 border-2 border-zinc-400 border-t-transparent rounded-full"></div> Uploading...
@@ -1761,6 +1779,12 @@
 						<div class="w-8 h-8 border-3 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
 						<span class="text-xs">Loading text preview...</span>
 					</div>
+				{:else if isVideoFile(previewAttachment)}
+					<VideoPlayer
+						src={previewAttachment.fileUrl}
+						mimeType={previewAttachment.mimeType || 'video/mp4'}
+						fileName={previewAttachment.fileName}
+					/>
 				{:else if isImageFile(previewAttachment)}
 					<img src={previewAttachment.fileUrl} alt={previewAttachment.fileName} class="max-w-full max-h-[65vh] object-contain rounded-lg shadow-md" />
 				{:else if isPdfFile(previewAttachment)}
