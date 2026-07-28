@@ -74,3 +74,26 @@ SELECT * FROM task_tree ORDER BY depth ASC, order_index ASC;
 
 ## Task Relations (Linked Issues)
 To support DAGs like "Blocks", we use a strict many-to-many junction table (`task_relations`), constrained to prevent duplicate relations and self-blocking.
+
+## Epic View & Subtask Progress (added 2026-07-29)
+
+### Epic Filter Toggle
+
+A board-toolbar toggle ("Epics only") filters the Kanban board to show only parent tasks
+(tasks where parentTaskId is null). Subtask cards are hidden at render time only — underlying
+data and SSE sync are unaffected. The toggle state is local ($state) and not persisted across
+sessions. The column task count badge reflects the filtered count when the toggle is active.
+
+### Subtask Progress Bar
+
+Parent task cards (subtaskCount > 0) display a thin progress bar at the card bottom edge.
+
+Computed fields (derived inside the $effect in +page.svelte):
+- completedStageIds: Set<string> of stage IDs where isCompleted === true
+- completedSubtaskCount: number of this task's subtasks whose stageId is in completedStageIds
+- isParentIncomplete: boolean — true when the parent is in a completed stage but
+  completedSubtaskCount < subtaskCount
+
+Progress bar fill is blue at partial completion and green at 100%. A red AlertTriangle icon
+appears beside the "X / Y" label when isParentIncomplete is true. There is no blocking on
+task moves — the indicator is purely reactive.

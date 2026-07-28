@@ -8,6 +8,12 @@ import { emitBoardEvent } from './events';
 import { createNotification } from './notifications';
 import { invalidateDashboardCache } from '../redis';
 
+type TransactionClient = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export function stripHtml(html: string): string {
+	return html.replace(/&nbsp;/g, ' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 export async function createTask(
 	actor: Actor,
 	stageId: string,
@@ -15,14 +21,15 @@ export async function createTask(
 	previousIndex: string | null = null,
 	nextIndex: string | null = null,
 	parentTaskId: string | null = null,
-	txClient?: any
+	txClient?: TransactionClient,
+	description?: string | null
 ) {
 	if (actor.role === 'Viewer') {
 		throw new Error('Unauthorized: Viewers cannot create tasks.');
 	}
 	const orderIndex = generateKeyBetween(previousIndex, nextIndex);
 	
-	const runInTransaction = async (tx: any) => {
+	const runInTransaction = async (tx: TransactionClient) => {
 		// Get boardId from stage and validate group/soft-delete
 		const [stage] = await tx.select({ boardId: stages.boardId })
 			.from(stages)
@@ -55,7 +62,15 @@ export async function createTask(
 		const number = (maxResult?.maxNumber ?? 0) + 1;
 
 		const [newTask] = await tx.insert(tasks).values({
-			title, stageId, boardId, groupId: actor.groupId, orderIndex, parentTaskId, number
+			title,
+			stageId,
+			boardId,
+			groupId: actor.groupId,
+			orderIndex,
+			parentTaskId,
+			number,
+			description: description ?? null,
+			searchText: description ? stripHtml(description) : ''
 		}).returning();
 
 		await tx.insert(auditLogs).values({
@@ -189,7 +204,7 @@ export async function updateTask(
 	actor: Actor,
 	taskId: string,
 	updates: TaskUpdatePayload,
-	txClient?: any
+	txClient?: TransactionClient
 ) {
 	if (actor.role === 'Viewer') {
 		throw new Error('Unauthorized: Viewers cannot edit tasks.');
@@ -197,6 +212,7 @@ export async function updateTask(
 
 	const [oldTask] = await db.select({
 		title: tasks.title,
+		description: tasks.description,
 		priority: tasks.priority,
 		assigneeId: tasks.assigneeId,
 		stageId: tasks.stageId,
@@ -209,7 +225,10 @@ export async function updateTask(
 	// Whitelist parameters to prevent cross-tenant/unsafe property injection
 	const setPayload: Partial<typeof tasks.$inferInsert> = {};
 	if (updates.title !== undefined) setPayload.title = updates.title;
-	if (updates.description !== undefined) setPayload.description = updates.description;
+	if (updates.description !== undefined) {
+		setPayload.description = updates.description;
+		setPayload.searchText = updates.description ? stripHtml(updates.description) : '';
+	}
 	if (updates.priority !== undefined) setPayload.priority = updates.priority;
 	if (updates.assigneeId !== undefined) setPayload.assigneeId = updates.assigneeId;
 	if (updates.dueDate !== undefined) setPayload.dueDate = updates.dueDate;
@@ -235,15 +254,29 @@ export async function updateTask(
 		setPayload.boardId = newStage.boardId;
 	}
 
-	const runInTransaction = async (tx: any) => {
+	const runInTransaction = async (tx: TransactionClient) => {
 		const [updatedTask] = await tx.update(tasks)
 			.set(setPayload)
 			.where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)))
 			.returning();
 
-		const logs: { groupId: string; taskId: string; userId: string; actionType: string; oldValue: string | null; newValue: string | null }[] = [];
+		const logs: { groupId: string; taskId: string; userId: string; actionType: string; oldValue: string | null; newValue: string | null; details?: any }[] = [];
 		const notificationsToSend: { userId: string; type: 'assigned' | 'status_changed' }[] = [];
 
+		if (updates.description !== undefined && updates.description !== oldTask.description) {
+			logs.push({
+				groupId: actor.groupId,
+				taskId,
+				userId: actor.id,
+				actionType: 'description_change',
+				oldValue: null,
+				newValue: null,
+				details: {
+					oldDescription: oldTask.description,
+					newDescription: updates.description
+				}
+			});
+		}
 		if (updates.priority && updates.priority !== oldTask.priority) {
 			logs.push({ groupId: actor.groupId, taskId, userId: actor.id, actionType: 'priority_change', oldValue: oldTask.priority, newValue: updates.priority });
 		}

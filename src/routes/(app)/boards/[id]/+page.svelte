@@ -115,15 +115,25 @@
 	
 	// Create a reactive local copy of tasks mapped by stageId so we can mutate them on drag/drop
 	let columns = $state<{id: string, name: string, isCompleted: boolean, orderIndex: string, dragDisabled?: boolean, items: any[]}[]>([]);
+	let showEpicsOnly = $state(false);
 
 	// Sync server data to local mutable state whenever the server data updates
 	$effect(() => {
+		const completedStageIds = new Set<string>(
+			stages.filter((s: { id: string; isCompleted: boolean }) => s.isCompleted).map((s: { id: string; isCompleted: boolean }) => s.id)
+		);
+
 		const subtaskCounts = new Map<string, number>();
-		const taskMap = new Map<string, any>();
+		const completedSubtaskCounts = new Map<string, number>();
+		const taskMap = new Map<string, { id: string; parentTaskId: string | null; stageId: string; title: string; number: number; boardPrefix: string; boardName: string }>();
+
 		for (const t of tasks) {
 			taskMap.set(t.id, t);
 			if (t.parentTaskId) {
 				subtaskCounts.set(t.parentTaskId, (subtaskCounts.get(t.parentTaskId) || 0) + 1);
+				if (completedStageIds.has(t.stageId)) {
+					completedSubtaskCounts.set(t.parentTaskId, (completedSubtaskCounts.get(t.parentTaskId) || 0) + 1);
+				}
 			}
 		}
 
@@ -142,11 +152,19 @@
 			return {
 				...stage,
 				dragDisabled: user.role !== 'Admin',
-				items: stageTasks.map(t => ({ 
-					...t, 
-					subtaskCount: subtaskCounts.get(t.id) || 0,
-					parentTask: t.parentTaskId ? taskMap.get(t.parentTaskId) : null
-				}))
+				items: stageTasks.map(t => {
+					const subtaskCount: number = subtaskCounts.get(t.id) || 0;
+					const completedSubtaskCount: number = completedSubtaskCounts.get(t.id) || 0;
+					const isParentIncomplete: boolean =
+						completedStageIds.has(t.stageId) && subtaskCount > 0 && completedSubtaskCount < subtaskCount;
+					return {
+						...t,
+						subtaskCount,
+						completedSubtaskCount,
+						isParentIncomplete,
+						parentTask: t.parentTaskId ? taskMap.get(t.parentTaskId) : null
+					};
+				})
 			};
 		});
 	});
@@ -402,6 +420,23 @@
 		</div>
 
 		<div class="flex items-center gap-3 relative">
+			{#if activeView === 'board'}
+				<button
+					id="epic-view-toggle"
+					type="button"
+					class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all min-h-[36px]
+						{showEpicsOnly
+							? 'bg-violet-600 text-white border-violet-600 shadow-sm shadow-violet-500/30'
+							: 'bg-white dark:bg-white/5 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-white/5 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-white/10'}"
+					onclick={() => { showEpicsOnly = !showEpicsOnly; }}
+					title={showEpicsOnly ? 'Show all tasks' : 'Show epics only'}
+				>
+					<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18M3 12h12M3 17h8" />
+					</svg>
+					Epics only
+				</button>
+			{/if}
 			{#if user.role === 'Admin'}
 				<button 
 					class="lg:hidden p-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-white dark:bg-white/5 border border-zinc-200 dark:border-white/5 rounded-lg shadow-sm transition-all hover:bg-zinc-50 dark:hover:bg-white/10"
@@ -559,7 +594,9 @@
 								</div>
 							{/if}
 							<h3 class="text-sm font-bold tracking-tight text-zinc-800 dark:text-zinc-200">{column.name}</h3>
-							<span class="px-2 py-0.5 bg-zinc-200 dark:bg-white/10 text-zinc-600 dark:text-zinc-400 text-xs font-bold rounded-full">{column.items.length}</span>
+							<span class="px-2 py-0.5 bg-zinc-200 dark:bg-white/10 text-zinc-600 dark:text-zinc-400 text-xs font-bold rounded-full">
+								{showEpicsOnly ? column.items.filter((t: { parentTaskId: string | null }) => t.parentTaskId === null).length : column.items.length}
+							</span>
 						</div>
 						{#if user.role === 'Admin'}
 							<form method="POST" action="?/updateStage" use:enhance={() => { return async ({ update }) => update(); }} class="opacity-0 group-hover:opacity-100 transition-opacity {column.isCompleted ? 'opacity-100' : ''}">
@@ -582,18 +619,18 @@
 
 					<!-- Drag and Drop Zone -->
 					<div 
-						use:dndzone={{items: column.items, flipDurationMs, dragDisabled: isTouchDevice, dropTargetStyle: { outline: '2px solid rgba(59, 130, 246, 0.5)', outlineOffset: '-2px', borderRadius: '0.75rem', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}} 
+						use:dndzone={{items: showEpicsOnly ? column.items.filter((t: { parentTaskId: string | null }) => t.parentTaskId === null) : column.items, flipDurationMs, dragDisabled: isTouchDevice, dropTargetStyle: { outline: '2px solid rgba(59, 130, 246, 0.5)', outlineOffset: '-2px', borderRadius: '0.75rem', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}} 
 						onconsider={(e) => handleDndConsider(e, stageIdx)} 
 						onfinalize={(e) => handleDndFinalize(e, stageIdx)}
 						class="flex-1 overflow-y-auto px-3 pb-3 min-h-[150px] custom-scrollbar flex flex-col gap-2 relative"
 					>
-						{#each column.items as task, taskIdx (task.id)}
+						{#each (showEpicsOnly ? column.items.filter((t: { parentTaskId: string | null }) => t.parentTaskId === null) : column.items) as task, taskIdx (task.id)}
 							<div animate:flip={{duration: flipDurationMs}} id="task-{stageIdx}-{taskIdx}">
 								<TaskCard {task} {groupUsers} userRole={user.role} focused={focusedColumnIndex === stageIdx && focusedTaskIndex === taskIdx} onClick={() => { if (!isDragging) activeTask = task; }} />
 							</div>
 						{/each}
 						
-						{#if column.items.length === 0}
+						{#if (showEpicsOnly ? column.items.filter((t: { parentTaskId: string | null }) => t.parentTaskId === null) : column.items).length === 0}
 							<div class="absolute inset-0 flex flex-col items-center justify-center opacity-40 pointer-events-none p-4 text-center mt-6">
 								<svg class="w-10 h-10 mb-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
 								<span class="text-xs font-semibold text-zinc-500 tracking-wide">Drop tasks here</span>

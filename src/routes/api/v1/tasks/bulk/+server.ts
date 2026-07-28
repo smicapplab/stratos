@@ -96,9 +96,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		// Emit WebSocket events and invalidate cache only after the transaction has committed
 		// successfully. Doing this inside the tx would fire ghost events if a later step rolls back.
-		emitBoardEvent(result.epicBoardId, 'task_created', { task: result.epic });
+		if (result.epicBoardId) {
+			emitBoardEvent(result.epicBoardId, 'task_created', { task: result.epic });
+		}
 		for (const story of result.stories) {
-			emitBoardEvent(story.boardId, 'task_created', { task: story });
+			if (story.boardId) {
+				emitBoardEvent(story.boardId, 'task_created', { task: story });
+			}
 		}
 		await invalidateDashboardCache(user.groupId);
 

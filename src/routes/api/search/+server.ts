@@ -23,7 +23,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	const searchPattern = `%${escapeLikePattern(query)}%`;
 	const groupId = locals.user.groupId;
 
-	const matchingTasks = await db.select({
+	const ftsResults = await db.select({
 		id: tasks.id,
 		title: tasks.title,
 		boardId: tasks.boardId,
@@ -36,11 +36,37 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		eq(tasks.groupId, groupId), 
 		isNull(tasks.deletedAt),
 		or(isNull(tasks.boardId), isNull(boards.deletedAt)),
-		or(
-			ilike(tasks.title, searchPattern),
-			ilike(sql`concat(${boards.prefix}, '-', ${tasks.number})`, searchPattern)
-		)
+		sql`${tasks.searchVector} @@ websearch_to_tsquery('english', ${query})`
 	)).limit(10);
+
+	let matchingTasks = ftsResults;
+
+	// Only perform key identifier scan if query contains hyphens/digits to avoid sequential scans on text queries
+	if (/[-\d]/.test(query)) {
+		const keyResults = await db.select({
+			id: tasks.id,
+			title: tasks.title,
+			boardId: tasks.boardId,
+			number: tasks.number,
+			boardPrefix: boards.prefix,
+			parentTaskId: tasks.parentTaskId
+		}).from(tasks)
+		.leftJoin(boards, eq(tasks.boardId, boards.id))
+		.where(and(
+			eq(tasks.groupId, groupId), 
+			isNull(tasks.deletedAt),
+			or(isNull(tasks.boardId), isNull(boards.deletedAt)),
+			ilike(sql`concat(${boards.prefix}, '-', ${tasks.number})`, searchPattern)
+		)).limit(10);
+
+		const existingIds = new Set(matchingTasks.map(t => t.id));
+		for (const task of keyResults) {
+			if (!existingIds.has(task.id)) {
+				matchingTasks.push(task);
+			}
+		}
+		matchingTasks = matchingTasks.slice(0, 10);
+	}
 
 	const matchingBoards = await db.select({
 		id: boards.id,
