@@ -219,3 +219,67 @@ BODY=$(body_of "$response")
 
 Add new sections following the existing numbered pattern. Each section should use `section "N. Name"` to group related assertions.
 
+---
+
+## 7. Model Context Protocol (MCP) Server
+
+Stratos includes a native Model Context Protocol (MCP) server for direct LLM integration. The server communicates over `stdio` transport using JSON-RPC, making Stratos database resources directly accessible to external AI agents.
+
+### 7.1 Invocation
+
+The MCP server is ran as a Node CLI script using `tsx`:
+
+```bash
+npx tsx scripts/mcp-server.ts
+```
+
+### 7.2 Tools Exposed
+
+To enforce tenant isolation, all tool operations require a `groupId` parameter (UUID) to scope the database queries.
+
+#### 1. `list_projects`
+* **Purpose:** List all projects accessible in the group.
+* **Arguments:**
+  * `groupId` (string, required): The UUID of the group.
+  * `userId` (string, optional): The UUID of the requesting user.
+
+#### 2. `list_boards`
+* **Purpose:** List boards in a project.
+* **Arguments:**
+  * `groupId` (string, required): The UUID of the group.
+  * `projectId` (string, optional): Project filter.
+  * `userId` (string, optional): Requesting user.
+
+#### 3. `list_tasks`
+* **Purpose:** List tasks under a board or stage (paginated, max 50 results).
+* **Arguments:**
+  * `groupId` (string, required): The UUID of the group.
+  * `boardId` (string, optional): Board filter.
+  * `stageId` (string, optional): Stage filter.
+  * `userId` (string, optional): Requesting user.
+
+#### 4. `get_task_details`
+* **Purpose:** Retrieve full task details (including description, checklists, custom fields, and comments).
+* **Arguments:**
+  * `groupId` (string, required): The UUID of the group.
+  * `taskId` (string, required): The UUID of the task.
+  * `userId` (string, optional): Requesting user.
+
+#### 5. `create_task`
+* **Purpose:** Create a new task in a stage.
+* **Arguments:**
+  * `groupId` (string, required): The UUID of the group.
+  * `stageId` (string, required): The stage UUID.
+  * `title` (string, required): Task title.
+  * `description` (string, optional): Task description (HTML).
+  * `userId` (string, optional): Creator user UUID.
+
+#### 6. `update_task`
+* **Purpose:** Update details of an existing task.
+* **Arguments:**
+  * `groupId` (string, required): The UUID of the group.
+  * `taskId` (string, required): The task UUID.
+  * `title`/`description`/`priority`/`assigneeId`/`dueDate`/`stageId`/`customFields` (optional updates).
+  * `userId` (string, optional): Updater user UUID.
+
+

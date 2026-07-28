@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CheckSquare, Trash2, Calendar, GripVertical, User, ListTree } from 'lucide-svelte';
+	import { CheckSquare, Trash2, Calendar, GripVertical, User, ListTree, AlertTriangle } from 'lucide-svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import { enhance } from '$app/forms';
 	import { modalStore } from '$lib/stores/ui.svelte';
@@ -190,6 +190,28 @@
 			{/if}
 		</button>
 	</div>
+
+	{#if task.subtaskCount > 0}
+		{@const pct = task.completedSubtaskCount / task.subtaskCount}
+		<div class="flex items-center gap-2 pl-5 pr-2 -mt-1">
+			<div class="flex-1 h-1 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
+				<div
+					class="h-full rounded-full transition-all duration-300 {pct >= 1 ? 'bg-emerald-500' : 'bg-blue-500'}"
+					style="width: {Math.round(pct * 100)}%"
+				></div>
+			</div>
+			<div class="flex items-center gap-1 shrink-0">
+				<span class="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 tabular-nums">
+					{task.completedSubtaskCount} / {task.subtaskCount}
+				</span>
+				{#if task.isParentIncomplete}
+					<div title="Parent task is complete but has open subtasks" class="text-red-500">
+						<AlertTriangle class="w-3 h-3" />
+					</div>
+				{/if}
+			</div>
+		</div>
+	{/if}
 </div>
 
 {#if showAssigneePopover}

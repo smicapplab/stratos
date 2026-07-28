@@ -107,6 +107,19 @@
 	let editor = $state<Editor | null>(null);
 	let commentEditor = $state<Editor | null>(null);
 
+	let isLocalUpdate = false;
+	let externalUpdatePending = $state(false);
+	let pendingExternalContent = $state("");
+
+	function applyExternalUpdate() {
+		if (editor && pendingExternalContent !== undefined) {
+			editor.commands.setContent(pendingExternalContent);
+			task.description = pendingExternalContent;
+		}
+		externalUpdatePending = false;
+		pendingExternalContent = "";
+	}
+
 	// Derived task.id to prevent $effect from tracking the entire task object
 	let taskId = $derived(task.id);
 
@@ -802,6 +815,9 @@
 	$effect(() => {
 		const id = taskId; // only track the id
 		if (id) {
+			externalUpdatePending = false;
+			pendingExternalContent = "";
+
 			untrack(() => {
 				checklists = task.checklists || [];
 			});
@@ -816,6 +832,36 @@
 					editor.commands.setContent(task.description);
 				}
 			});
+		}
+	});
+
+	function normalizeHtml(html: string | null | undefined): string {
+		if (!html) return "";
+		const trimmed = html.trim();
+		if (trimmed === "<p></p>") return "";
+		return trimmed;
+	}
+
+	// Concurrency Guard: Handle external description updates without clobbering focused editor
+	$effect(() => {
+		const desc = task.description ?? "";
+		if (isLocalUpdate) {
+			isLocalUpdate = false;
+			return;
+		}
+		if (editor) {
+			const currentHTML = editor.getHTML();
+			if (normalizeHtml(currentHTML) !== normalizeHtml(desc)) {
+				if (editor.isFocused) {
+					externalUpdatePending = true;
+					pendingExternalContent = desc;
+					untrack(() => {
+						task.description = currentHTML;
+					});
+				} else {
+					editor.commands.setContent(desc);
+				}
+			}
 		}
 	});
 
@@ -895,6 +941,7 @@
 				...fileHandlerProps,
 			},
 			onUpdate: ({ editor }) => {
+				isLocalUpdate = true;
 				task.description = editor.getHTML();
 			},
 			onBlur: () => {
@@ -1305,7 +1352,7 @@
 							placeholder="Task Title"
 						></textarea>
 					</div>
-					<TaskDescription {task} {editor} {tiptapAction} />
+					<TaskDescription {task} {editor} {tiptapAction} {externalUpdatePending} onApplyExternalUpdate={applyExternalUpdate} />
 
 
 
