@@ -1,6 +1,22 @@
 <script lang="ts">
 	import { TextAlignStart, Bold, Italic, List } from 'lucide-svelte';
-	let { task, editor, tiptapAction } = $props();
+	import type { Editor } from '@tiptap/core';
+
+	interface Props {
+		task: { description: string | null };
+		editor: Editor | null;
+		tiptapAction: (node: HTMLElement) => { destroy: () => void } | void;
+		externalUpdatePending?: boolean;
+		onApplyExternalUpdate?: () => void;
+	}
+
+	let {
+		task,
+		editor,
+		tiptapAction,
+		externalUpdatePending = false,
+		onApplyExternalUpdate
+	}: Props = $props();
 </script>
 
 					<!-- WYSIWYG Description -->
@@ -10,6 +26,15 @@
 						>
 							<TextAlignStart class="w-4 h-4 text-zinc-400" /> Description
 						</div>
+
+						{#if externalUpdatePending}
+							<div class="mb-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-lg flex items-center justify-between text-sm text-blue-800 dark:text-blue-200">
+								<span>Another user updated this description.</span>
+								<button type="button" onclick={onApplyExternalUpdate} class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition-colors">
+									Click to Load
+								</button>
+							</div>
+						{/if}
 
 						<div
 							class="rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#121214] shadow-sm overflow-hidden focus-within:border-blue-500/50 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all"

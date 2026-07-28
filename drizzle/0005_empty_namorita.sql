@@ -1,0 +1,1 @@
+ALTER TABLE "attachments" ADD COLUMN "storage_backend" varchar(10) DEFAULT 'local' NOT NULL;

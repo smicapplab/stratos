@@ -1,9 +1,48 @@
 import { json } from '@sveltejs/kit';
 import { redis } from '$lib/server/redis';
-import fs from 'fs';
+import fs from 'node:fs';
+import { Readable } from 'node:stream';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ params, locals }) => {
+interface TokenData {
+	filePath: string;
+	mimeType: string;
+	fileName: string;
+	userId: string;
+	groupId: string;
+}
+
+function parseRangeHeader(rangeHeader: string, fileSize: number): { start: number; end: number } | null {
+	const match = rangeHeader.match(/^bytes=(\d*)-(\d*)$/);
+	if (!match) return null;
+
+	const startStr = match[1];
+	const endStr = match[2];
+
+	let start: number;
+	let end: number;
+
+	if (!startStr && endStr) {
+		// Suffix range: bytes=-N means last N bytes
+		const suffixLength = parseInt(endStr, 10);
+		start = Math.max(0, fileSize - suffixLength);
+		end = fileSize - 1;
+	} else {
+		start = parseInt(startStr, 10);
+		end = endStr ? parseInt(endStr, 10) : fileSize - 1;
+	}
+
+	// Clamp end to last valid byte
+	end = Math.min(end, fileSize - 1);
+
+	if (isNaN(start) || isNaN(end) || start > end || start >= fileSize) {
+		return null;
+	}
+
+	return { start, end };
+}
+
+export const GET: RequestHandler = async ({ params, request, locals }) => {
 	if (!locals.user) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
@@ -19,24 +58,72 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			return json({ error: 'Preview link expired or invalid' }, { status: 404 });
 		}
 
-		const { filePath, mimeType, fileName, userId, groupId } = JSON.parse(dataStr);
+		const { filePath, mimeType, fileName, userId, groupId } = JSON.parse(dataStr) as TokenData;
 
-		// Verify that the token belongs to the requesting user and group
 		if (userId !== locals.user.id || groupId !== locals.user.groupId) {
 			return json({ error: 'Forbidden' }, { status: 403 });
 		}
 
-		// Read file contents from the secure uploads folder
 		if (!fs.existsSync(filePath)) {
 			console.error(`[Files API] File not found on disk: ${filePath}`);
 			return json({ error: 'File not found on disk' }, { status: 404 });
 		}
 
-		const fileBuffer = await fs.promises.readFile(filePath);
+		const isVideo = mimeType.startsWith('video/');
 
-		return new Response(fileBuffer, {
+		if (!isVideo) {
+			// Non-video: keep original behaviour — full buffer, 200 OK
+			const fileBuffer = await fs.promises.readFile(filePath);
+			return new Response(fileBuffer, {
+				headers: {
+					'Content-Type': mimeType,
+					'Content-Disposition': `inline; filename="${encodeURIComponent(fileName)}"`
+				}
+			});
+		}
+
+		// Video: support HTTP Range Requests for instant seeking
+		const { size: fileSize } = fs.statSync(filePath);
+		const rangeHeader = request.headers.get('range');
+
+		if (rangeHeader) {
+			const range = parseRangeHeader(rangeHeader, fileSize);
+
+			if (!range) {
+				return new Response(null, {
+					status: 416,
+					headers: {
+						'Content-Range': `bytes */${fileSize}`
+					}
+				});
+			}
+
+			const { start, end } = range;
+			const chunkSize = end - start + 1;
+			const nodeStream = fs.createReadStream(filePath, { start, end });
+			const stream = Readable.toWeb(nodeStream) as ReadableStream;
+
+			return new Response(stream, {
+				status: 206,
+				headers: {
+					'Content-Type': mimeType,
+					'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+					'Content-Length': String(chunkSize),
+					'Accept-Ranges': 'bytes',
+					'Content-Disposition': `inline; filename="${encodeURIComponent(fileName)}"`
+				}
+			});
+		}
+
+		// Video with no Range header — stream full file with Accept-Ranges signal
+		const nodeStream = fs.createReadStream(filePath);
+		const stream = Readable.toWeb(nodeStream) as ReadableStream;
+		return new Response(stream, {
+			status: 200,
 			headers: {
 				'Content-Type': mimeType,
+				'Content-Length': String(fileSize),
+				'Accept-Ranges': 'bytes',
 				'Content-Disposition': `inline; filename="${encodeURIComponent(fileName)}"`
 			}
 		});
@@ -45,3 +132,4 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		return json({ error: 'An unexpected error occurred' }, { status: 500 });
 	}
 };
+

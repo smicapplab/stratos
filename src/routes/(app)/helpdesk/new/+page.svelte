@@ -187,13 +187,14 @@
 							<div class="flex flex-col items-center justify-center pt-4 pb-4">
 								<Paperclip class="w-7 h-7 text-zinc-400 mb-1.5" />
 								<p class="text-xs text-zinc-500 dark:text-zinc-400 font-semibold"><span class="text-blue-500">Click to upload</span> or drag and drop</p>
-								<p class="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">Images or Documents (Max 20MB each, limit 5 files)</p>
+								<p class="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">Images, Videos or Documents (Max 20MB for files, 100MB for video, limit 5 files)</p>
 							</div>
 							<input 
 								type="file" 
 								name="attachments" 
 								multiple 
 								class="hidden" 
+								accept="image/*,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.csv,.txt,.json,.log,.md,.mp4,.webm,.ogg,.mov,.mkv"
 								onchange={(e) => {
 									selectedFileCount = (e.currentTarget as HTMLInputElement).files?.length || 0;
 								}}

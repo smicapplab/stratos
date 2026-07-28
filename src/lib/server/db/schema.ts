@@ -1,4 +1,11 @@
-import { pgTable, uuid, varchar, text, timestamp, jsonb, boolean, primaryKey, integer, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, jsonb, boolean, primaryKey, integer, index, customType } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+
+export const tsvector = customType<{ data: string }>({
+	dataType() {
+		return 'tsvector';
+	},
+});
 
 export const groups = pgTable('groups', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -87,6 +94,8 @@ export const tasks = pgTable('tasks', {
 	orderIndex: text('order_index').notNull(),
 	customFields: jsonb('custom_fields').default({}),
 	sourceId: varchar('source_id', { length: 255 }),
+	searchText: text('search_text').default(''),
+	searchVector: tsvector('search_vector').generatedAlwaysAs(sql`to_tsvector('english', coalesce(title, '') || ' ' || coalesce(search_text, ''))`),
 	deletedAt: timestamp('deleted_at', { withTimezone: true }),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
@@ -96,7 +105,8 @@ export const tasks = pgTable('tasks', {
 	stageIdIdx: index('tasks_stage_id_idx').on(t.stageId),
 	parentTaskIdIdx: index('tasks_parent_task_id_idx').on(t.parentTaskId),
 	updatedAtIdx: index('tasks_updated_at_idx').on(t.updatedAt),
-	sourceIdGroupIdx: index('tasks_source_id_group_idx').on(t.groupId, t.sourceId) // Note: PostgreSQL partial index handles this cleanly, we can build it as a standard index or a raw SQL migration, standard multi-column index works well for multi-tenant lookup.
+	sourceIdGroupIdx: index('tasks_source_id_group_idx').on(t.groupId, t.sourceId),
+	searchVectorIdx: index('tasks_search_vector_idx').using('gin', t.searchVector)
 }));
 
 // Self-referencing foreign key has to be done carefully in some ORMs, but Drizzle supports it natively if we use a separate relations block, or just rely on the UUID field. For Postgres, we can leave it as a loose UUID or define it strictly.
@@ -143,6 +153,7 @@ export const attachments = pgTable('attachments', {
 	fileName: varchar('file_name', { length: 255 }).notNull(),
 	fileUrl: text('file_url').notNull(),
 	mimeType: varchar('mime_type', { length: 100 }),
+	storageBackend: varchar('storage_backend', { length: 10 }).notNull().default('local'),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
 });
 
