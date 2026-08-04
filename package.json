@@ -5,6 +5,10 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
+		"dev:ec2": "bash scripts/run-dev.sh",
+		"pm2:start": "npx drizzle-kit push && pm2 start ecosystem.config.cjs",
+		"pm2:stop": "pm2 stop stratos-dev",
+		"pm2:logs": "pm2 logs stratos-dev",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",

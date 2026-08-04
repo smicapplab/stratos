@@ -7,7 +7,7 @@ Stratos is an internal Jira/ClickUp replacement optimized for high performance, 
 - **Framework**: Pure SvelteKit (Standard Node adapter for persistent connections).
 - **Frontend State**: Svelte 5 `$state` and `$derived` runes with true real-time syncing.
 - **Database**: Postgres (managed via Drizzle ORM).
-- **Cache / PubSub**: Redis for fast session lookup, rate limiting, and cross-instance Server-Sent Events (SSE) broadcasting.
+- **Cache / PubSub**: Valkey / Redis (via `ioredis`) for fast session lookup, rate limiting, and cross-instance Server-Sent Events (SSE) broadcasting.
 - **Authentication**: Lucia Auth with Drizzle adapter.
 - **Rich Text Sync**: Yjs + Tiptap for collaborative description editing.
 
