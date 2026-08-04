@@ -8,6 +8,7 @@ declare global {
 				id: string;
 				name: string;
 				logoUrl: string | null;
+				showWorkspaceName: boolean;
 				defaultTheme: string;
 			} | null;
 			apiToken: { tokenId: string; groupId: string } | null;

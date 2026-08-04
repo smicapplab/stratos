@@ -254,18 +254,22 @@
 					<img
 						src={data.group.logoUrl}
 						alt={data.group.name}
-						class="h-8 max-w-full object-contain"
+						class="h-9 max-w-[180px] object-contain"
 					/>
-					<span
-						class="font-bold text-lg tracking-tight text-zinc-900 dark:text-white truncate"
-						>{data.group.name}</span
-					>
+					{#if data.group.showWorkspaceName !== false}
+						<span
+							class="font-bold text-lg tracking-tight text-zinc-900 dark:text-white truncate"
+							>{data.group.name}</span
+						>
+					{/if}
 				{:else}
-					<BrandLogoType class="w-8 h-8 text-brand-primary" />
-					<span
-						class="font-bold text-lg tracking-tight text-zinc-900 dark:text-white"
-						>Stratos</span
-					>
+					<BrandLogoType class="w-8 h-8 text-brand-primary shrink-0" />
+					{#if data.group?.showWorkspaceName !== false}
+						<span
+							class="font-bold text-lg tracking-tight text-zinc-900 dark:text-white truncate"
+							>{data.group?.name || 'Stratos'}</span
+						>
+					{/if}
 				{/if}
 			</div>
 		</div>

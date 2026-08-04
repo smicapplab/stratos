@@ -23,6 +23,7 @@ export const actions: Actions = {
 		const defaultTheme = data.get('defaultTheme')?.toString();
 		const name = data.get('name')?.toString();
 		const logoSource = data.get('logoSource')?.toString() || 'url';
+		const showWorkspaceName = data.get('showWorkspaceName') === 'true' || data.get('showWorkspaceName') === 'on';
 		let finalLogoUrl: string | null = locals.group.logoUrl;
 
 		if (!defaultTheme) {
@@ -47,7 +48,12 @@ export const actions: Actions = {
 		}
 		
 		await db.update(groups)
-			.set({ defaultTheme, logoUrl: finalLogoUrl, name: name.trim() })
+			.set({ 
+				defaultTheme, 
+				logoUrl: finalLogoUrl, 
+				name: name.trim(),
+				showWorkspaceName 
+			})
 			.where(eq(groups.id, locals.group.id));
 			
 		return { success: true, logoUrl: finalLogoUrl };

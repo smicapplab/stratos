@@ -11,6 +11,7 @@ export const groups = pgTable('groups', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   logoUrl: text('logo_url'),
+  showWorkspaceName: boolean('show_workspace_name').default(true).notNull(),
   defaultTheme: varchar('default_theme', { length: 50 }).default('stratos').notNull(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

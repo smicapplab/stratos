@@ -75,6 +75,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 					id: groups.id,
 					name: groups.name,
 					logoUrl: groups.logoUrl,
+					showWorkspaceName: groups.showWorkspaceName,
 					defaultTheme: groups.defaultTheme
 				}).from(groups).where(eq(groups.id, validation.user.groupId)).limit(1).then(res => res[0]);
 
@@ -145,6 +146,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			id: groups.id,
 			name: groups.name,
 			logoUrl: groups.logoUrl,
+			showWorkspaceName: groups.showWorkspaceName,
 			defaultTheme: groups.defaultTheme
 		}).from(groups).where(eq(groups.id, user.groupId)).limit(1).then(res => res[0]);
 
