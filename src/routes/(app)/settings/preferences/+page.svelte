@@ -113,7 +113,7 @@
 				</label>
 
 				<label class="flex items-center gap-3 p-3 border border-gray-200 dark:border-white/10 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors relative overflow-hidden">
-					<input type="radio" name="brandTheme" value="araneta-city" bind:group={brandTheme} class="w-4 h-4 text-brand-primary" />
+					<input type="radio" name="brandTheme" value="emerald" bind:group={brandTheme} class="w-4 h-4 text-brand-primary" />
 					<div class="flex-1">
 						<div class="text-sm font-medium text-gray-900 dark:text-gray-100">Emerald Oasis</div>
 					</div>
@@ -121,7 +121,7 @@
 				</label>
 
 				<label class="flex items-center gap-3 p-3 border border-gray-200 dark:border-white/10 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors relative overflow-hidden">
-					<input type="radio" name="brandTheme" value="pizza-hut" bind:group={brandTheme} class="w-4 h-4 text-brand-primary" />
+					<input type="radio" name="brandTheme" value="ruby" bind:group={brandTheme} class="w-4 h-4 text-brand-primary" />
 					<div class="flex-1">
 						<div class="text-sm font-medium text-gray-900 dark:text-gray-100">Crimson Blaze</div>
 					</div>
@@ -129,7 +129,7 @@
 				</label>
 
 				<label class="flex items-center gap-3 p-3 border border-gray-200 dark:border-white/10 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors relative overflow-hidden">
-					<input type="radio" name="brandTheme" value="taco-bell" bind:group={brandTheme} class="w-4 h-4 text-brand-primary" />
+					<input type="radio" name="brandTheme" value="violet" bind:group={brandTheme} class="w-4 h-4 text-brand-primary" />
 					<div class="flex-1">
 						<div class="text-sm font-medium text-gray-900 dark:text-gray-100">Fiesta Twilight</div>
 					</div>
