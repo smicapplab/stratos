@@ -25,32 +25,32 @@
   color-scheme: dark;
 }
 
-/* Theme: Araneta City */
-:root[data-theme="araneta-city"] {
+/* Theme: Emerald */
+:root[data-theme="emerald"] {
   --color-brand-primary: 0 175 171; /* #00afab */
   --color-brand-accent: 147 51 234; /* purple-600 */
 }
-:root[data-theme="araneta-city"].dark {
+:root[data-theme="emerald"].dark {
   --color-brand-primary: 26 191 187; /* slightly lighter #1abfbb */
   --color-brand-accent: 192 132 252; /* purple-400 */
 }
 
-/* Theme: Pizza Hut */
-:root[data-theme="pizza-hut"] {
+/* Theme: Ruby */
+:root[data-theme="ruby"] {
   --color-brand-primary: 227 24 55;
   --color-brand-accent: 17 17 17;
 }
-:root[data-theme="pizza-hut"].dark {
+:root[data-theme="ruby"].dark {
   --color-brand-primary: 240 62 88;
   --color-brand-accent: 255 255 255;
 }
 
-/* Theme: Taco Bell */
-:root[data-theme="taco-bell"] {
+/* Theme: Violet */
+:root[data-theme="violet"] {
   --color-brand-primary: 112 32 130;
   --color-brand-accent: 244 121 32;
 }
-:root[data-theme="taco-bell"].dark {
+:root[data-theme="violet"].dark {
   --color-brand-primary: 168 85 247;
   --color-brand-accent: 251 146 60;
 }
