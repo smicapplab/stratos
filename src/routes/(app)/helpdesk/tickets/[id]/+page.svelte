@@ -243,7 +243,7 @@
 			<div class="flex flex-wrap items-center justify-between gap-3">
 				<h1 class="text-xl font-bold text-zinc-900 dark:text-white">{ticket.title}</h1>
 				<!-- Category Badge -->
-				<span class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50">
+				<span class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full bg-brand-primary/10 dark:bg-brand-primary/20 text-brand-primary dark:text-brand-primary border border-brand-primary/30 dark:border-brand-primary/50">
 					{ticket.customFields?.ticketType || 'Support'}
 				</span>
 			</div>
@@ -287,7 +287,7 @@
 											type="button" 
 											onclick={() => openPreview(file)} 
 											aria-label={`Preview ${file.fileName}`}
-											class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex-shrink-0 flex items-center justify-center border border-zinc-200/50 dark:border-zinc-800/30 text-blue-500 cursor-pointer min-h-[44px] min-w-[44px]"
+											class="w-10 h-10 rounded-lg bg-brand-primary/20 dark:bg-brand-primary/30 flex-shrink-0 flex items-center justify-center border border-zinc-200/50 dark:border-zinc-800/30 text-brand-primary cursor-pointer min-h-[44px] min-w-[44px]"
 										>
 											<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
 												<polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
@@ -318,7 +318,7 @@
 										<button 
 											type="button"
 											onclick={() => openPreview(file)}
-											class="p-2 text-zinc-400 hover:text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+											class="p-2 text-zinc-400 hover:text-brand-primary hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
 											title="Preview File"
 										>
 											<Eye class="w-4 h-4" />
@@ -327,7 +327,7 @@
 									<a 
 										href={file.tokenUrl} 
 										download={file.fileName}
-										class="p-2 text-zinc-400 hover:text-blue-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+										class="p-2 text-zinc-400 hover:text-brand-primary hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
 										title="Download File"
 									>
 										<Download class="w-4 h-4" />
@@ -386,7 +386,7 @@
 					<span class="text-[10px] text-zinc-400 dark:text-zinc-500">Max 20MB for files, 100MB for video</span>
 					{#if isUploading}
 						<div class="flex items-center gap-2 text-xs text-zinc-400">
-							<div class="w-4 h-4 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+							<div class="w-4 h-4 border-2 border-brand-primary/20 border-t-blue-500 rounded-full animate-spin"></div>
 							<span>Uploading...</span>
 						</div>
 					{/if}
@@ -422,7 +422,7 @@
 				<div class="relative space-y-1">
 					<!-- Circular Icon Indicator on the vertical line -->
 					<div class="absolute -left-[31px] w-4 h-4 bg-zinc-200 dark:bg-zinc-700 border-2 border-white dark:border-zinc-900 rounded-full flex items-center justify-center">
-						<div class="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+						<div class="w-1.5 h-1.5 bg-brand-primary/100 rounded-full"></div>
 					</div>
 
 					<div class="bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
@@ -438,7 +438,7 @@
 											Support Team
 										</span>
 									{:else if item.authorId === ticket.customFields?.reporterId}
-										<span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded border border-blue-200/50 dark:border-blue-800/30 ml-1.5">
+										<span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-brand-primary/10 dark:bg-brand-primary/20 text-brand-primary dark:text-brand-primary rounded border border-brand-primary/30/50 dark:border-brand-primary/30 ml-1.5">
 											Reporter
 										</span>
 									{/if}
@@ -488,14 +488,14 @@
 				name="content"
 				rows="4"
 				placeholder="Type your reply here..."
-				class="w-full px-4 py-2.5 rounded-xl border text-sm bg-transparent border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 dark:text-zinc-100 resize-none"
+				class="w-full px-4 py-2.5 rounded-xl border text-sm bg-transparent border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all duration-200 dark:text-zinc-100 resize-none"
 			></textarea>
 
 			<div class="flex justify-end">
 				<button
 					type="submit"
 					disabled={isSubmitting || !replyContent.trim()}
-					class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium text-sm rounded-xl shadow-md disabled:opacity-50 transition-all duration-200 min-h-[44px]"
+					class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-brand-primary to-brand-accent hover:from-brand-primary hover:opacity-90 hover:to-brand-accent text-white font-medium text-sm rounded-xl shadow-md disabled:opacity-50 transition-all duration-200 min-h-[44px]"
 				>
 					{#if isSubmitting}
 						<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -525,7 +525,7 @@
 			<!-- Modal Header -->
 			<div class="px-6 py-4 border-b border-zinc-800 flex justify-between items-center text-white bg-zinc-950/40">
 				<div class="flex items-center gap-3 min-w-0">
-					<File class="w-5 h-5 text-blue-500 shrink-0" />
+					<File class="w-5 h-5 text-brand-primary shrink-0" />
 					<h3 class="font-bold text-sm truncate">{previewAttachment.fileName}</h3>
 				</div>
 				<div class="flex items-center gap-3">
@@ -551,7 +551,7 @@
 			<div class="p-6 flex-1 max-h-[75vh] overflow-y-auto flex items-center justify-center bg-zinc-950/20">
 				{#if loadingText}
 					<div class="flex flex-col items-center gap-3 py-12 text-zinc-400">
-						<div class="w-8 h-8 border-3 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+						<div class="w-8 h-8 border-3 border-brand-primary/20 border-t-blue-500 rounded-full animate-spin"></div>
 						<span class="text-xs">Loading text preview...</span>
 					</div>
 				{:else if isVideoAttachment(previewAttachment)}
@@ -567,13 +567,13 @@
 				{:else if isOfficeDoc(previewAttachment)}
 					{#if isLocalhost()}
 						<div class="text-center py-12 text-zinc-400 space-y-4 max-w-md mx-auto">
-							<File class="w-12 h-12 mx-auto text-blue-500" />
+							<File class="w-12 h-12 mx-auto text-brand-primary" />
 							<p class="text-sm font-semibold text-zinc-200">Office Preview Disabled on Localhost</p>
 							<p class="text-xs text-zinc-400">Microsoft Office Online requires a publicly accessible URL to download and render documents. It cannot connect to your local development server.</p>
 							<a 
 								href={previewAttachment.tokenUrl} 
 								download={previewAttachment.fileName}
-								class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors min-h-[38px] shadow"
+								class="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-primary hover:opacity-90 text-white text-xs font-bold rounded-xl transition-colors min-h-[38px] shadow"
 							>
 								<Download class="w-4 h-4" />
 								Download to View Locally

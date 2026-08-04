@@ -25,3 +25,9 @@ Before diving into work, it’s best to set up your profile so your team recogni
 In the same settings menu, navigate to the **Notifications** tab. Here you can configure how Stratos alerts you:
 * **Email Notifications**: Toggle daily summaries or instant alerts for mentions.
 * **In-App Notifications**: Choose which board events (like stage changes or new comments) trigger an alert in your Inbox.
+
+### Appearance & Themes
+Stratos allows you to customize the platform's visual appearance to match your brand (e.g., Araneta City, Pizza Hut, Taco Bell, or a Default Monochrome). 
+1. In the **Profile Settings** menu, navigate to the **Appearance** tab.
+2. Select your preferred color theme from the swatches.
+3. The theme will apply immediately and will be remembered on this browser, even before you log in.

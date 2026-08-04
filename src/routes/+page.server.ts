@@ -87,10 +87,16 @@ export const actions: Actions = {
 		});
 		const sessionCookie = lucia.createSessionCookie(session.id);
 		
-		cookies.set(sessionCookie.name, sessionCookie.value, {
+		const cookieOptions: any = {
 			path: '/',
 			...sessionCookie.attributes
-		});
+		};
+
+		if (data.get('remember_me') !== 'on') {
+			delete cookieOptions.maxAge;
+		}
+
+		cookies.set(sessionCookie.name, sessionCookie.value, cookieOptions);
 		const redirectUrl = data.get('redirectUrl')?.toString() || '/dashboard';
 
 		throw redirect(302, redirectUrl);

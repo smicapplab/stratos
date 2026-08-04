@@ -5,8 +5,12 @@
 	let { data, form } = $props();
 
 	let theme = $state('system');
+	let brandTheme = $state('stratos');
 	$effect(() => {
 		theme = data.profileUser.theme || 'system';
+		if (browser) {
+			brandTheme = localStorage.getItem('stratos-theme') || 'stratos';
+		}
 	});
 	let isSaving = $state(false);
 
@@ -19,6 +23,18 @@
 				document.documentElement.classList.remove('dark');
 			}
 			localStorage.setItem('theme', theme);
+		}
+	});
+
+	$effect(() => {
+		if (browser) {
+			if (brandTheme === 'stratos') {
+				localStorage.removeItem('stratos-theme');
+				document.documentElement.removeAttribute('data-theme');
+			} else {
+				localStorage.setItem('stratos-theme', brandTheme);
+				document.documentElement.setAttribute('data-theme', brandTheme);
+			}
 		}
 	});
 </script>
@@ -58,7 +74,7 @@
 			
 			<div class="space-y-4">
 				<label class="flex items-center gap-3 p-3 border border-gray-200 dark:border-white/10 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
-					<input type="radio" name="theme" value="system" bind:group={theme} class="w-4 h-4 text-blue-600" />
+					<input type="radio" name="theme" value="system" bind:group={theme} class="w-4 h-4 text-brand-primary" />
 					<div>
 						<div class="text-sm font-medium text-gray-900 dark:text-gray-100">System</div>
 						<div class="text-xs text-gray-500 dark:text-gray-400">Automatically switch between light and dark themes when your system does.</div>
@@ -66,7 +82,7 @@
 				</label>
 
 				<label class="flex items-center gap-3 p-3 border border-gray-200 dark:border-white/10 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
-					<input type="radio" name="theme" value="light" bind:group={theme} class="w-4 h-4 text-blue-600" />
+					<input type="radio" name="theme" value="light" bind:group={theme} class="w-4 h-4 text-brand-primary" />
 					<div>
 						<div class="text-sm font-medium text-gray-900 dark:text-gray-100">Light</div>
 						<div class="text-xs text-gray-500 dark:text-gray-400">Light theme for bright environments.</div>
@@ -74,7 +90,7 @@
 				</label>
 
 				<label class="flex items-center gap-3 p-3 border border-gray-200 dark:border-white/10 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
-					<input type="radio" name="theme" value="dark" bind:group={theme} class="w-4 h-4 text-blue-600" />
+					<input type="radio" name="theme" value="dark" bind:group={theme} class="w-4 h-4 text-brand-primary" />
 					<div>
 						<div class="text-sm font-medium text-gray-900 dark:text-gray-100">Dark</div>
 						<div class="text-xs text-gray-500 dark:text-gray-400">Dark theme for low-light environments.</div>
@@ -83,11 +99,50 @@
 			</div>
 		</div>
 
+		<div>
+			<h3 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-4">Brand Theme</h3>
+			<p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Customize the accent colors of Stratos.</p>
+			
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<label class="flex items-center gap-3 p-3 border border-gray-200 dark:border-white/10 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors relative overflow-hidden">
+					<input type="radio" name="brandTheme" value="stratos" bind:group={brandTheme} class="w-4 h-4 text-brand-primary" />
+					<div class="flex-1">
+						<div class="text-sm font-medium text-gray-900 dark:text-gray-100">Classic Stratos</div>
+					</div>
+					<div class="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0"></div>
+				</label>
+
+				<label class="flex items-center gap-3 p-3 border border-gray-200 dark:border-white/10 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors relative overflow-hidden">
+					<input type="radio" name="brandTheme" value="araneta-city" bind:group={brandTheme} class="w-4 h-4 text-brand-primary" />
+					<div class="flex-1">
+						<div class="text-sm font-medium text-gray-900 dark:text-gray-100">Emerald Oasis</div>
+					</div>
+					<div class="w-8 h-8 rounded-full bg-[#00afab] border-2 border-purple-600 flex-shrink-0"></div>
+				</label>
+
+				<label class="flex items-center gap-3 p-3 border border-gray-200 dark:border-white/10 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors relative overflow-hidden">
+					<input type="radio" name="brandTheme" value="pizza-hut" bind:group={brandTheme} class="w-4 h-4 text-brand-primary" />
+					<div class="flex-1">
+						<div class="text-sm font-medium text-gray-900 dark:text-gray-100">Crimson Blaze</div>
+					</div>
+					<div class="w-8 h-8 rounded-full bg-[#e31837] border-2 border-black flex-shrink-0"></div>
+				</label>
+
+				<label class="flex items-center gap-3 p-3 border border-gray-200 dark:border-white/10 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors relative overflow-hidden">
+					<input type="radio" name="brandTheme" value="taco-bell" bind:group={brandTheme} class="w-4 h-4 text-brand-primary" />
+					<div class="flex-1">
+						<div class="text-sm font-medium text-gray-900 dark:text-gray-100">Fiesta Twilight</div>
+					</div>
+					<div class="w-8 h-8 rounded-full bg-[#702082] border-2 border-[#f47920] flex-shrink-0"></div>
+				</label>
+			</div>
+		</div>
+
 		<div class="pt-4 border-t border-gray-200 dark:border-white/[0.05]">
 			<button 
 				type="submit" 
 				disabled={isSaving}
-				class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors disabled:opacity-50"
+				class="px-4 py-2 bg-brand-primary hover:opacity-90 text-white text-sm font-medium rounded-md shadow-sm transition-opacity disabled:opacity-50"
 			>
 				{isSaving ? 'Saving...' : 'Save preferences'}
 			</button>

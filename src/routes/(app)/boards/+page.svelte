@@ -25,7 +25,7 @@
 		
 		{#if user.role === 'Admin'}
 			<button 
-				class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm font-medium transition-all transform hover:scale-[1.02] active:scale-95 flex items-center gap-2"
+				class="px-5 py-2.5 bg-brand-primary hover:opacity-90 text-white rounded-lg shadow-sm font-medium transition-all transform hover:scale-[1.02] active:scale-95 flex items-center gap-2"
 				onclick={() => isCreating = true}
 			>
 				<Plus class="w-4 h-4" />
@@ -49,10 +49,10 @@
 	{:else}
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 			{#each boards as board}
-				<div class="group relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-all hover:border-blue-500/30 dark:hover:border-blue-400/30 flex flex-col h-[200px]">
+				<div class="group relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-all hover:border-brand-primary/30 dark:hover:border-blue-400/30 flex flex-col h-[200px]">
 					
 					<div class="flex items-start justify-between">
-						<div class="w-12 h-12 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-4 shrink-0">
+						<div class="w-12 h-12 rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 text-brand-primary dark:text-brand-primary flex items-center justify-center mb-4 shrink-0">
 							<KanbanSquare class="w-6 h-6" />
 						</div>
 						
@@ -66,8 +66,8 @@
 						{/if}
 					</div>
 					
-					<a href="/boards/{board.id}" class="flex-1 block focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md">
-						<h3 class="text-lg font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{board.name}</h3>
+					<a href="/boards/{board.id}" class="flex-1 block focus:outline-none focus:ring-2 focus:ring-brand-primary rounded-md">
+						<h3 class="text-lg font-medium group-hover:text-brand-primary dark:group-hover:text-brand-primary transition-colors">{board.name}</h3>
 						<div class="flex items-center gap-2 mt-2 text-sm text-zinc-500 dark:text-zinc-400">
 							<FolderOpen class="w-4 h-4" />
 							<span>{board.projectName}</span>

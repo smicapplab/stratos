@@ -15,7 +15,7 @@
 		handlePropertyChange: () => void;
 	}
 
-	let { task = $bindable(), groupUsers = [], stages = [], customFields = [], projectTags = [], projectId, handlePropertyChange }: Props = $props();
+	let { task = $bindable(), groupUsers = [], stages = [], customFields = [], projectTags = [], projectId, currentUserId, handlePropertyChange }: Props = $props();
 
 	let stageOptions = $derived(
 		stages
@@ -180,8 +180,13 @@
 
 		<!-- Assignee -->
 		<div id="assignee-wrapper">
-			<div class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-				<User class="w-3.5 h-3.5" /> Assignee
+			<div class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 flex items-center justify-between">
+				<div class="flex items-center gap-2">
+					<User class="w-3.5 h-3.5" /> Assignee
+				</div>
+				{#if task.assigneeId !== currentUserId}
+					<button type="button" class="text-brand-primary dark:text-brand-primary text-[10px] hover:underline" onclick={() => { task.assigneeId = currentUserId; handlePropertyChange(); }}>Assign to me</button>
+				{/if}
 			</div>
 			<input type="hidden" name="assigneeId" form="task-form" value={task.assigneeId || ""} />
 			<Combobox options={assigneeOptions} bind:value={task.assigneeId} placeholder="Unassigned" searchable={true} onValueChange={handlePropertyChange}>
@@ -275,7 +280,7 @@
 											<option value="pink">Pink</option>
 											<option value="zinc">Gray</option>
 										</select>
-										<button onclick={() => saveEditTag(tag)} class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">Save</button>
+										<button onclick={() => saveEditTag(tag)} class="px-2 py-1 bg-brand-primary text-white text-xs rounded hover:opacity-90">Save</button>
 										<button onclick={() => editTagId = null} class="px-2 py-1 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 text-xs">Cancel</button>
 									</div>
 								</div>
@@ -312,7 +317,7 @@
 						
 						{#if tagSearchQuery && !exactMatch}
 							<button 
-								class="w-full text-left px-2 py-2 text-sm rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors flex items-center gap-2"
+								class="w-full text-left px-2 py-2 text-sm rounded-md hover:bg-brand-primary/10 dark:hover:bg-brand-primary/20 text-brand-primary dark:text-brand-primary transition-colors flex items-center gap-2"
 								onclick={createNewTag}
 							>
 								<span class="font-semibold">+</span> Create "{tagSearchQuery}"
@@ -331,7 +336,7 @@
 			<input type="hidden" name="dueDate" form="task-form" value={task.dueDate ? new Date(task.dueDate).toISOString() : ""} />
 			<input
 				type="date"
-				class="w-full px-3 py-2 bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm font-medium text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/30 transition-all hover:border-zinc-300 dark:hover:border-zinc-700"
+				class="w-full px-3 py-2 bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm font-medium text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary/30 transition-all hover:border-zinc-300 dark:hover:border-zinc-700"
 				value={task.dueDate ? new Date(task.dueDate).toISOString().split("T")[0] : ""}
 				onchange={(e) => {
 					const val = e.currentTarget.value;
@@ -373,7 +378,7 @@
 							{:else if field.type === 'date'}
 								<input
 									type="date"
-									class="w-full bg-transparent text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1.5 -ml-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-none"
+									class="w-full bg-transparent text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-brand-primary rounded px-2 py-1.5 -ml-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-none"
 									value={(task.customFields || {})[field.id] || ''}
 									onchange={(e) => {
 										if (!task.customFields) task.customFields = {};
@@ -384,7 +389,7 @@
 							{:else if field.type === 'number'}
 								<input
 									type="number"
-									class="w-full bg-transparent text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1.5 -ml-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-none"
+									class="w-full bg-transparent text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-brand-primary rounded px-2 py-1.5 -ml-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-none"
 									value={(task.customFields || {})[field.id] || ''}
 									placeholder="Empty"
 									onchange={(e) => {
@@ -397,7 +402,7 @@
 								<!-- default text -->
 								<input
 									type="text"
-									class="w-full bg-transparent text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1.5 -ml-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-none"
+									class="w-full bg-transparent text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-brand-primary rounded px-2 py-1.5 -ml-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors border-none"
 									value={(task.customFields || {})[field.id] || ''}
 									placeholder="Empty"
 									onchange={(e) => {
@@ -416,8 +421,13 @@
 </div>
 
 <div class="pt-4 border-t border-zinc-200 dark:border-zinc-800">
-	<div class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-		<User class="w-3.5 h-3.5" /> Followers
+	<div class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 flex items-center justify-between">
+		<div class="flex items-center gap-2">
+			<User class="w-3.5 h-3.5" /> Followers
+		</div>
+		{#if !(task.followers || []).some((f: any) => f.userId === currentUserId)}
+			<button type="button" class="text-brand-primary dark:text-brand-primary text-[10px] hover:underline" onclick={() => toggleFollower(currentUserId)}>Add me</button>
+		{/if}
 	</div>
 	
 	<div class="flex items-center flex-wrap gap-2 mb-3">

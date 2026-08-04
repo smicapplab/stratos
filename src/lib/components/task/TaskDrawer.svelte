@@ -202,7 +202,7 @@
 			if (val === 'rejected' || val === 'aborted' || val === 'cancelled') {
 				return { icon: XCircle, color: "border-orange-500 text-orange-600 dark:text-orange-400" };
 			}
-			return { icon: CheckCircle2, color: "border-blue-500 text-blue-600 dark:text-blue-400" };
+			return { icon: CheckCircle2, color: "border-brand-primary text-brand-primary dark:text-brand-primary" };
 		}
 		if (item.actionType === 'assignee_change') {
 			return { icon: User, color: "border-indigo-400 text-indigo-500 dark:text-indigo-400" };
@@ -971,7 +971,7 @@
 	function createMentionExtension() {
 		return Mention.configure({
 			HTMLAttributes: {
-				class: "text-blue-600 dark:text-blue-400 font-semibold bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded-md",
+				class: "text-brand-primary dark:text-brand-primary font-semibold bg-brand-primary/10 dark:bg-brand-primary/30 px-1.5 py-0.5 rounded-md",
 			},
 			suggestion: {
 				items: async ({ query }: { query: string }) => {
@@ -1235,7 +1235,7 @@
 				type="button"
 				class="w-full px-3 py-2 flex items-center gap-2 text-left text-sm transition-colors {i ===
 				mentionProps.selectedIndex
-					? 'bg-blue-50 dark:bg-white/10 text-blue-700 dark:text-blue-400 font-medium'
+					? 'bg-brand-primary/10 dark:bg-white/10 text-brand-primary dark:text-brand-primary font-medium'
 					: 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5'}"
 				onclick={() =>
 					mentionProps.command({ id: item.id, label: item.name })}
@@ -1298,7 +1298,7 @@
 						<Layout class="w-3.5 h-3.5" />
 						{task.boardName || 'Board'}
 						<span class="text-zinc-300 dark:text-zinc-600 px-1">/</span>
-						<span class="text-blue-600 dark:text-blue-400 font-bold tracking-tight">
+						<span class="text-brand-primary dark:text-brand-primary font-bold tracking-tight">
 							{getTaskIdentifier(task)}
 						</span>
 					</button>
@@ -1364,7 +1364,7 @@
 							bind:value={task.title}
 							onblur={handlePropertyChange}
 							required
-							class="w-full text-2xl sm:text-3xl font-bold tracking-tight bg-transparent border border-zinc-200 dark:border-white/10 rounded-xl focus:border-blue-500/50 hover:border-zinc-300 dark:hover:border-white/20 focus:outline-none focus:ring-4 focus:ring-blue-500/10 resize-none text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-300 dark:placeholder:text-zinc-700 p-3 leading-tight transition-all"
+							class="w-full text-2xl sm:text-3xl font-bold tracking-tight bg-transparent border border-zinc-200 dark:border-white/10 rounded-xl focus:border-brand-primary/50 hover:border-zinc-300 dark:hover:border-white/20 focus:outline-none focus:ring-4 focus:ring-brand-primary/10 resize-none text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-300 dark:placeholder:text-zinc-700 p-3 leading-tight transition-all"
 							rows="2"
 							placeholder="Task Title"
 						></textarea>
@@ -1387,8 +1387,8 @@
 										{#if isVideoFile(att)}
 											<!-- svelte-ignore a11y_click_events_have_key_events -->
 											<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-											<div class="w-8 h-8 rounded bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0 cursor-pointer" onclick={() => openPreview(att)}>
-												<svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+											<div class="w-8 h-8 rounded bg-brand-primary/20 dark:bg-brand-primary/30 flex items-center justify-center shrink-0 cursor-pointer" onclick={() => openPreview(att)}>
+												<svg class="w-4 h-4 text-brand-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
 													<polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
 												</svg>
 											</div>
@@ -1406,12 +1406,12 @@
 												<button 
 													type="button" 
 													onclick={() => openPreview(att)} 
-													class="text-sm font-medium text-left text-blue-600 dark:text-blue-400 hover:underline truncate"
+													class="text-sm font-medium text-left text-brand-primary dark:text-brand-primary hover:underline truncate"
 												>
 													{att.fileName}
 												</button>
 											{:else}
-												<a href={att.fileUrl} download={att.fileName} class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline truncate">
+												<a href={att.fileUrl} download={att.fileName} class="text-sm font-medium text-brand-primary dark:text-brand-primary hover:underline truncate">
 													{att.fileName}
 												</a>
 											{/if}
@@ -1420,11 +1420,11 @@
 									</div>
 									<div class="flex items-center gap-1 shrink-0">
 										{#if canPreview}
-											<button type="button" onclick={() => openPreview(att)} class="p-2 text-zinc-400 hover:text-blue-500 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center" title="Preview">
+											<button type="button" onclick={() => openPreview(att)} class="p-2 text-zinc-400 hover:text-brand-primary transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center" title="Preview">
 												<Eye class="w-4 h-4" />
 											</button>
 										{/if}
-										<a href={att.fileUrl} download={att.fileName} class="p-2 text-zinc-400 hover:text-blue-500 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center" title="Download">
+										<a href={att.fileUrl} download={att.fileName} class="p-2 text-zinc-400 hover:text-brand-primary transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center" title="Download">
 											<Download class="w-4 h-4" />
 										</a>
 										<button type="button" onclick={() => deleteAttachment(att.id)} class="p-2 text-zinc-400 hover:text-red-500 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center">
@@ -1507,7 +1507,7 @@
 										<button 
 											type="button"
 											onclick={() => toggleSubtask(subtask)} 
-											class="shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors {isSubtaskDone(subtask) ? 'bg-blue-500 border-blue-500' : 'border-zinc-300 dark:border-zinc-600'}"
+											class="shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors {isSubtaskDone(subtask) ? 'bg-brand-primary/100 border-brand-primary' : 'border-zinc-300 dark:border-zinc-600'}"
 										>
 											{#if isSubtaskDone(subtask)}
 												<Check class="w-3 h-3 text-white" />
@@ -1516,7 +1516,7 @@
 										<button 
 											type="button"
 											onclick={() => task = subtask} 
-											class="shrink-0 px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold rounded hover:bg-blue-100 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition-colors"
+											class="shrink-0 px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold rounded hover:bg-brand-primary/20 hover:text-brand-primary dark:hover:bg-brand-primary/30 dark:hover:text-brand-primary transition-colors"
 										>
 											{getTaskIdentifier(subtask)}
 										</button>
@@ -1584,9 +1584,9 @@
 										name="title"
 										required
 										placeholder="Create new subtask..."
-										class="w-full bg-white dark:bg-[#121214] border border-zinc-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/50 outline-none placeholder:text-zinc-500 mb-2"
+										class="w-full bg-white dark:bg-[#121214] border border-zinc-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-brand-primary/50 outline-none placeholder:text-zinc-500 mb-2"
 									/>
-									<button type="submit" class="w-full py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">Create Subtask</button>
+									<button type="submit" class="w-full py-1.5 text-xs font-semibold text-white bg-brand-primary hover:opacity-90 rounded-lg transition-colors">Create Subtask</button>
 								</form>
 
 								<div class="relative pt-2 border-t border-zinc-200 dark:border-zinc-800">
@@ -1597,7 +1597,7 @@
 											type="text"
 											bind:value={subtaskSearchQuery}
 											placeholder="Search tasks to link..."
-											class="w-full bg-white dark:bg-[#121214] border border-zinc-200 dark:border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/50 outline-none placeholder:text-zinc-500"
+											class="w-full bg-white dark:bg-[#121214] border border-zinc-200 dark:border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-brand-primary/50 outline-none placeholder:text-zinc-500"
 										/>
 										{#if subtaskSearchQuery.length >= 2}
 											<div class="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-white/10 rounded-xl shadow-xl z-50 p-1">
@@ -1621,7 +1621,7 @@
 							<button
 								type="button"
 								onclick={() => (showSubtaskMenu = true)}
-								class="w-full py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-md transition-colors"
+								class="w-full py-1.5 text-xs font-semibold text-brand-primary dark:text-brand-primary bg-brand-primary/10 dark:bg-brand-primary/20 hover:bg-brand-primary/20 dark:hover:bg-brand-primary/40 rounded-md transition-colors"
 							>
 								+ Add subtask
 							</button>
@@ -1643,7 +1643,7 @@
 										<button 
 											type="button"
 											onclick={() => toggleSubtask(sibling)}
-											class="shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors {isSubtaskDone(sibling) ? 'bg-blue-500 border-blue-500' : 'border-zinc-300 dark:border-zinc-600 hover:border-zinc-400 dark:hover:border-zinc-500 cursor-pointer'}"
+											class="shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors {isSubtaskDone(sibling) ? 'bg-brand-primary/100 border-brand-primary' : 'border-zinc-300 dark:border-zinc-600 hover:border-zinc-400 dark:hover:border-zinc-500 cursor-pointer'}"
 										>
 											{#if isSubtaskDone(sibling)}
 												<Check class="w-3 h-3 text-white" />
@@ -1652,7 +1652,7 @@
 										<button 
 											type="button"
 											onclick={() => task = sibling} 
-											class="shrink-0 px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold rounded hover:bg-blue-100 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition-colors"
+											class="shrink-0 px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold rounded hover:bg-brand-primary/20 hover:text-brand-primary dark:hover:bg-brand-primary/30 dark:hover:text-brand-primary transition-colors"
 										>
 											{getTaskIdentifier(sibling)}
 										</button>
@@ -1737,7 +1737,7 @@
 
 								<select
 									bind:value={selectedLinkType}
-									class="w-full bg-white dark:bg-[#121214] border border-zinc-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/50 outline-none appearance-none cursor-pointer"
+									class="w-full bg-white dark:bg-[#121214] border border-zinc-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-brand-primary/50 outline-none appearance-none cursor-pointer"
 								>
 									<option value="blocks">Blocks</option>
 									<option value="is_blocked_by"
@@ -1759,7 +1759,7 @@
 										type="text"
 										bind:value={linkSearchQuery}
 										placeholder="Search tasks..."
-										class="w-full bg-white dark:bg-[#121214] border border-zinc-200 dark:border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500/50 outline-none placeholder:text-zinc-500"
+										class="w-full bg-white dark:bg-[#121214] border border-zinc-200 dark:border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-brand-primary/50 outline-none placeholder:text-zinc-500"
 									/>
 
 									{#if linkSearchQuery.length >= 2}
@@ -1788,7 +1788,7 @@
 						{:else}
 							<button
 								onclick={() => (showLinkMenu = true)}
-								class="w-full py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-md transition-colors"
+								class="w-full py-1.5 text-xs font-semibold text-brand-primary dark:text-brand-primary bg-brand-primary/10 dark:bg-brand-primary/20 hover:bg-brand-primary/20 dark:hover:bg-brand-primary/40 rounded-md transition-colors"
 								>+ Add link</button
 							>
 						{/if}
@@ -1814,7 +1814,7 @@
 			<!-- Modal Header -->
 			<div class="px-6 py-4 border-b border-zinc-800 flex justify-between items-center text-white bg-zinc-950/40">
 				<div class="flex items-center gap-3 min-w-0">
-					<FileIcon class="w-5 h-5 text-blue-500 shrink-0" />
+					<FileIcon class="w-5 h-5 text-brand-primary shrink-0" />
 					<h3 class="font-bold text-sm truncate">{previewAttachment.fileName}</h3>
 				</div>
 				<div class="flex items-center gap-3">
@@ -1840,7 +1840,7 @@
 			<div class="p-6 flex-1 max-h-[75vh] overflow-y-auto flex items-center justify-center bg-zinc-950/20">
 				{#if loadingText}
 					<div class="flex flex-col items-center gap-3 py-12 text-zinc-400">
-						<div class="w-8 h-8 border-3 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+						<div class="w-8 h-8 border-3 border-brand-primary/20 border-t-blue-500 rounded-full animate-spin"></div>
 						<span class="text-xs">Loading text preview...</span>
 					</div>
 				{:else if isVideoFile(previewAttachment)}
@@ -1856,13 +1856,13 @@
 				{:else if isOfficeDoc(previewAttachment)}
 					{#if isLocalhost()}
 						<div class="text-center py-12 text-zinc-400 space-y-4 max-w-md mx-auto">
-							<FileIcon class="w-12 h-12 mx-auto text-blue-500" />
+							<FileIcon class="w-12 h-12 mx-auto text-brand-primary" />
 							<p class="text-sm font-semibold text-zinc-200">Office Preview Disabled on Localhost</p>
 							<p class="text-xs text-zinc-400">Microsoft Office Online requires a publicly accessible URL to download and render documents. It cannot connect to your local development server.</p>
 							<a 
 								href={previewAttachment.fileUrl} 
 								download={previewAttachment.fileName}
-								class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors min-h-[38px] shadow"
+								class="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-primary hover:opacity-90 text-white text-xs font-bold rounded-xl transition-colors min-h-[38px] shadow"
 							>
 								<Download class="w-4 h-4" />
 								Download to View Locally

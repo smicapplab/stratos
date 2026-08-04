@@ -78,8 +78,8 @@
 			case 'assigned': return { icon: UserPlus, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-500/10' };
 			case 'mentioned': return { icon: AtSign, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-500/10' };
 			case 'status_changed': return { icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10' };
-			case 'comment_added': return { icon: MessageSquare, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-500/10' };
-			default: return { icon: Bell, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-500/10' };
+			case 'comment_added': return { icon: MessageSquare, color: 'text-brand-primary', bg: 'bg-brand-primary/10 dark:bg-brand-primary/10' };
+			default: return { icon: Bell, color: 'text-brand-primary', bg: 'bg-brand-primary/10 dark:bg-brand-primary/10' };
 		}
 	}
 
@@ -182,7 +182,7 @@
 			<WidgetCard title="My Open Tasks">
 				<div class="flex items-center justify-between mt-2">
 					<span class="text-3xl font-bold text-zinc-900 dark:text-white">{metrics.myOpenTasks}</span>
-					<div class="p-2 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600">
+					<div class="p-2 rounded-xl bg-brand-primary/10 dark:bg-brand-primary/10 text-brand-primary">
 						<Clock class="w-5 h-5" />
 					</div>
 				</div>

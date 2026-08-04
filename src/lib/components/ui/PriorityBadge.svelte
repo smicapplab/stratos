@@ -12,7 +12,7 @@
 			case 'Low':
 				return { bg: 'bg-zinc-500/10 dark:bg-zinc-500/20', text: 'text-zinc-600 dark:text-zinc-400', icon: ArrowDown };
 			default:
-				return { bg: 'bg-blue-500/10 dark:bg-blue-500/20', text: 'text-blue-700 dark:text-blue-400', icon: ArrowRight };
+				return { bg: 'bg-brand-primary/10 dark:bg-brand-primary/20', text: 'text-brand-primary dark:text-brand-primary', icon: ArrowRight };
 		}
 	})());
 	let Icon = $derived(config.icon);

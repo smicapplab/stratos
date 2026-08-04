@@ -73,6 +73,11 @@ export async function createTask(
 			searchText: description ? stripHtml(description) : ''
 		}).returning();
 
+		await tx.insert(taskFollowers).values({
+			taskId: newTask.id,
+			userId: actor.id
+		});
+
 		await tx.insert(auditLogs).values({
 			groupId: actor.groupId,
 			taskId: newTask.id,

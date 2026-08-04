@@ -536,3 +536,13 @@ For failed initial page loads (e.g., board not found, DB connection error) — n
 ```
 
 Centered card, `max-w-md`, with a "Try Again" button that calls `invalidateAll()` or `location.reload()`.
+
+## 13. Brand Themes (FOUC Prevention)
+
+Stratos supports dynamic theming to match Araneta Group brands (Araneta City, Pizza Hut, Taco Bell, and Stratos Default).
+
+### Theme Injection Architecture
+To prevent the Flash of Unstyled Content (FOUC) where the default gray theme loads for a split second before a customized brand color snaps into place:
+- **Storage:** The chosen theme is saved to `localStorage.getItem('stratos-theme')`.
+- **Early Execution:** A blocking inline script inside `<head>` of `src/app.html` reads the local storage and synchronously applies a `data-theme` attribute to the document element (e.g., `data-theme="pizza-hut"`) *before* the Svelte JavaScript bundle hydrates or the DOM paints.
+- **CSS Variables:** Colors are mapped globally in `app.css` (`:root[data-theme="..."] { --color-brand-primary: #... }`) and bridged into Tailwind via `theme.extend.colors.brand`. This ensures UI components utilizing `bg-brand-primary` flip instantly at the lowest level of the rendering engine.

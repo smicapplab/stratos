@@ -1,7 +1,7 @@
 import { lucia } from '$lib/server/auth/lucia';
 import type { Handle } from '@sveltejs/kit';
 import { db } from '$lib/server/db/db';
-import { users } from '$lib/server/db/schema';
+import { users, groups } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import fs from 'fs';
 import path from 'path';
@@ -41,6 +41,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.apiToken = null;
 	event.locals.user = null;
 	event.locals.session = null;
+	event.locals.group = null;
 
 	const authHeader = event.request.headers.get('Authorization');
 
@@ -69,6 +70,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 					tokenId: validation.tokenId,
 					groupId: validation.groupId
 				};
+
+				const groupData = await db.select({
+					id: groups.id,
+					name: groups.name,
+					logoUrl: groups.logoUrl,
+					defaultTheme: groups.defaultTheme
+				}).from(groups).where(eq(groups.id, validation.user.groupId)).limit(1).then(res => res[0]);
+
+				event.locals.group = groupData || null;
 
 				// Bypass CSRF checks for Bearer-authenticated API calls by returning resolving directly
 				// SvelteKit CSRF checking is bypassed here since we skip cookies.
@@ -129,6 +139,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 	
 	event.locals.user = user;
 	event.locals.session = session;
+	
+	if (user) {
+		const groupData = await db.select({
+			id: groups.id,
+			name: groups.name,
+			logoUrl: groups.logoUrl,
+			defaultTheme: groups.defaultTheme
+		}).from(groups).where(eq(groups.id, user.groupId)).limit(1).then(res => res[0]);
+
+		event.locals.group = groupData || null;
+	}
 	
 	return resolve(event);
 };

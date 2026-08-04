@@ -94,7 +94,7 @@
 					>
 						{#if editingCommentId === item.id}
 							<div
-								class="border border-blue-500/50 rounded-xl overflow-hidden bg-zinc-50 dark:bg-[#18181b] shadow-sm mb-3"
+								class="border border-brand-primary/50 rounded-xl overflow-hidden bg-zinc-50 dark:bg-[#18181b] shadow-sm mb-3"
 							>
 								<div
 									use:editTiptapAction={item.content || ""}
@@ -111,7 +111,7 @@
 									onclick={() =>
 										saveCommentEdit(item.id as string)}
 									type="button"
-									class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm uppercase tracking-wide transition-colors"
+									class="px-4 py-2 bg-brand-primary hover:opacity-90 text-white text-xs font-bold rounded-lg shadow-sm uppercase tracking-wide transition-colors"
 									>Update</button
 								>
 							</div>
@@ -278,7 +278,7 @@
 										>
 											{#if editingCommentId === reply.id}
 												<div
-													class="border border-blue-500/50 rounded-xl overflow-hidden bg-zinc-50 dark:bg-[#18181b] shadow-sm mb-3"
+													class="border border-brand-primary/50 rounded-xl overflow-hidden bg-zinc-50 dark:bg-[#18181b] shadow-sm mb-3"
 												>
 													<div
 														use:editTiptapAction={reply.content ||
@@ -302,7 +302,7 @@
 																reply.id as string,
 															)}
 														type="button"
-														class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm uppercase tracking-wide transition-colors"
+														class="px-4 py-2 bg-brand-primary hover:opacity-90 text-white text-xs font-bold rounded-lg shadow-sm uppercase tracking-wide transition-colors"
 														>Update</button
 													>
 												</div>
@@ -521,7 +521,7 @@
 							class="text-[13px] text-zinc-700 dark:text-zinc-300"
 						>
 							<span
-								class="font-bold text-blue-600 dark:text-blue-500"
+								class="font-bold text-brand-primary dark:text-brand-primary"
 								>{item.userName}</span
 							>
 							{#if item.actionType === "stage_change"}

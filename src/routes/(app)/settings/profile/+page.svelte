@@ -34,7 +34,7 @@
 		<div class="flex items-center space-x-6">
 			<Avatar name={profileUser.name} photo={hasGravatar ? gravatarUrl : null} size="xl" />
 			<div class="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
-				We use Gravatar to manage profile pictures. To change your avatar, please update it on <a href="https://gravatar.com" target="_blank" class="text-blue-500 hover:text-blue-600 dark:text-blue-400 underline">Gravatar</a> using your email address.
+				We use Gravatar to manage profile pictures. To change your avatar, please update it on <a href="https://gravatar.com" target="_blank" class="text-brand-primary hover:text-brand-primary dark:text-brand-primary underline">Gravatar</a> using your email address.
 			</div>
 		</div>
 	</div>
@@ -85,7 +85,7 @@
 				id="name" 
 				value={profileUser.name} 
 				required
-				class="w-full px-3 py-2 bg-white dark:bg-[#1C1C1E] border border-gray-300 dark:border-white/10 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:text-gray-100" 
+				class="w-full px-3 py-2 bg-white dark:bg-[#1C1C1E] border border-gray-300 dark:border-white/10 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary sm:text-sm dark:text-gray-100" 
 			/>
 		</div>
 
@@ -97,7 +97,7 @@
 				id="jobTitle" 
 				value={profileUser.jobTitle || ''} 
 				placeholder="e.g. Product Manager"
-				class="w-full px-3 py-2 bg-white dark:bg-[#1C1C1E] border border-gray-300 dark:border-white/10 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:text-gray-100" 
+				class="w-full px-3 py-2 bg-white dark:bg-[#1C1C1E] border border-gray-300 dark:border-white/10 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary sm:text-sm dark:text-gray-100" 
 			/>
 		</div>
 
@@ -105,7 +105,7 @@
 			<button 
 				type="submit" 
 				disabled={isSaving}
-				class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors disabled:opacity-50 flex items-center"
+				class="px-4 py-2 bg-brand-primary hover:opacity-90 text-white text-sm font-medium rounded-md shadow-sm transition-colors disabled:opacity-50 flex items-center"
 			>
 				{isSaving ? 'Saving...' : 'Save changes'}
 			</button>

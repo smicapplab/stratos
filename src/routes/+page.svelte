@@ -17,15 +17,15 @@
 <div class="min-h-screen relative overflow-hidden bg-zinc-50 dark:bg-[#09090b] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
 	<!-- Ambient light spots -->
 	<div class="absolute inset-0 overflow-hidden pointer-events-none">
-		<div class="absolute -top-[40%] -left-[20%] w-[80%] h-[80%] rounded-full bg-gradient-to-br from-blue-500/10 to-indigo-500/0 dark:from-blue-600/10 dark:to-transparent blur-[120px] opacity-75"></div>
+		<div class="absolute -top-[40%] -left-[20%] w-[80%] h-[80%] rounded-full bg-gradient-to-br from-blue-500/10 to-indigo-500/0 dark:from-brand-primary/10 dark:to-transparent blur-[120px] opacity-75"></div>
 		<div class="absolute -bottom-[40%] -right-[20%] w-[80%] h-[80%] rounded-full bg-gradient-to-tl from-indigo-500/10 to-blue-500/0 dark:from-indigo-600/10 dark:to-transparent blur-[120px] opacity-75"></div>
 	</div>
 
-	<!-- Dot grid pattern overlay -->
-	<div class="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)] opacity-60 pointer-events-none"></div>
+	<!-- Brand Icon Watermark -->
+	<div class="absolute bottom-10 right-10 w-[600px] h-[600px] opacity-[0.08] dark:opacity-[0.06] pointer-events-none" style="background-image: url('/favicon.svg'); background-size: contain; background-repeat: no-repeat; background-position: bottom right;"></div>
 
 	<div class="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center mb-2 flex flex-col items-center">
-		<BrandLogo class="h-12 w-auto mb-6 text-blue-600 dark:text-blue-500" />
+		<BrandLogo class="h-12 w-auto mb-6 text-brand-primary dark:text-brand-primary" />
 		<h2 class="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
 			Welcome back
 		</h2>
@@ -61,7 +61,7 @@
 							autocomplete="email" 
 							required 
 							placeholder="admin@acme.internal"
-							class="appearance-none block w-full pl-10 pr-4 py-2.5 border border-zinc-300 dark:border-zinc-700 rounded-lg placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white transition-all sm:text-sm"
+							class="appearance-none block w-full pl-10 pr-4 py-2.5 border border-zinc-300 dark:border-zinc-700 rounded-lg placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-transparent bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white transition-all sm:text-sm"
 						>
 					</div>
 				</div>
@@ -81,7 +81,7 @@
 							autocomplete="current-password" 
 							required 
 							placeholder="password123"
-							class="appearance-none block w-full pl-10 pr-10 py-2.5 border border-zinc-300 dark:border-zinc-700 rounded-lg placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white transition-all sm:text-sm"
+							class="appearance-none block w-full pl-10 pr-10 py-2.5 border border-zinc-300 dark:border-zinc-700 rounded-lg placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-transparent bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white transition-all sm:text-sm"
 						>
 						<button 
 							type="button" 
@@ -98,9 +98,23 @@
 					</div>
 				</div>
 
+				<div class="flex items-center justify-between">
+					<div class="flex items-center">
+						<input 
+							id="remember_me" 
+							name="remember_me" 
+							type="checkbox" 
+							class="h-4 w-4 text-brand-primary focus:ring-brand-primary border-zinc-300 dark:border-zinc-700 rounded bg-white dark:bg-zinc-950"
+						>
+						<label for="remember_me" class="ml-2 block text-sm text-zinc-900 dark:text-zinc-300">
+							Remember me for 60 days
+						</label>
+					</div>
+				</div>
+
 				<div class="pt-2">
 					<input type="hidden" name="redirectUrl" value={redirectUrl} />
-					<button type="submit" class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 focus:ring-blue-500 transition-all duration-200 transform active:scale-[0.98] cursor-pointer">
+					<button type="submit" class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-brand-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 focus:ring-brand-primary transition-all duration-200 transform active:scale-[0.98] cursor-pointer">
 						Sign in
 					</button>
 				</div>

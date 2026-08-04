@@ -12,7 +12,7 @@
 			{:else if toast.type === 'error'}
 				<AlertCircle class="w-5 h-5 text-red-500 shrink-0" />
 			{:else}
-				<Info class="w-5 h-5 text-blue-500 shrink-0" />
+				<Info class="w-5 h-5 text-brand-primary shrink-0" />
 			{/if}
 			<p class="flex-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">{toast.message}</p>
 			<button onclick={() => toastStore.remove(toast.id)} class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">

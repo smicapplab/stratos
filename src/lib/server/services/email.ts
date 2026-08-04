@@ -147,7 +147,7 @@ globalEventEmitter.on('comment:created', async (data: { followers: { user: { id:
 				</blockquote>
 				
 				<div style="margin-top: 30px;">
-					<a href="${appUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+					<a href="${appUrl}/tasks/${taskId}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
 						View Task
 					</a>
 				</div>

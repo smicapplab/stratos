@@ -1,6 +1,6 @@
 import { db } from '../db/db';
 import { notifications, tasks, taskFollowers, users } from '../db/schema';
-import { eq, and, desc, isNull } from 'drizzle-orm';
+import { eq, and, desc, isNull, or } from 'drizzle-orm';
 import type { Actor } from './users';
 import { globalEventEmitter } from './events';
 
@@ -44,12 +44,45 @@ export async function getNotifications(actor: Actor) {
 		readAt: notifications.readAt,
 		createdAt: notifications.createdAt,
 		taskId: notifications.taskId,
+		boardId: tasks.boardId,
 		taskTitle: tasks.title,
-		actorId: notifications.actorId
+		actorId: notifications.actorId,
+		actorName: users.name
 	})
 	.from(notifications)
-	.leftJoin(tasks, and(eq(tasks.id, notifications.taskId), isNull(tasks.deletedAt)))
-	.where(eq(notifications.userId, actor.id))
+	.leftJoin(tasks, eq(tasks.id, notifications.taskId))
+	.leftJoin(users, eq(users.id, notifications.actorId))
+	.where(
+		and(
+			eq(notifications.userId, actor.id),
+			or(isNull(notifications.taskId), isNull(tasks.deletedAt))
+		)
+	)
+	.orderBy(desc(notifications.createdAt))
+	.limit(50);
+}
+
+export async function getSentNotifications(actor: Actor) {
+	return await db.select({
+		id: notifications.id,
+		type: notifications.type,
+		readAt: notifications.readAt,
+		createdAt: notifications.createdAt,
+		taskId: notifications.taskId,
+		boardId: tasks.boardId,
+		taskTitle: tasks.title,
+		recipientId: notifications.userId,
+		recipientName: users.name
+	})
+	.from(notifications)
+	.leftJoin(tasks, eq(tasks.id, notifications.taskId))
+	.leftJoin(users, eq(users.id, notifications.userId))
+	.where(
+		and(
+			eq(notifications.actorId, actor.id),
+			or(isNull(notifications.taskId), isNull(tasks.deletedAt))
+		)
+	)
 	.orderBy(desc(notifications.createdAt))
 	.limit(50);
 }
@@ -76,6 +109,7 @@ export async function notifyCommentAdded(authorId: string, taskId: string, conte
 		const [task] = await db.select({
 			id: tasks.id,
 			title: tasks.title,
+			groupId: tasks.groupId,
 			assigneeId: tasks.assigneeId,
 			customFields: tasks.customFields
 		})
@@ -99,18 +133,57 @@ export async function notifyCommentAdded(authorId: string, taskId: string, conte
 			}
 		};
 
-		// 1. Notify assignee
+		// Parse explicit mentions from content (e.g. data-id="user-id" or plain text @Name)
+		const mentionedUserIds = new Set<string>();
+		if (content) {
+			const mentionMatches = content.matchAll(/data-id="([^"]+)"/gi);
+			for (const match of mentionMatches) {
+				if (match[1] && match[1] !== authorId) {
+					mentionedUserIds.add(match[1]);
+				}
+			}
+
+			// Fallback: check plain text @UserName for all active users in the group
+			const groupUsersList = await db.select({ id: users.id, name: users.name })
+				.from(users)
+				.where(and(eq(users.groupId, task.groupId), isNull(users.deletedAt)));
+			
+			const contentLower = content.toLowerCase();
+			for (const u of groupUsersList) {
+				if (u.id !== authorId && u.name && contentLower.includes(`@${u.name.toLowerCase()}`)) {
+					mentionedUserIds.add(u.id);
+				}
+			}
+		}
+
+		// 1. Notify mentioned users with type 'mentioned' and auto-add them as followers
+		for (const mId of mentionedUserIds) {
+			if (!notifiedUsers.has(mId)) {
+				await createNotification(mId, authorId, 'mentioned', taskId);
+				notifiedUsers.add(mId);
+
+				// Auto-add mentioned user as a follower if not already following
+				const [existingFollower] = await db.select({ taskId: taskFollowers.taskId })
+					.from(taskFollowers)
+					.where(and(eq(taskFollowers.taskId, taskId), eq(taskFollowers.userId, mId)));
+				if (!existingFollower) {
+					await db.insert(taskFollowers).values({ taskId, userId: mId }).catch(() => {});
+				}
+			}
+		}
+
+		// 2. Notify assignee
 		if (task.assigneeId) {
 			await notifyUser(task.assigneeId);
 		}
 
-		// 2. Notify reporter
+		// 3. Notify reporter
 		const customFields = (task.customFields || {}) as { reporterId?: string };
 		if (customFields.reporterId) {
 			await notifyUser(customFields.reporterId);
 		}
 
-		// 3. Notify followers
+		// 4. Notify followers
 		const followers = await db.select({ user: users }).from(taskFollowers).innerJoin(users, eq(taskFollowers.userId, users.id)).where(eq(taskFollowers.taskId, taskId));
 		
 		for (const f of followers) {

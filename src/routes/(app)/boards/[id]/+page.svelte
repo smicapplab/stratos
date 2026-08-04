@@ -4,7 +4,7 @@
 	import { page } from '$app/stores';
 	import { dndzone, dragHandleZone, dragHandle } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
-	import { Plus, Settings2, LayoutGrid, CheckCircle2, GripHorizontal } from 'lucide-svelte';
+	import { Plus, Settings2, CheckCircle2, GripHorizontal } from 'lucide-svelte';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import TaskDrawer from '$lib/components/task/TaskDrawer.svelte';
 	import TaskCard from '$lib/components/ui/TaskCard.svelte';
@@ -12,6 +12,7 @@
 	import CalendarView from '$lib/components/ui/CalendarView.svelte';
 	import ReportsView from '$lib/components/ui/ReportsView.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
+	import DynamicIcon from '$lib/components/ui/DynamicIcon.svelte';
 	import { modalStore } from '$lib/stores/ui.svelte';
 
 	let focusedColumnIndex = $state<number | null>(null);
@@ -393,7 +394,7 @@
 	function confirmDeleteBoard() {
 		modalStore.show({
 			title: 'Delete Board',
-			description: `Are you sure you want to delete "${board.name}"? This action cannot be undone.`,
+			description: `Are you sure you want to delete "${board.name}"? This will permanently hide the board and all its tickets. You will be able to reuse this board name and prefix later.`,
 			confirmText: 'Delete Board',
 			destructive: true,
 			onConfirm: () => {
@@ -423,8 +424,8 @@
 	<!-- Board Header -->
 	<div class="px-8 py-5 border-b border-zinc-200/50 dark:border-white/5 bg-white/50 dark:bg-[#121214]/50 backdrop-blur-xl flex items-center justify-between shrink-0 relative z-20">
 		<div class="flex items-center gap-4">
-			<div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-violet-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-				<LayoutGrid class="w-5 h-5" />
+			<div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-primary to-violet-600 flex items-center justify-center text-white shadow-lg shadow-brand-primary/20">
+				<DynamicIcon name={board.icon} class="w-5 h-5" />
 			</div>
 			<div>
 				<h1 class="text-xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50">{board.name}</h1>
@@ -485,8 +486,8 @@
 				
 				<div class="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden flex flex-col max-h-[80vh]">
 					<div class="flex items-center border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-						<button class="flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider {settingsTab === 'general' ? 'text-zinc-900 dark:text-white border-b-2 border-blue-500 bg-white dark:bg-zinc-800/50' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/30'} transition-colors" onclick={() => settingsTab = 'general'}>General</button>
-						<button class="flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider {settingsTab === 'fields' ? 'text-zinc-900 dark:text-white border-b-2 border-blue-500 bg-white dark:bg-zinc-800/50' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/30'} transition-colors" onclick={() => settingsTab = 'fields'}>Custom Fields</button>
+						<button class="flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider {settingsTab === 'general' ? 'text-zinc-900 dark:text-white border-b-2 border-brand-primary bg-white dark:bg-zinc-800/50' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/30'} transition-colors" onclick={() => settingsTab = 'general'}>General</button>
+						<button class="flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wider {settingsTab === 'fields' ? 'text-zinc-900 dark:text-white border-b-2 border-brand-primary bg-white dark:bg-zinc-800/50' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/30'} transition-colors" onclick={() => settingsTab = 'fields'}>Custom Fields</button>
 					</div>
 
 					{#if settingsTab === 'general'}
@@ -499,7 +500,16 @@
 							}} class="flex flex-col gap-4">
 								<div class="flex flex-col gap-1.5">
 									<label for="board-name" class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Name</label>
-									<input id="board-name" type="text" name="name" value={board.name} required class="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all" />
+									<input id="board-name" type="text" name="name" value={board.name} required class="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all" />
+								</div>
+								
+								<div class="flex flex-col gap-1.5">
+									<label for="board-icon" class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Icon</label>
+									<Select id="board-icon" name="icon">
+										{#each ['KanbanSquare', 'LayoutTemplate', 'ListTodo', 'CheckSquare', 'Calendar', 'Inbox', 'Star', 'Folder', 'Hash', 'Zap', 'Database', 'Globe', 'Briefcase', 'Layers'] as iconName}
+											<option value={iconName} selected={board.icon === iconName}>{iconName}</option>
+										{/each}
+									</Select>
 								</div>
 								
 								<div class="flex flex-col gap-1.5">
@@ -511,13 +521,13 @@
 									</Select>
 								</div>
 
-								<button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-md py-2 text-sm font-semibold transition-colors mt-2">
+								<button type="submit" class="w-full bg-brand-primary hover:opacity-90 text-white rounded-md py-2 text-sm font-semibold transition-colors mt-2">
 									Save Changes
 								</button>
 							</form>
 						</div>
 
-						{#if user.id === board.creatorId}
+						{#if user.role === 'Admin' || user.id === board.creatorId}
 							<div class="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-red-50/50 dark:bg-red-950/10 shrink-0">
 								<button 
 									class="w-full flex items-center justify-center gap-2 text-red-600 dark:text-red-500 text-sm font-semibold py-2 px-3 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
@@ -526,7 +536,6 @@
 									Delete Board
 								</button>
 							</div>
-							<form id="delete-board-form" method="POST" action="?/deleteBoard" class="hidden"></form>
 						{/if}
 					{:else}
 						<div class="p-4 overflow-y-auto custom-scrollbar flex flex-col gap-4">
@@ -561,7 +570,7 @@
 										newFieldOptions = '';
 									}
 								}} class="flex flex-col gap-3">
-									<input type="text" name="name" bind:value={newFieldName} placeholder="Field Name (e.g. Priority)" required class="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+									<input type="text" name="name" bind:value={newFieldName} placeholder="Field Name (e.g. Priority)" required class="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary" />
 									
 									<Select name="type" bind:value={newFieldType}>
 										<option value="text">Text (String)</option>
@@ -571,7 +580,7 @@
 									</Select>
 
 									{#if newFieldType === 'select'}
-										<input type="text" name="options_raw" bind:value={newFieldOptions} placeholder="Options (comma separated)" required class="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+										<input type="text" name="options_raw" bind:value={newFieldOptions} placeholder="Options (comma separated)" required class="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary" />
 										<input type="hidden" name="options" value={JSON.stringify(newFieldOptions.split(',').map(s => s.trim()).filter(Boolean))} />
 									{/if}
 
@@ -607,7 +616,7 @@
 			{#each columns as column, stageIdx (column.id)}
 				<div animate:flip={{duration: flipDurationMs}} class="h-full max-h-full shrink-0 snap-start" id="column-{stageIdx}">
 					<!-- Stage Column -->
-					<div class="w-[85vw] lg:w-[320px] flex flex-col max-h-full rounded-2xl bg-zinc-100/50 dark:bg-[#121214] border {focusedColumnIndex === stageIdx && focusedTaskIndex === null ? 'border-blue-500 ring-2 ring-blue-500/50' : 'border-zinc-200/50 dark:border-white/5'} shadow-sm">
+					<div class="w-[85vw] lg:w-[320px] flex flex-col max-h-full rounded-2xl bg-zinc-100/50 dark:bg-[#121214] border {focusedColumnIndex === stageIdx && focusedTaskIndex === null ? 'border-brand-primary ring-2 ring-brand-primary/50' : 'border-zinc-200/50 dark:border-white/5'} shadow-sm">
 					
 					<!-- Column Header -->
 					<div use:dragHandle aria-label="Drag {column.name} column" class="p-4 flex items-center justify-between shrink-0 group {user.role === 'Admin' && !isTouchDevice ? 'cursor-grab active:cursor-grabbing' : ''}">
@@ -671,7 +680,7 @@
 										activeStageId = null;
 										update();
 									};
-								}} class="bg-white dark:bg-[#18181b] p-3 rounded-lg border border-blue-500 shadow-lg shadow-blue-500/10">
+								}} class="bg-white dark:bg-[#18181b] p-3 rounded-lg border border-brand-primary shadow-lg shadow-brand-primary/10">
 									<input type="hidden" name="stageId" value={column.id} />
 									{#if column.items.length > 0}
 										<input type="hidden" name="previousIndex" value={column.items[column.items.length - 1].orderIndex} />
@@ -771,7 +780,7 @@
 				</section>
 			</div>
 			<div class="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-				<button class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors" onclick={() => reorderModalOpen = false}>Done</button>
+				<button class="w-full bg-brand-primary/100 hover:bg-brand-primary text-white font-bold py-2 px-4 rounded-lg transition-colors" onclick={() => reorderModalOpen = false}>Done</button>
 			</div>
 		</div>
 	</div>
@@ -814,7 +823,7 @@
 							bind:value={calendarTaskTitle}
 							placeholder="What needs to be done?" 
 							required 
-							class="w-full px-3.5 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
+							class="w-full px-3.5 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
 						/>
 					</div>
 
@@ -825,7 +834,7 @@
 							id="board-calendar-stage-select"
 							name="stageId"
 							bind:value={selectedCalendarStageId}
-							class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-zinc-900 dark:text-zinc-100 min-h-[40px]"
+							class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-zinc-900 dark:text-zinc-100 min-h-[40px]"
 						>
 							{#each stages as stage}
 								<option value={stage.id}>{stage.name}</option>
@@ -840,7 +849,7 @@
 							id="board-calendar-assignee-select"
 							name="assigneeId"
 							bind:value={selectedCalendarAssigneeId}
-							class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-zinc-900 dark:text-zinc-100 min-h-[40px]"
+							class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-zinc-900 dark:text-zinc-100 min-h-[40px]"
 						>
 							<option value="">Unassigned</option>
 							{#each groupUsers as gu}
@@ -861,7 +870,7 @@
 						<button 
 							type="submit" 
 							disabled={!selectedCalendarStageId || !calendarTaskTitle}
-							class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all transform hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px]"
+							class="px-4 py-2 bg-brand-primary hover:opacity-90 text-white text-xs font-bold rounded-xl shadow-sm transition-all transform hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px]"
 						>
 							Create Task
 						</button>
@@ -870,4 +879,14 @@
 			</div>
 		</div>
 	{/if}
+
+	<form id="delete-board-form" method="POST" action="?/deleteBoard" class="hidden" use:enhance={() => {
+		return async ({ result, update }) => {
+			if (result.type === 'redirect') {
+				await goto(result.location, { invalidateAll: true });
+			} else {
+				await update();
+			}
+		};
+	}}></form>
 </div>

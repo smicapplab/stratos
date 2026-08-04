@@ -87,7 +87,7 @@
 	<button 
 		bind:this={triggerNode}
 		type="button" 
-		class="w-full flex items-center justify-between px-3 py-2 bg-zinc-50 dark:bg-black/20 hover:bg-zinc-100 dark:hover:bg-white/5 border border-zinc-200 dark:border-zinc-800/50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all {isOpen ? 'bg-zinc-100 dark:bg-white/5 border-zinc-300 dark:border-zinc-700' : ''}"
+		class="w-full flex items-center justify-between px-3 py-2 bg-zinc-50 dark:bg-black/20 hover:bg-zinc-100 dark:hover:bg-white/5 border border-zinc-200 dark:border-zinc-800/50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/30 transition-all {isOpen ? 'bg-zinc-100 dark:bg-white/5 border-zinc-300 dark:border-zinc-700' : ''}"
 		onclick={() => isOpen = !isOpen}
 	>
 		<div class="flex-1 overflow-hidden text-left truncate flex items-center gap-2">
@@ -139,7 +139,7 @@
 					</div>
 					
 					{#if value === option.value}
-						<Check class="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+						<Check class="w-4 h-4 text-brand-primary dark:text-brand-primary shrink-0" />
 					{/if}
 				</button>
 			{:else}

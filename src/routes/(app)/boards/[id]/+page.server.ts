@@ -24,6 +24,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const [board] = await db.select({
 		id: boards.id,
 		name: boards.name,
+		icon: boards.icon,
 		projectId: boards.projectId,
 		groupId: boards.groupId,
 		creatorId: boards.creatorId
@@ -107,11 +108,13 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const name = data.get('name')?.toString();
 		const projectId = data.get('projectId')?.toString();
+		const icon = data.get('icon')?.toString();
 
 		try {
 			await updateBoard(actor, params.id, {
 				...(name ? { name } : {}),
-				...(projectId ? { projectId } : {})
+				...(projectId ? { projectId } : {}),
+				...(icon ? { icon } : {})
 			});
 			return { success: true };
 		} catch (err) {
