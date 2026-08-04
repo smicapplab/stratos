@@ -10,17 +10,7 @@
 	<title>About Stratos - AI Context & Productivity Engine</title>
 </svelte:head>
 
-<div class="h-full flex flex-col bg-zinc-50 dark:bg-[#09090b] overflow-y-auto custom-scrollbar relative">
-	<!-- Ambient light spots -->
-	<div class="absolute inset-0 overflow-hidden pointer-events-none">
-		<div class="absolute -top-[20%] left-[10%] w-[600px] h-[600px] rounded-full bg-gradient-to-br from-brand-primary/20 to-purple-500/0 dark:from-brand-primary/25 dark:to-transparent blur-[120px] opacity-90"></div>
-		<div class="absolute top-[40%] -right-[10%] w-[600px] h-[600px] rounded-full bg-gradient-to-tl from-brand-primary/15 to-indigo-500/0 dark:from-brand-primary/20 dark:to-transparent blur-[120px] opacity-90"></div>
-	</div>
-
-	<!-- Dynamic Brand Icon Watermark (Matches Active Theme Primary Color) -->
-	<div class="absolute -bottom-10 -right-10 w-[550px] h-[550px] pointer-events-none overflow-hidden">
-		<BrandLogoType class="w-full h-full text-brand-primary opacity-[0.14] dark:opacity-[0.10] transition-colors duration-300" />
-	</div>
+<div class="min-h-full flex flex-col relative">
 
 	<!-- Hero Header -->
 	<header class="shrink-0 px-6 sm:px-10 pt-16 pb-10 max-w-5xl w-full mx-auto text-center relative z-10">

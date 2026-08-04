@@ -82,7 +82,7 @@
 	<title>Inbox - Stratos</title>
 </svelte:head>
 
-<div class="h-full flex flex-col bg-zinc-50 dark:bg-[#09090b]">
+<div class="h-full flex flex-col bg-transparent">
 	<header class="shrink-0 px-6 sm:px-10 py-8 max-w-4xl w-full mx-auto flex flex-col gap-6">
 		<div class="flex items-center justify-between">
 			<div>

@@ -3,8 +3,9 @@ import pkg from 'pg';
 import 'dotenv/config';
 
 const { Pool } = pkg;
+const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL || 'postgres://postgres:password@localhost:5432/stratos';
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://postgres:password@localhost:5432/stratos',
+  connectionString,
 });
 const db = drizzle(pool);
 import { groups, users, projects, projectMembers, boards, stages, tasks, comments, auditLogs, attachments, apiTokens } from './schema';
@@ -72,6 +73,7 @@ async function main() {
 	];
 	if (mode === 'dev') {
 		usersList.push(
+			{ id: uuidv4(), groupId, email: 'admin@acme.internal', name: 'System Admin', role: 'Admin', hashedPassword: passwordHash },
 			{ id: userId1, groupId, email: 'bob@acme.internal', name: 'Bob Builder', role: 'Member', hashedPassword: passwordHash },
 			{ id: userId2, groupId, email: 'charlie@acme.internal', name: 'Charlie Coder', role: 'Member', hashedPassword: passwordHash },
 			{ id: userId3, groupId, email: 'dave@acme.internal', name: 'Dave Designer', role: 'Manager', hashedPassword: passwordHash }, //Dave is Manager!

@@ -96,7 +96,7 @@
 		<h1 class="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">My Calendar</h1>
 	</header>
 	
-	<div class="flex-1 overflow-y-auto overflow-x-hidden relative bg-zinc-50 dark:bg-[#09090b]">
+	<div class="flex-1 overflow-y-auto overflow-x-hidden relative bg-transparent">
 		<CalendarView 
 			tasks={data.tasks}
 			onTaskClick={handleTaskClick}

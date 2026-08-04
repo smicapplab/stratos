@@ -24,6 +24,7 @@
 		LifeBuoy,
 		User,
 		Info,
+		BookOpen,
 	} from "lucide-svelte";
 	import DynamicIcon from "$lib/components/ui/DynamicIcon.svelte";
 
@@ -470,10 +471,24 @@
 							target="_blank"
 							class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100"
 						>
-							<LifeBuoy
+							<BookOpen
 								class="w-4 h-4 transition-transform group-hover:scale-110"
 							/>
 							User Manual
+						</a>
+					</li>
+					<li>
+						<a
+							href="/helpdesk/tickets"
+							class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group {$page
+								.url.pathname.startsWith('/helpdesk')
+								? 'bg-brand-primary/10 text-brand-primary font-semibold dark:bg-brand-primary/10'
+								: 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100'}"
+						>
+							<LifeBuoy
+								class="w-4 h-4 transition-transform group-hover:scale-110"
+							/>
+							Helpdesk Portal
 						</a>
 					</li>
 					<li>
@@ -511,12 +526,12 @@
 						<span>My Profile</span>
 					</a>
 					<a
-						href="/helpdesk/tickets"
+						href="/settings/preferences"
 						class="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors min-h-[44px]"
 						onclick={() => (isUserMenuOpen = false)}
 					>
-						<LifeBuoy class="w-4 h-4 text-zinc-500" />
-						<span>Helpdesk Portal</span>
+						<Settings class="w-4 h-4 text-zinc-500" />
+						<span>Preferences</span>
 					</a>
 					<a
 						href="/about"
@@ -738,17 +753,18 @@
 		<main
 			class="flex-1 overflow-y-auto relative bg-gradient-to-br from-zinc-50 to-zinc-100/50 dark:from-zinc-950 dark:to-zinc-900/80"
 		>
-			<!-- Dynamic Ambient Light & Brand Emblem Watermark for All App Pages -->
+			<!-- Dynamic Ambient Light & Brand Emblem Watermark for All App Pages (Strictly Clipped) -->
 			<div class="absolute inset-0 overflow-hidden pointer-events-none z-0">
 				<div class="absolute -top-[20%] left-[10%] w-[600px] h-[600px] rounded-full bg-gradient-to-br from-brand-primary/10 to-purple-500/0 dark:from-brand-primary/15 dark:to-transparent blur-[120px] opacity-70"></div>
 				<div class="absolute top-[40%] -right-[10%] w-[600px] h-[600px] rounded-full bg-gradient-to-tl from-brand-primary/10 to-indigo-500/0 dark:from-brand-primary/15 dark:to-transparent blur-[120px] opacity-70"></div>
-			</div>
-			<div class="absolute -bottom-10 -right-10 w-[550px] h-[550px] pointer-events-none overflow-hidden z-0">
-				<BrandLogoType class="w-full h-full text-brand-primary opacity-[0.10] dark:opacity-[0.07] transition-colors duration-300" />
+				
+				<div class="absolute bottom-0 right-0 w-[480px] h-[480px] translate-x-12 translate-y-12">
+					<BrandLogoType class="w-full h-full text-brand-primary opacity-[0.08] dark:opacity-[0.05] transition-colors duration-300" />
+				</div>
 			</div>
 
 			<!-- We render the child routes here -->
-			<div class="relative z-10 h-full flex flex-col">
+			<div class="relative z-10 min-h-full h-full flex flex-col flex-1">
 				{@render children()}
 			</div>
 		</main>

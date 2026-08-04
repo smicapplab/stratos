@@ -24,10 +24,20 @@ Stratos operates as a unified full-stack application leveraging the following co
 
 The application is designed to be runtime-agnostic and relies on standard Node.js primitives.
 
-1. Ensure you have Node.js and a running PostgreSQL instance.
-2. Install dependencies via your package manager.
-3. Configure your environment variables in `.env` (refer to `$env/dynamic/private` schemas).
-4. Run the development server:
+1. Ensure you have Node.js and a running PostgreSQL instance (or Supabase credentials in `.env`).
+2. Install dependencies via `npm install`.
+3. Configure your environment variables in `.env` (refer to `.env.sample`).
+4. Apply database schema and seed initial data:
+
+```bash
+# Push schema to database
+npx drizzle-kit push
+
+# Seed test users and default workspace data
+npm run db:seed:api
+```
+
+5. Run the development server:
 
 ```bash
 npm run dev
