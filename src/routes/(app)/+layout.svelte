@@ -107,20 +107,20 @@
 	// Theme Toggle Logic
 	let isDark = $state(false);
 
+	let themeInitialized = false;
+
 	// On mount, sync with actual DOM state and user's DB preference
 	$effect(() => {
-		if (browser) {
-			if (user?.theme && user.theme !== 'system') {
-				if (localStorage.theme !== user.theme) {
-					localStorage.theme = user.theme;
-					if (user.theme === 'dark') {
-						document.documentElement.classList.add('dark');
-					} else {
-						document.documentElement.classList.remove('dark');
-					}
-				}
-			} else if (user?.theme === 'system' && localStorage.theme) {
-				localStorage.removeItem('theme');
+		if (browser && !themeInitialized) {
+			const localTheme = localStorage.getItem('theme');
+			if (localTheme) {
+				if (localTheme === 'dark') document.documentElement.classList.add('dark');
+				else document.documentElement.classList.remove('dark');
+			} else if (user?.theme && user.theme !== 'system') {
+				if (user.theme === 'dark') document.documentElement.classList.add('dark');
+				else document.documentElement.classList.remove('dark');
+				localStorage.setItem('theme', user.theme);
+			} else {
 				if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
 					document.documentElement.classList.add('dark');
 				} else {
@@ -128,6 +128,7 @@
 				}
 			}
 			isDark = document.documentElement.classList.contains('dark');
+			themeInitialized = true;
 		}
 	});
 
@@ -188,6 +189,14 @@
 
 	// Derived store to check active routes
 	let currentPath = $derived($page.url.pathname);
+	let currentSearch = $derived($page.url.search);
+	
+	$effect(() => {
+		if (browser && currentPath && !currentPath.includes('/admin')) {
+			localStorage.setItem('lastPath', currentPath + currentSearch);
+		}
+	});
+
 	let isCommandPaletteOpen = $state(false);
 	let isUserMenuOpen = $state(false);
 
@@ -388,6 +397,23 @@
 					</ul>
 				</div>
 			{/if}
+			
+			<!-- Resources -->
+			<div class="mt-4">
+				<div class="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Resources</div>
+				<ul class="space-y-1">
+					<li>
+						<a 
+							href="/manual/index.html"
+							target="_blank"
+							class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100"
+						>
+							<LifeBuoy class="w-4 h-4 transition-transform group-hover:scale-110" />
+							User Manual
+						</a>
+					</li>
+				</ul>
+			</div>
 		</nav>
 
 		<!-- User Footer -->

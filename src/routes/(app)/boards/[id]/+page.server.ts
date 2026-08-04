@@ -256,6 +256,35 @@ export const actions: Actions = {
 		}
 	},
 
+	toggleFollower: async ({ request, locals }) => {
+		if (!locals.user) return fail(401, { error: 'Unauthorized' });
+		const data = await request.formData();
+		const taskId = data.get('taskId') as string;
+		const userId = data.get('userId') as string || locals.user.id;
+		
+		if (!taskId) return fail(400, { error: 'Task ID is required' });
+
+		// We need to import `taskFollowers` at the top if it's not there.
+		// It's safer to just import it here to avoid messing up imports or we can add it to the top.
+		const { db } = await import('$lib/server/db/db');
+		const { taskFollowers } = await import('$lib/server/db/schema');
+		const { eq, and } = await import('drizzle-orm');
+
+		try {
+			const existing = await db.select().from(taskFollowers).where(and(eq(taskFollowers.taskId, taskId), eq(taskFollowers.userId, userId))).limit(1);
+			
+			if (existing.length > 0) {
+				await db.delete(taskFollowers).where(and(eq(taskFollowers.taskId, taskId), eq(taskFollowers.userId, userId)));
+			} else {
+				await db.insert(taskFollowers).values({ taskId, userId });
+			}
+			return { success: true };
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
+		}
+	},
+
 	updateTask: async ({ request, locals }) => {
 		const actor = locals.user;
 		if (!actor) return fail(401, { error: 'Unauthorized' });

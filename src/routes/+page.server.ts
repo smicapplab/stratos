@@ -91,7 +91,8 @@ export const actions: Actions = {
 			path: '/',
 			...sessionCookie.attributes
 		});
+		const redirectUrl = data.get('redirectUrl')?.toString() || '/dashboard';
 
-		throw redirect(302, '/dashboard');
+		throw redirect(302, redirectUrl);
 	}
 };

@@ -28,3 +28,13 @@ worktrees/
 
 # Uploads
 /uploads/
+
+# Testing
+/coverage/
+/playwright-report/
+/test-results/
+
+# VitePress
+**/.vitepress/dist
+**/.vitepress/cache
+**/.vitepress/temp

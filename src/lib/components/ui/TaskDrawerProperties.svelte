@@ -11,6 +11,7 @@
 		customFields?: any[];
 		projectTags?: any[];
 		projectId?: string;
+		currentUserId: string;
 		handlePropertyChange: () => void;
 	}
 
@@ -33,6 +34,16 @@
 		}))
 	);
 
+	let followerOptions = $derived(
+		groupUsers
+			.filter(u => !(task.followers || []).some((f: any) => f.userId === u.id))
+			.map((u) => ({
+				value: u.id,
+				label: u.name,
+				meta: u,
+			}))
+	);
+
 	let priorityOptions = [
 		{ value: "Low", label: "Low" },
 		{ value: "Medium", label: "Medium" },
@@ -41,7 +52,7 @@
 	];
 
 	import { invalidateAll } from '$app/navigation';
-	import { Pencil } from 'lucide-svelte';
+	import { Pencil, XCircle } from 'lucide-svelte';
 	import { toastStore } from '$lib/stores/ui.svelte';
 
 	let showTagDropdown = $state(false);
@@ -75,6 +86,28 @@
 				body: JSON.stringify({ tagId: tag.id })
 			});
 		}
+	}
+
+	async function toggleFollower(userId: string) {
+		if (!task.followers) task.followers = [];
+		const isAttached = task.followers.some((f: any) => f.userId === userId);
+		
+		if (isAttached) {
+			task.followers = task.followers.filter((f: any) => f.userId !== userId);
+		} else {
+			task.followers.push({ taskId: task.id, userId });
+		}
+		
+		const formData = new FormData();
+		formData.append('taskId', task.id);
+		formData.append('userId', userId);
+		await fetch(`/boards/${task.boardId}?/toggleFollower`, {
+			method: 'POST',
+			body: formData,
+			headers: { 'x-sveltekit-action': 'true' }
+		});
+		// Invalidate so that server-side data syncs
+		invalidateAll();
 	}
 
 	async function createNewTag() {
@@ -313,7 +346,8 @@
 		<div class="flex items-center justify-between text-xs text-zinc-500 font-medium">
 			<span>Created</span>
 			<span>{task.createdAt ? new Date(task.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
-			<!-- Custom Fields -->
+		</div>
+		<!-- Custom Fields -->
 	{#if customFields && customFields.length > 0}
 		<div class="pt-4 border-t border-zinc-200 dark:border-zinc-800">
 			<h4 class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-3">Custom Fields</h4>
@@ -380,4 +414,52 @@
 		</div>
 	{/if}
 </div>
+
+<div class="pt-4 border-t border-zinc-200 dark:border-zinc-800">
+	<div class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+		<User class="w-3.5 h-3.5" /> Followers
 	</div>
+	
+	<div class="flex items-center flex-wrap gap-2 mb-3">
+		{#if task.followers && task.followers.length > 0}
+			{#each task.followers as follower}
+				{@const user = groupUsers.find((u: any) => u.id === follower.userId)}
+				{#if user}
+					<div class="relative group/follower flex items-center gap-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-full pl-1 pr-2 py-0.5">
+						<Avatar name={user.name} size="xs" />
+						<span class="text-xs text-zinc-700 dark:text-zinc-300 font-medium">{user.name.split(' ')[0]}</span>
+						<button 
+							type="button"
+							class="w-3.5 h-3.5 ml-0.5 opacity-0 group-hover/follower:opacity-100 hover:bg-zinc-200 dark:hover:bg-zinc-600 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all"
+							onclick={() => toggleFollower(user.id)}
+						>
+							<XCircle class="w-3 h-3" />
+						</button>
+					</div>
+				{/if}
+			{/each}
+		{:else}
+			<span class="text-xs text-zinc-500">No followers</span>
+		{/if}
+	</div>
+	
+	<Combobox options={followerOptions} value={null} placeholder="Add follower..." searchable={true} onValueChange={toggleFollower}>
+		{#snippet selectedRender(option: any)}
+			{#if option.meta}
+				<Avatar name={option.label} size="sm" />
+				<span class="text-zinc-900 dark:text-zinc-100 font-semibold">{option.label}</span>
+			{:else}
+				<div class="w-6 h-6 rounded-full border border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center shrink-0">
+					<User class="w-3 h-3 text-zinc-400" />
+				</div>
+				<span class="text-zinc-500 font-medium">Add follower...</span>
+			{/if}
+		{/snippet}
+		{#snippet optionRender(option: any)}
+			{#if option.meta}
+				<Avatar name={option.label} size="sm" />
+				<span class="text-zinc-900 dark:text-zinc-100 font-medium">{option.label}</span>
+			{/if}
+		{/snippet}
+	</Combobox>
+</div>

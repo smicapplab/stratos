@@ -107,6 +107,7 @@
 		{#if activeTask}
 			<TaskDrawer 
 				bind:task={activeTask} 
+				currentUserId={data.user.id}
 				allTasks={data.tasks} 
 				groupUsers={data.groupUsers} 
 				stages={data.stages} 

@@ -92,14 +92,31 @@
 		customFields?: any[];
 		projectTags?: any[];
 		projectId?: string;
+		currentUserId: string;
 	}
 
-	let { task = $bindable(), onClose, allTasks = [], groupUsers, stages = [], customFields = [], projectTags = [], projectId }: Props = $props();
+	let { task = $bindable(), onClose, allTasks = [], groupUsers, stages = [], customFields = [], projectTags = [], projectId, currentUserId }: Props = $props();
 
 
 
 	let taskComments = $state<ActivityFeedItem[]>([]);
 	let activeTab = $state<"comments" | "history">("comments");
+
+	let tabLoaded = $state(false);
+
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			if (!tabLoaded) {
+				const savedTab = localStorage.getItem('task-drawer-activeTab');
+				if (savedTab === 'comments' || savedTab === 'history') {
+					activeTab = savedTab;
+				}
+				tabLoaded = true;
+			} else {
+				localStorage.setItem('task-drawer-activeTab', activeTab);
+			}
+		}
+	});
 
 	let checklists = $state<ChecklistItem[]>(task.checklists || []);
 	let newChecklistText = $state("");
@@ -1461,7 +1478,7 @@
 
 			<!-- Right Properties Sidebar (Linear Style) -->
 			<div class="w-[300px] xl:w-[340px] shrink-0 border-l border-zinc-200 dark:border-zinc-800 p-6 flex flex-col gap-6 bg-zinc-50/50 dark:bg-[#09090b] overflow-y-auto custom-scrollbar">
-				<TaskDrawerProperties bind:task groupUsers={groupUsers} stages={stages} customFields={customFields} projectTags={projectTags} {projectId} handlePropertyChange={handlePropertyChange} />
+				<TaskDrawerProperties bind:task groupUsers={groupUsers} currentUserId={currentUserId} stages={stages} customFields={customFields} projectTags={projectTags} {projectId} handlePropertyChange={handlePropertyChange} />
 				<!-- Subtasks & Linked Tasks -->
 				<div class="mt-2 space-y-8">
 					<!-- Subtasks -->

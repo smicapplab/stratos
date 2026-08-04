@@ -69,11 +69,6 @@
 	<div
 		class="bg-white dark:bg-[#121214] p-4 rounded-2xl border border-zinc-200/60 dark:border-white/5 shadow-sm flex items-start gap-3 sm:gap-4 mb-10"
 	>
-		<div class="shrink-0 mt-1 hidden sm:block">
-			<div
-				class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 shadow-sm border border-white dark:border-zinc-900"
-			></div>
-		</div>
 		<div
 			class="flex-1 border border-zinc-200 dark:border-white/10 rounded-xl overflow-hidden focus-within:border-indigo-500/50 transition-all bg-zinc-50/50 dark:bg-[#18181b]"
 		>

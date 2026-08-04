@@ -310,6 +310,30 @@
 		}
 	}
 	let activeView = $state<'board' | 'table' | 'calendar' | 'reports'>('board');
+	
+	let loadedBoardId = $state<string | null>(null);
+
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			if (loadedBoardId !== board.id) {
+				// Board changed, load preferences
+				const savedView = localStorage.getItem(`board-view-${board.id}`);
+				if (savedView) activeView = savedView as any;
+				else activeView = 'board';
+
+				const savedEpics = localStorage.getItem(`board-epics-${board.id}`);
+				if (savedEpics) showEpicsOnly = savedEpics === 'true';
+				else showEpicsOnly = false;
+
+				loadedBoardId = board.id;
+			} else {
+				// Save preferences
+				localStorage.setItem(`board-view-${board.id}`, activeView);
+				localStorage.setItem(`board-epics-${board.id}`, showEpicsOnly.toString());
+			}
+		}
+	});
+
 	let settingsOpen = $state(false);
 	let settingsTab = $state<'general' | 'fields'>('general');
 
@@ -711,7 +735,7 @@
 
 	<!-- Task Edit Side Panel -->
 	{#if activeTask}
-		<TaskDrawer bind:task={activeTask} groupUsers={groupUsers} allTasks={tasks} stages={stages} customFields={customFields} projectTags={data.projectTags} projectId={data.board.projectId} onClose={closeTaskDrawer} />
+		<TaskDrawer bind:task={activeTask} groupUsers={groupUsers} currentUserId={data.user.id} allTasks={tasks} stages={stages} customFields={customFields} projectTags={data.projectTags} projectId={data.board.projectId} onClose={closeTaskDrawer} />
 	{/if}
 
 	{#if reorderModalOpen}

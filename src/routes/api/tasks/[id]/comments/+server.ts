@@ -45,7 +45,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		parentCommentId: body.parentCommentId || null
 	}).returning();
 
-	await notifyCommentAdded(locals.user.id, taskId);
+	await notifyCommentAdded(locals.user.id, taskId, content);
 
 	return json(newComment);
 }

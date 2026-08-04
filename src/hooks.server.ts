@@ -12,6 +12,30 @@ if (!fs.existsSync(uploadsDir)) {
 	fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+import { globalEventEmitter } from '$lib/server/services/events';
+import { sendEmail } from '$lib/server/services/email';
+
+// Handle background email dispatch for new comments
+globalEventEmitter.on('comment:created', (data) => {
+	const { followers, authorName, taskTitle, content } = data;
+	
+	followers.forEach(async (f: any) => {
+		try {
+			// Anti-spam: Only email if the user is explicitly @mentioned in the rich text
+			const isMentioned = content.includes(`data-id="${f.user.id}"`);
+			if (!isMentioned) return;
+
+			await sendEmail({
+				to: f.user.email,
+				subject: `You were mentioned in a Task: ${taskTitle}`,
+				html: `<p><b>${authorName}</b> mentioned you in a comment.</p><p>"${content}"</p>`
+			});
+		} catch (e) {
+			console.error("Background email dispatch failed", e);
+		}
+	});
+});
+
 export const handle: Handle = async ({ event, resolve }) => {
 	// Initialize locals
 	event.locals.apiToken = null;

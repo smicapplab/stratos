@@ -1,5 +1,5 @@
 import { db } from '../db/db';
-import { notifications, tasks } from '../db/schema';
+import { notifications, tasks, taskFollowers, users } from '../db/schema';
 import { eq, and, desc, isNull } from 'drizzle-orm';
 import type { Actor } from './users';
 import { globalEventEmitter } from './events';
@@ -71,10 +71,11 @@ export async function markAsRead(actor: Actor, notificationId?: string) {
  * Automatically fires notifications of type 'comment_added' to the task assignee
  * and the task reporter (creator) when a new comment is posted.
  */
-export async function notifyCommentAdded(authorId: string, taskId: string): Promise<void> {
+export async function notifyCommentAdded(authorId: string, taskId: string, content?: string): Promise<void> {
 	try {
 		const [task] = await db.select({
 			id: tasks.id,
+			title: tasks.title,
 			assigneeId: tasks.assigneeId,
 			customFields: tasks.customFields
 		})
@@ -89,16 +90,43 @@ export async function notifyCommentAdded(authorId: string, taskId: string): Prom
 
 		if (!task) return;
 
-		// 1. Notify assignee (if the author is not the assignee)
-		if (task.assigneeId && task.assigneeId !== authorId) {
-			await createNotification(task.assigneeId, authorId, 'comment_added', taskId);
+		const notifiedUsers = new Set<string>();
+
+		const notifyUser = async (uId: string) => {
+			if (uId !== authorId && !notifiedUsers.has(uId)) {
+				await createNotification(uId, authorId, 'comment_added', taskId);
+				notifiedUsers.add(uId);
+			}
+		};
+
+		// 1. Notify assignee
+		if (task.assigneeId) {
+			await notifyUser(task.assigneeId);
 		}
 
-		// 2. Notify reporter (if the author is not the reporter and reporter is distinct from assignee)
+		// 2. Notify reporter
 		const customFields = (task.customFields || {}) as { reporterId?: string };
-		const reporterId = customFields.reporterId;
-		if (reporterId && reporterId !== authorId && reporterId !== task.assigneeId) {
-			await createNotification(reporterId, authorId, 'comment_added', taskId);
+		if (customFields.reporterId) {
+			await notifyUser(customFields.reporterId);
+		}
+
+		// 3. Notify followers
+		const followers = await db.select({ user: users }).from(taskFollowers).innerJoin(users, eq(taskFollowers.userId, users.id)).where(eq(taskFollowers.taskId, taskId));
+		
+		for (const f of followers) {
+			await notifyUser(f.user.id);
+		}
+
+		// 4. Dispatch Email Event
+		if (content) {
+			const [author] = await db.select({ name: users.name }).from(users).where(eq(users.id, authorId));
+			globalEventEmitter.emit('comment:created', {
+				followers,
+				authorName: author?.name || 'Someone',
+				taskTitle: task.title,
+				content,
+				taskId
+			});
 		}
 	} catch (err) {
 		console.error(`Failed to notify comment added for task ${taskId}:`, err);

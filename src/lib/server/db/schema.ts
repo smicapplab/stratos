@@ -215,3 +215,11 @@ export const apiTokens = pgTable('api_tokens', {
 	groupIdIdx: index('api_tokens_group_id_idx').on(t.groupId),
 	tokenHashIdx: index('api_tokens_token_hash_idx').on(t.tokenHash)
 }));
+
+export const taskFollowers = pgTable('task_followers', {
+	taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }).notNull(),
+	userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
+}, (t) => ({
+	pk: primaryKey({ columns: [t.taskId, t.userId] })
+}));

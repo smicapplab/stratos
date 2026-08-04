@@ -3,8 +3,15 @@
 	import { Mail, Lock, Eye, EyeOff } from 'lucide-svelte';
 	import BrandLogo from '$lib/components/ui/BrandLogo.svelte';
 
+	import { onMount } from 'svelte';
+
 	let { form } = $props();
 	let showPassword = $state(false);
+	let redirectUrl = $state('/dashboard');
+
+	onMount(() => {
+		redirectUrl = localStorage.getItem('lastPath') || '/dashboard';
+	});
 </script>
 
 <div class="min-h-screen relative overflow-hidden bg-zinc-50 dark:bg-[#09090b] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -92,6 +99,7 @@
 				</div>
 
 				<div class="pt-2">
+					<input type="hidden" name="redirectUrl" value={redirectUrl} />
 					<button type="submit" class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 focus:ring-blue-500 transition-all duration-200 transform active:scale-[0.98] cursor-pointer">
 						Sign in
 					</button>
