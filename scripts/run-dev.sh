@@ -1,16 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# Configurable Port and Host for EC2 Standalone Server
-PORT="${PORT:-5180}"
-HOST="${HOST:-0.0.0.0}"
-
-echo "=========================================="
-echo " Starting Stratos Dev Server on EC2"
-echo " Host: ${HOST} | Port: ${PORT}"
-echo "=========================================="
-
-# 1. Ensure .env exists
+# 1. Ensure .env exists & load variables
 if [ ! -f .env ]; then
   if [ -f .env.sample ]; then
     echo "⚠️ .env file not found! Copying from .env.sample..."
@@ -20,6 +11,20 @@ if [ ! -f .env ]; then
     touch .env
   fi
 fi
+
+# Load variables from .env if present
+if [ -f .env ]; then
+  export $(grep -v '^#' .env | xargs) 2>/dev/null || true
+fi
+
+# Configurable Port and Host for EC2 Standalone Server
+PORT="${PORT:-5180}"
+HOST="${HOST:-0.0.0.0}"
+
+echo "=========================================="
+echo " Starting Stratos Dev Server on EC2"
+echo " Host: ${HOST} | Port: ${PORT}"
+echo "=========================================="
 
 # 2. Check local Redis / Valkey connection
 echo "🔍 Checking local Redis service..."
