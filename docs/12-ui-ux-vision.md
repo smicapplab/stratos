@@ -32,8 +32,12 @@ The sidebar is the app's skeleton. It must be fast to navigate and never feel cl
 
 WORKSPACE
   📊 My Tasks         ← Cross-board personal task view
-  🔔 Inbox            ← Notification center (replaces bell icon in header)
+  🔔 Inbox            ← Dual-tab notification center (Received & Sent tabs with direct task redirection)
   📅 My Calendar      ← Calendar view of tasks due this week
+
+RESOURCES
+  📖 User Manual      ← Interactive user guide
+  ℹ️ About Stratos    ← Version info, core engine features, author details & Helpdesk feature request link
 
 PROJECTS
   ▾ Q3 Launch          [+ Add Board]   ← Collapsible project group
