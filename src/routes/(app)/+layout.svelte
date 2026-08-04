@@ -5,6 +5,7 @@
 	import { page } from "$app/stores";
 	import { onMount, onDestroy } from "svelte";
 	import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
+	import BrandLogoType from "$lib/components/ui/BrandLogoType.svelte";
 	import {
 		LogOut,
 		Search,
@@ -24,7 +25,6 @@
 		User,
 		Info,
 	} from "lucide-svelte";
-	import BrandLogoType from "$lib/components/ui/BrandLogoType.svelte";
 	import DynamicIcon from "$lib/components/ui/DynamicIcon.svelte";
 
 	let { data, children } = $props();
@@ -734,8 +734,19 @@
 		<main
 			class="flex-1 overflow-y-auto relative bg-gradient-to-br from-zinc-50 to-zinc-100/50 dark:from-zinc-950 dark:to-zinc-900/80"
 		>
+			<!-- Dynamic Ambient Light & Brand Emblem Watermark for All App Pages -->
+			<div class="absolute inset-0 overflow-hidden pointer-events-none z-0">
+				<div class="absolute -top-[20%] left-[10%] w-[600px] h-[600px] rounded-full bg-gradient-to-br from-brand-primary/10 to-purple-500/0 dark:from-brand-primary/15 dark:to-transparent blur-[120px] opacity-70"></div>
+				<div class="absolute top-[40%] -right-[10%] w-[600px] h-[600px] rounded-full bg-gradient-to-tl from-brand-primary/10 to-indigo-500/0 dark:from-brand-primary/15 dark:to-transparent blur-[120px] opacity-70"></div>
+			</div>
+			<div class="absolute -bottom-10 -right-10 w-[550px] h-[550px] pointer-events-none overflow-hidden z-0">
+				<BrandLogoType class="w-full h-full text-brand-primary opacity-[0.10] dark:opacity-[0.07] transition-colors duration-300" />
+			</div>
+
 			<!-- We render the child routes here -->
-			{@render children()}
+			<div class="relative z-10 h-full flex flex-col">
+				{@render children()}
+			</div>
 		</main>
 	</div>
 </div>
