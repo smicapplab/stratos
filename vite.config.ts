@@ -6,7 +6,8 @@ import 'dotenv/config';
 export default defineConfig({
 	server: {
 		port: process.env.PORT ? parseInt(process.env.PORT, 10) : 5180,
-		host: process.env.HOST || true
+		host: process.env.HOST || true,
+		allowedHosts: true
 	},
 	plugins: [
 		sveltekit({
