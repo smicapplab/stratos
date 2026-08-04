@@ -15,7 +15,14 @@ export default {
   content: ['./src/**/*.{html,js,svelte,ts}'],
   safelist,
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        brand: {
+          primary: 'rgb(var(--color-brand-primary) / <alpha-value>)',
+          accent: 'rgb(var(--color-brand-accent) / <alpha-value>)',
+        }
+      }
+    },
   },
   plugins: [require('@tailwindcss/typography')],
 }

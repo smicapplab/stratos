@@ -1,5 +1,5 @@
 import { db } from '../db/db';
-import { tasks, auditLogs, comments, users, commentReactions, stages, taskLinks, boards, taskTags, tags } from '../db/schema';
+import { tasks, auditLogs, comments, users, commentReactions, stages, taskLinks, boards, taskTags, tags, taskFollowers } from '../db/schema';
 import { eq, and, isNull, sql, inArray } from 'drizzle-orm';
 import { unionAll } from 'drizzle-orm/pg-core';
 import type { Actor } from './users';
@@ -72,6 +72,11 @@ export async function createTask(
 			description: description ?? null,
 			searchText: description ? stripHtml(description) : ''
 		}).returning();
+
+		await tx.insert(taskFollowers).values({
+			taskId: newTask.id,
+			userId: actor.id
+		});
 
 		await tx.insert(auditLogs).values({
 			groupId: actor.groupId,
@@ -413,9 +418,21 @@ export async function getBoardTasks(groupId: string, stageIds: string[]) {
 		});
 	}
 
+	const fetchedFollowers = await db.select({
+		taskId: taskFollowers.taskId,
+		userId: taskFollowers.userId
+	}).from(taskFollowers).where(inArray(taskFollowers.taskId, taskIds));
+
+	const followersMap: Record<string, { userId: string }[]> = {};
+	for (const f of fetchedFollowers) {
+		if (!followersMap[f.taskId]) followersMap[f.taskId] = [];
+		followersMap[f.taskId].push({ userId: f.userId });
+	}
+
 	return fetchedTasks.map((t) => ({
 		...t,
-		tags: tagsMap[t.id] || []
+		tags: tagsMap[t.id] || [],
+		followers: followersMap[t.id] || []
 	}));
 }
 

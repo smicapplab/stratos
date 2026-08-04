@@ -14,20 +14,25 @@
 		"db:seed": "tsx src/lib/server/db/seed.ts",
 		"db:seed:api": "tsx src/lib/server/db/seed.ts --dev --api-seed",
 		"test": "vitest run",
-		"test:api": "bash scripts/test-api.sh"
+		"test:api": "bash scripts/test-api.sh",
+		"manual:generate": "playwright test tests/manual.spec.ts && vitepress build manual-src && rm -rf static/manual && cp -R manual-src/.vitepress/dist static/manual"
 	},
 	"devDependencies": {
 		"@fontsource/plus-jakarta-sans": "^5.2.8",
+		"@playwright/test": "^1.62.0",
 		"@sveltejs/adapter-auto": "^7.0.1",
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tailwindcss/typography": "^0.5.20",
 		"@types/md5": "^2.3.6",
+		"@types/node": "^26.1.2",
 		"@types/nodemailer": "^8.0.1",
 		"@types/pg": "^8.20.0",
+		"@vitest/coverage-v8": "^4.1.10",
 		"autoprefixer": "^10.5.2",
 		"dotenv": "^17.4.2",
 		"drizzle-kit": "^0.31.10",
+		"marked": "^18.0.7",
 		"postcss": "^8.5.16",
 		"svelte": "^5.56.1",
 		"svelte-check": "^4.6.0",
@@ -35,9 +40,12 @@
 		"tsx": "^4.23.0",
 		"typescript": "^6.0.3",
 		"vite": "^8.0.16",
-		"vitest": "^4.1.10"
+		"vitepress": "^1.6.4",
+		"vitest": "^4.1.10",
+		"vue": "^3.5.40"
 	},
 	"dependencies": {
+		"@aws-sdk/client-ses": "^3.1097.0",
 		"@floating-ui/dom": "^1.8.0",
 		"@lucia-auth/adapter-drizzle": "^1.1.0",
 		"@modelcontextprotocol/sdk": "^1.29.0",

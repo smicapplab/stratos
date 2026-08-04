@@ -24,6 +24,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const [board] = await db.select({
 		id: boards.id,
 		name: boards.name,
+		icon: boards.icon,
 		projectId: boards.projectId,
 		groupId: boards.groupId,
 		creatorId: boards.creatorId
@@ -107,11 +108,13 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const name = data.get('name')?.toString();
 		const projectId = data.get('projectId')?.toString();
+		const icon = data.get('icon')?.toString();
 
 		try {
 			await updateBoard(actor, params.id, {
 				...(name ? { name } : {}),
-				...(projectId ? { projectId } : {})
+				...(projectId ? { projectId } : {}),
+				...(icon ? { icon } : {})
 			});
 			return { success: true };
 		} catch (err) {
@@ -249,6 +252,35 @@ export const actions: Actions = {
 
 		try {
 			await softDeleteTask(actor, taskId);
+			return { success: true };
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
+		}
+	},
+
+	toggleFollower: async ({ request, locals }) => {
+		if (!locals.user) return fail(401, { error: 'Unauthorized' });
+		const data = await request.formData();
+		const taskId = data.get('taskId') as string;
+		const userId = data.get('userId') as string || locals.user.id;
+		
+		if (!taskId) return fail(400, { error: 'Task ID is required' });
+
+		// We need to import `taskFollowers` at the top if it's not there.
+		// It's safer to just import it here to avoid messing up imports or we can add it to the top.
+		const { db } = await import('$lib/server/db/db');
+		const { taskFollowers } = await import('$lib/server/db/schema');
+		const { eq, and } = await import('drizzle-orm');
+
+		try {
+			const existing = await db.select().from(taskFollowers).where(and(eq(taskFollowers.taskId, taskId), eq(taskFollowers.userId, userId))).limit(1);
+			
+			if (existing.length > 0) {
+				await db.delete(taskFollowers).where(and(eq(taskFollowers.taskId, taskId), eq(taskFollowers.userId, userId)));
+			} else {
+				await db.insert(taskFollowers).values({ taskId, userId });
+			}
 			return { success: true };
 		} catch (err) {
 			const error = err as Error;

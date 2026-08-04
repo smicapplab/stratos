@@ -6,7 +6,9 @@ const { mockSelectChain, mockTx } = vi.hoisted(() => {
 	const selectChain: any = {
 		from: vi.fn().mockReturnThis(),
 		innerJoin: vi.fn().mockReturnThis(),
+		leftJoin: vi.fn().mockReturnThis(),
 		where: vi.fn().mockReturnThis(),
+		orderBy: vi.fn().mockReturnThis(),
 		for: vi.fn().mockReturnThis()
 	};
 	selectChain.then = (onFulfilled: any) => Promise.resolve([
@@ -158,6 +160,87 @@ describe('Tasks Service (Security Hardening & FTS Text Extraction)', () => {
 			const setCall = mockTx.set.mock.calls[0][0];
 			expect(setCall.description).toBeNull();
 			expect(setCall.searchText).toBe('');
+		});
+	});
+
+	describe('getBoardTasks()', () => {
+		it('should fetch tasks and correctly attach followers and tags', async () => {
+			const { getBoardTasks } = await import('./tasks');
+
+			// Mock the db.select chain for getBoardTasks
+			// getBoardTasks does three queries: tasks, tags, followers.
+			let queryCall = 0;
+			mockSelectChain.then = vi.fn().mockImplementation((onFulfilled) => {
+				queryCall++;
+				if (queryCall === 1) {
+					// Tasks query
+					return Promise.resolve([
+						{ id: 'task-1', title: 'Test Task' },
+						{ id: 'task-2', title: 'Test Task 2' }
+					]).then(onFulfilled);
+				} else if (queryCall === 2) {
+					// Tags query
+					return Promise.resolve([
+						{ taskId: 'task-1', id: 'tag-1', name: 'Bug', color: 'red' }
+					]).then(onFulfilled);
+				} else if (queryCall === 3) {
+					// Followers query
+					return Promise.resolve([
+						{ taskId: 'task-1', userId: 'user-1' },
+						{ taskId: 'task-1', userId: 'user-2' },
+						{ taskId: 'task-2', userId: 'user-3' }
+					]).then(onFulfilled);
+				}
+				return Promise.resolve([]).then(onFulfilled);
+			});
+
+			const results = await getBoardTasks('group-1', ['stage-1']);
+
+			expect(results).toHaveLength(2);
+			
+			// Verify first task
+			expect(results[0].id).toBe('task-1');
+			expect(results[0].tags).toHaveLength(1);
+			expect(results[0].tags[0].name).toBe('Bug');
+			expect(results[0].followers).toHaveLength(2);
+			expect(results[0].followers[0].userId).toBe('user-1');
+			expect(results[0].followers[1].userId).toBe('user-2');
+
+			// Verify second task
+			expect(results[1].id).toBe('task-2');
+			expect(results[1].tags).toHaveLength(0);
+			expect(results[1].followers).toHaveLength(1);
+			expect(results[1].followers[0].userId).toBe('user-3');
+		});
+	});
+
+	describe('softDeleteTask()', () => {
+		it('should reject deletion by Viewers', async () => {
+			const { softDeleteTask } = await import('./tasks');
+			await expect(softDeleteTask(viewerActor, 'task-1'))
+				.rejects.toThrow('Unauthorized: Viewers cannot delete tasks.');
+		});
+
+		it('should set deletedAt and remove parent references', async () => {
+			const { softDeleteTask } = await import('./tasks');
+			await softDeleteTask(memberActor, 'task-1');
+			
+			expect(mockTx.update).toHaveBeenCalled();
+			expect(mockTx.set).toHaveBeenCalledWith({ deletedAt: expect.any(Date) });
+		});
+	});
+
+	describe('Task Linking', () => {
+		it('linkTasks should prevent self-linking', async () => {
+			const { linkTasks } = await import('./tasks');
+			await expect(linkTasks(memberActor, 'task-1', 'task-1', 'relates_to'))
+				.rejects.toThrow('Cannot link task to itself');
+		});
+
+		it('removeTaskLink should enforce Viewer restriction', async () => {
+			const { removeTaskLink } = await import('./tasks');
+			await expect(removeTaskLink(viewerActor, 'link-1'))
+				.rejects.toThrow('Unauthorized');
 		});
 	});
 });

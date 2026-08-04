@@ -6,6 +6,7 @@ const { mockSelectChain } = vi.hoisted(() => {
 	const chain = {
 		from: vi.fn().mockReturnThis(),
 		leftJoin: vi.fn().mockReturnThis(),
+		innerJoin: vi.fn().mockReturnThis(),
 		where: vi.fn().mockReturnThis(),
 		orderBy: vi.fn().mockReturnThis(),
 		limit: vi.fn().mockReturnThis(),
@@ -40,7 +41,7 @@ describe('Notifications Service - notifyCommentAdded()', () => {
 
 	it('should notify assignee and reporter when someone else comments', async () => {
 		// Setup mock task return value
-		mockSelectChain.then.mockImplementation((resolve) => {
+		mockSelectChain.then.mockImplementationOnce((resolve) => {
 			if (typeof resolve === 'function') {
 				resolve([
 					{
@@ -50,6 +51,9 @@ describe('Notifications Service - notifyCommentAdded()', () => {
 					}
 				]);
 			}
+			return Promise.resolve();
+		}).mockImplementation((resolve) => {
+			if (typeof resolve === 'function') resolve([]);
 			return Promise.resolve();
 		});
 
@@ -62,7 +66,7 @@ describe('Notifications Service - notifyCommentAdded()', () => {
 
 	it('should not notify the assignee if they are the author of the comment', async () => {
 		// Setup mock task where author is assignee
-		mockSelectChain.then.mockImplementation((resolve) => {
+		mockSelectChain.then.mockImplementationOnce((resolve) => {
 			if (typeof resolve === 'function') {
 				resolve([
 					{
@@ -72,6 +76,9 @@ describe('Notifications Service - notifyCommentAdded()', () => {
 					}
 				]);
 			}
+			return Promise.resolve();
+		}).mockImplementation((resolve) => {
+			if (typeof resolve === 'function') resolve([]);
 			return Promise.resolve();
 		});
 
@@ -84,7 +91,7 @@ describe('Notifications Service - notifyCommentAdded()', () => {
 
 	it('should not notify anyone if the commenter is both assignee and reporter', async () => {
 		// Setup mock task
-		mockSelectChain.then.mockImplementation((resolve) => {
+		mockSelectChain.then.mockImplementationOnce((resolve) => {
 			if (typeof resolve === 'function') {
 				resolve([
 					{
@@ -94,6 +101,9 @@ describe('Notifications Service - notifyCommentAdded()', () => {
 					}
 				]);
 			}
+			return Promise.resolve();
+		}).mockImplementation((resolve) => {
+			if (typeof resolve === 'function') resolve([]);
 			return Promise.resolve();
 		});
 

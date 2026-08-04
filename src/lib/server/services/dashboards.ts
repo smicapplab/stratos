@@ -1,6 +1,6 @@
 import { db } from '../db/db';
 import { tasks, stages, users, boards, notifications, projects, projectMembers, auditLogs } from '../db/schema';
-import { eq, and, isNull, sql, lt, gt, inArray, desc } from 'drizzle-orm';
+import { eq, and, isNull, sql, lt, gt, inArray, desc, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { Actor } from './users';
 import { getCachedDashboardData, setCachedDashboardData } from '../redis';
@@ -109,9 +109,11 @@ export async function getDashboardMetrics(actor: Actor, boardId?: string) {
 	// 5. Unread Notifications count
 	const [unreadNotificationsRes] = await db.select({ count: sql<number>`cast(count(${notifications.id}) as int)` })
 		.from(notifications)
+		.leftJoin(tasks, eq(tasks.id, notifications.taskId))
 		.where(and(
 			eq(notifications.userId, actor.id),
-			isNull(notifications.readAt)
+			isNull(notifications.readAt),
+			or(isNull(notifications.taskId), isNull(tasks.deletedAt))
 		));
 	const unreadNotifications = unreadNotificationsRes?.count || 0;
 
@@ -307,7 +309,8 @@ export async function getDashboardWidgets(actor: Actor) {
 	.leftJoin(users, eq(users.id, notifications.actorId))
 	.where(and(
 		eq(notifications.userId, actor.id),
-		isNull(notifications.readAt)
+		isNull(notifications.readAt),
+		or(isNull(notifications.taskId), isNull(tasks.deletedAt))
 	))
 	.orderBy(desc(notifications.createdAt))
 	.limit(5);

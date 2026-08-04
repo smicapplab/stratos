@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db/db';
 import { tasks, users, boards } from '$lib/server/db/schema';
-import { eq, isNull, and } from 'drizzle-orm';
+import { eq, isNull, and, or } from 'drizzle-orm';
 
 import type { PageServerLoad } from './$types';
 
@@ -32,7 +32,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 	.where(and(
 		eq(tasks.groupId, locals.user.groupId),
 		eq(tasks.assigneeId, locals.user.id),
-		isNull(tasks.deletedAt)
+		isNull(tasks.deletedAt),
+		or(isNull(tasks.boardId), isNull(boards.deletedAt))
 	));
 
 	const groupUsers = await db.select({

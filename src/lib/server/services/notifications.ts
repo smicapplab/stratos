@@ -1,6 +1,6 @@
 import { db } from '../db/db';
-import { notifications, tasks } from '../db/schema';
-import { eq, and, desc, isNull } from 'drizzle-orm';
+import { notifications, tasks, taskFollowers, users } from '../db/schema';
+import { eq, and, desc, isNull, or } from 'drizzle-orm';
 import type { Actor } from './users';
 import { globalEventEmitter } from './events';
 
@@ -44,12 +44,45 @@ export async function getNotifications(actor: Actor) {
 		readAt: notifications.readAt,
 		createdAt: notifications.createdAt,
 		taskId: notifications.taskId,
+		boardId: tasks.boardId,
 		taskTitle: tasks.title,
-		actorId: notifications.actorId
+		actorId: notifications.actorId,
+		actorName: users.name
 	})
 	.from(notifications)
-	.leftJoin(tasks, and(eq(tasks.id, notifications.taskId), isNull(tasks.deletedAt)))
-	.where(eq(notifications.userId, actor.id))
+	.leftJoin(tasks, eq(tasks.id, notifications.taskId))
+	.leftJoin(users, eq(users.id, notifications.actorId))
+	.where(
+		and(
+			eq(notifications.userId, actor.id),
+			or(isNull(notifications.taskId), isNull(tasks.deletedAt))
+		)
+	)
+	.orderBy(desc(notifications.createdAt))
+	.limit(50);
+}
+
+export async function getSentNotifications(actor: Actor) {
+	return await db.select({
+		id: notifications.id,
+		type: notifications.type,
+		readAt: notifications.readAt,
+		createdAt: notifications.createdAt,
+		taskId: notifications.taskId,
+		boardId: tasks.boardId,
+		taskTitle: tasks.title,
+		recipientId: notifications.userId,
+		recipientName: users.name
+	})
+	.from(notifications)
+	.leftJoin(tasks, eq(tasks.id, notifications.taskId))
+	.leftJoin(users, eq(users.id, notifications.userId))
+	.where(
+		and(
+			eq(notifications.actorId, actor.id),
+			or(isNull(notifications.taskId), isNull(tasks.deletedAt))
+		)
+	)
 	.orderBy(desc(notifications.createdAt))
 	.limit(50);
 }
@@ -71,10 +104,12 @@ export async function markAsRead(actor: Actor, notificationId?: string) {
  * Automatically fires notifications of type 'comment_added' to the task assignee
  * and the task reporter (creator) when a new comment is posted.
  */
-export async function notifyCommentAdded(authorId: string, taskId: string): Promise<void> {
+export async function notifyCommentAdded(authorId: string, taskId: string, content?: string): Promise<void> {
 	try {
 		const [task] = await db.select({
 			id: tasks.id,
+			title: tasks.title,
+			groupId: tasks.groupId,
 			assigneeId: tasks.assigneeId,
 			customFields: tasks.customFields
 		})
@@ -89,16 +124,82 @@ export async function notifyCommentAdded(authorId: string, taskId: string): Prom
 
 		if (!task) return;
 
-		// 1. Notify assignee (if the author is not the assignee)
-		if (task.assigneeId && task.assigneeId !== authorId) {
-			await createNotification(task.assigneeId, authorId, 'comment_added', taskId);
+		const notifiedUsers = new Set<string>();
+
+		const notifyUser = async (uId: string) => {
+			if (uId !== authorId && !notifiedUsers.has(uId)) {
+				await createNotification(uId, authorId, 'comment_added', taskId);
+				notifiedUsers.add(uId);
+			}
+		};
+
+		// Parse explicit mentions from content (e.g. data-id="user-id" or plain text @Name)
+		const mentionedUserIds = new Set<string>();
+		if (content) {
+			const mentionMatches = content.matchAll(/data-id="([^"]+)"/gi);
+			for (const match of mentionMatches) {
+				if (match[1] && match[1] !== authorId) {
+					mentionedUserIds.add(match[1]);
+				}
+			}
+
+			// Fallback: check plain text @UserName for all active users in the group
+			const groupUsersList = await db.select({ id: users.id, name: users.name })
+				.from(users)
+				.where(and(eq(users.groupId, task.groupId), isNull(users.deletedAt)));
+			
+			const contentLower = content.toLowerCase();
+			for (const u of groupUsersList) {
+				if (u.id !== authorId && u.name && contentLower.includes(`@${u.name.toLowerCase()}`)) {
+					mentionedUserIds.add(u.id);
+				}
+			}
 		}
 
-		// 2. Notify reporter (if the author is not the reporter and reporter is distinct from assignee)
+		// 1. Notify mentioned users with type 'mentioned' and auto-add them as followers
+		for (const mId of mentionedUserIds) {
+			if (!notifiedUsers.has(mId)) {
+				await createNotification(mId, authorId, 'mentioned', taskId);
+				notifiedUsers.add(mId);
+
+				// Auto-add mentioned user as a follower if not already following
+				const [existingFollower] = await db.select({ taskId: taskFollowers.taskId })
+					.from(taskFollowers)
+					.where(and(eq(taskFollowers.taskId, taskId), eq(taskFollowers.userId, mId)));
+				if (!existingFollower) {
+					await db.insert(taskFollowers).values({ taskId, userId: mId }).catch(() => {});
+				}
+			}
+		}
+
+		// 2. Notify assignee
+		if (task.assigneeId) {
+			await notifyUser(task.assigneeId);
+		}
+
+		// 3. Notify reporter
 		const customFields = (task.customFields || {}) as { reporterId?: string };
-		const reporterId = customFields.reporterId;
-		if (reporterId && reporterId !== authorId && reporterId !== task.assigneeId) {
-			await createNotification(reporterId, authorId, 'comment_added', taskId);
+		if (customFields.reporterId) {
+			await notifyUser(customFields.reporterId);
+		}
+
+		// 4. Notify followers
+		const followers = await db.select({ user: users }).from(taskFollowers).innerJoin(users, eq(taskFollowers.userId, users.id)).where(eq(taskFollowers.taskId, taskId));
+		
+		for (const f of followers) {
+			await notifyUser(f.user.id);
+		}
+
+		// 4. Dispatch Email Event
+		if (content) {
+			const [author] = await db.select({ name: users.name }).from(users).where(eq(users.id, authorId));
+			globalEventEmitter.emit('comment:created', {
+				followers,
+				authorName: author?.name || 'Someone',
+				taskTitle: task.title,
+				content,
+				taskId
+			});
 		}
 	} catch (err) {
 		console.error(`Failed to notify comment added for task ${taskId}:`, err);

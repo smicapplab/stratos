@@ -22,6 +22,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 	
 	return {
 		user: locals.user,
+		group: locals.group,
 		projects: allProjects,
 		boards: allBoards,
 		notifications

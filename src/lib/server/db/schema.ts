@@ -10,6 +10,8 @@ export const tsvector = customType<{ data: string }>({
 export const groups = pgTable('groups', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
+  logoUrl: text('logo_url'),
+  defaultTheme: varchar('default_theme', { length: 50 }).default('stratos').notNull(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
@@ -41,6 +43,7 @@ export const sessions = pgTable('sessions', {
 export const projects = pgTable('projects', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
+  icon: varchar('icon', { length: 50 }).default('Folder').notNull(),
   groupId: uuid('group_id').references(() => groups.id).notNull(),
   visibility: varchar('visibility', { length: 50 }).default('Public').notNull(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -59,6 +62,7 @@ export const projectMembers = pgTable('project_members', {
 export const boards = pgTable('boards', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
+  icon: varchar('icon', { length: 50 }).default('KanbanSquare').notNull(),
   prefix: varchar('prefix', { length: 10 }).notNull().default('TSK'),
   projectId: uuid('project_id').references(() => projects.id).notNull(),
   groupId: uuid('group_id').references(() => groups.id).notNull(),
@@ -214,4 +218,12 @@ export const apiTokens = pgTable('api_tokens', {
 }, (t) => ({
 	groupIdIdx: index('api_tokens_group_id_idx').on(t.groupId),
 	tokenHashIdx: index('api_tokens_token_hash_idx').on(t.tokenHash)
+}));
+
+export const taskFollowers = pgTable('task_followers', {
+	taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }).notNull(),
+	userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
+}, (t) => ({
+	pk: primaryKey({ columns: [t.taskId, t.userId] })
 }));

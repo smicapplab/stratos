@@ -20,7 +20,16 @@ vi.mock('../db/db', () => ({
 		set: vi.fn().mockReturnThis(),
 		where: vi.fn().mockReturnThis(),
 		delete: vi.fn().mockReturnThis(),
-		select: vi.fn().mockReturnValue(mockSelectChain)
+		select: vi.fn().mockReturnValue(mockSelectChain),
+		transaction: vi.fn(async (cb: any) => cb({
+			insert: vi.fn().mockReturnThis(),
+			values: vi.fn().mockReturnThis(),
+			returning: vi.fn().mockResolvedValue([{ id: 'new-board-id' }]),
+			update: vi.fn().mockReturnThis(),
+			set: vi.fn().mockReturnThis(),
+			where: vi.fn().mockReturnThis(),
+			select: vi.fn().mockReturnValue(mockSelectChain)
+		}))
 	}
 }));
 

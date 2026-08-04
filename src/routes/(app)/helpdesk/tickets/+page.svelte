@@ -42,7 +42,7 @@
 	function getStatusClass(stageName: string) {
 		switch (stageName) {
 			case 'Incoming':
-				return 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/50';
+				return 'bg-brand-primary/10 dark:bg-brand-primary/20 text-brand-primary dark:text-brand-primary border-brand-primary/30 dark:border-brand-primary/50';
 			case 'In Progress':
 				return 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50';
 			case 'Resolved':
@@ -67,7 +67,7 @@
 		<div>
 			<a 
 				href="/helpdesk/new" 
-				class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium text-sm rounded-xl shadow-md transition-all duration-200 min-h-[44px]"
+				class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-brand-primary to-brand-accent hover:from-brand-primary hover:opacity-90 hover:to-brand-accent text-white font-medium text-sm rounded-xl shadow-md transition-all duration-200 min-h-[44px]"
 			>
 				<Plus class="w-4 h-4" />
 				Submit a Ticket
@@ -81,9 +81,9 @@
 		<button 
 			onclick={() => filterType = 'Incoming'}
 			class="flex items-center gap-4 p-5 bg-white dark:bg-zinc-900 rounded-2xl border text-left transition-all duration-200 hover:shadow-md cursor-pointer
-			{filterType === 'Incoming' ? 'border-blue-500 ring-2 ring-blue-500/10' : 'border-zinc-200/80 dark:border-zinc-800/80'}"
+			{filterType === 'Incoming' ? 'border-brand-primary ring-2 ring-brand-primary/10' : 'border-zinc-200/80 dark:border-zinc-800/80'}"
 		>
-			<div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+			<div class="p-3 rounded-xl bg-brand-primary/10 dark:bg-brand-primary/20 text-brand-primary dark:text-brand-primary">
 				<Clock class="w-5 h-5" />
 			</div>
 			<div>
@@ -132,7 +132,7 @@
 				type="text"
 				bind:value={searchQuery}
 				placeholder="Search tickets by title or number..."
-				class="w-full pl-10 pr-4 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all min-h-[44px]"
+				class="w-full pl-10 pr-4 py-2 text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all min-h-[44px]"
 			/>
 		</div>
 		
@@ -176,7 +176,7 @@
 			{#if !searchQuery && filterType === 'all'}
 				<a 
 					href="/helpdesk/new" 
-					class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium text-sm rounded-xl shadow-md transition-colors min-h-[44px]"
+					class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-brand-primary to-brand-accent hover:from-brand-primary hover:opacity-90 hover:to-brand-accent text-white font-medium text-sm rounded-xl shadow-md transition-colors min-h-[44px]"
 				>
 					<Plus class="w-4 h-4" />
 					Submit a support ticket

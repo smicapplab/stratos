@@ -107,6 +107,7 @@
 		{#if activeTask}
 			<TaskDrawer 
 				bind:task={activeTask} 
+				currentUserId={data.user.id}
 				allTasks={data.tasks} 
 				groupUsers={data.groupUsers} 
 				stages={data.stages} 
@@ -151,7 +152,7 @@
 							bind:value={taskTitle}
 							placeholder="What needs to be done?" 
 							required 
-							class="w-full px-3.5 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
+							class="w-full px-3.5 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
 						/>
 					</div>
 
@@ -161,7 +162,7 @@
 						<select 
 							id="project-select"
 							bind:value={selectedProjectId}
-							class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-zinc-900 dark:text-zinc-100 min-h-[40px]"
+							class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-zinc-900 dark:text-zinc-100 min-h-[40px]"
 						>
 							{#each data.projects as project}
 								<option value={project.id}>{project.name}</option>
@@ -176,7 +177,7 @@
 							id="board-select"
 							bind:value={selectedBoardId}
 							disabled={filteredBoards.length === 0}
-							class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-zinc-900 dark:text-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px]"
+							class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-zinc-900 dark:text-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px]"
 						>
 							{#each filteredBoards as board}
 								<option value={board.id}>{board.name}</option>
@@ -193,7 +194,7 @@
 							id="assignee-select"
 							name="assigneeId"
 							bind:value={selectedAssigneeId}
-							class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-zinc-900 dark:text-zinc-100 min-h-[40px]"
+							class="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-zinc-900 dark:text-zinc-100 min-h-[40px]"
 						>
 							<option value="">Unassigned</option>
 							{#each data.groupUsers as user}
@@ -214,7 +215,7 @@
 						<button 
 							type="submit" 
 							disabled={!selectedStageId || !taskTitle}
-							class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all transform hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px]"
+							class="px-4 py-2 bg-brand-primary hover:opacity-90 text-white text-xs font-bold rounded-xl shadow-sm transition-all transform hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px]"
 						>
 							Create Task
 						</button>
