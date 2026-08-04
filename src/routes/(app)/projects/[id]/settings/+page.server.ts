@@ -2,7 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db/db';
 import { projects, projectMembers, users } from '$lib/server/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
-import { addProjectMember, removeProjectMember, updateProjectVisibility, getAccessibleProjects, getProjectActivity } from '$lib/server/services/projects';
+import { addProjectMember, removeProjectMember, updateProjectVisibility, getAccessibleProjects, getProjectActivity, updateProjectSettings, deleteProject } from '$lib/server/services/projects';
 import { sendProjectInviteEmail } from '$lib/server/services/email';
 import { getProjectTags } from '$lib/server/services/tags';
 
@@ -20,6 +20,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const [project] = await db.select({
 		id: projects.id,
 		name: projects.name,
+		icon: projects.icon,
 		visibility: projects.visibility,
 		groupId: projects.groupId,
 		createdAt: projects.createdAt
@@ -79,6 +80,22 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 export const actions: Actions = {
+	updateProjectSettings: async ({ request, params, locals }) => {
+		const data = await request.formData();
+		const name = data.get('name')?.toString();
+		const icon = data.get('icon')?.toString();
+
+		if (!name) return fail(400, { error: 'Project name is required' });
+
+		try {
+			await updateProjectSettings(locals.user!, params.id, name, icon || 'Folder');
+			return { success: true };
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
+		}
+	},
+
 	updateVisibility: async ({ request, params, locals }) => {
 		const data = await request.formData();
 		const visibility = data.get('visibility')?.toString() as 'Public' | 'Private';
@@ -176,6 +193,17 @@ export const actions: Actions = {
 			await addProjectMember(locals.user!, params.id, userId, role);
 			return { success: true };
 		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
+		}
+	},
+
+	delete: async ({ params, locals }) => {
+		try {
+			await deleteProject(locals.user!, params.id);
+			throw redirect(303, '/');
+		} catch (err) {
+			if (err && typeof err === 'object' && 'status' in err && err.status === 303) throw err;
 			const error = err as Error;
 			return fail(403, { error: error.message });
 		}

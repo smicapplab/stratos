@@ -33,7 +33,7 @@
 		type="button" 
 		onclick={togglePopover}
 		aria-label="Learn about file security"
-		class="p-0.5 rounded-full hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-500"
+		class="p-0.5 rounded-full hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors focus:outline-none focus:ring-1 focus:ring-brand-primary"
 	>
 		<Info class="w-3.5 h-3.5" />
 	</button>

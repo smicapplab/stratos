@@ -69,11 +69,6 @@
 	<div
 		class="bg-white dark:bg-[#121214] p-4 rounded-2xl border border-zinc-200/60 dark:border-white/5 shadow-sm flex items-start gap-3 sm:gap-4 mb-10"
 	>
-		<div class="shrink-0 mt-1 hidden sm:block">
-			<div
-				class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 shadow-sm border border-white dark:border-zinc-900"
-			></div>
-		</div>
 		<div
 			class="flex-1 border border-zinc-200 dark:border-white/10 rounded-xl overflow-hidden focus-within:border-indigo-500/50 transition-all bg-zinc-50/50 dark:bg-[#18181b]"
 		>
@@ -99,7 +94,7 @@
 					>
 						{#if editingCommentId === item.id}
 							<div
-								class="border border-blue-500/50 rounded-xl overflow-hidden bg-zinc-50 dark:bg-[#18181b] shadow-sm mb-3"
+								class="border border-brand-primary/50 rounded-xl overflow-hidden bg-zinc-50 dark:bg-[#18181b] shadow-sm mb-3"
 							>
 								<div
 									use:editTiptapAction={item.content || ""}
@@ -116,7 +111,7 @@
 									onclick={() =>
 										saveCommentEdit(item.id as string)}
 									type="button"
-									class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm uppercase tracking-wide transition-colors"
+									class="px-4 py-2 bg-brand-primary hover:opacity-90 text-white text-xs font-bold rounded-lg shadow-sm uppercase tracking-wide transition-colors"
 									>Update</button
 								>
 							</div>
@@ -283,7 +278,7 @@
 										>
 											{#if editingCommentId === reply.id}
 												<div
-													class="border border-blue-500/50 rounded-xl overflow-hidden bg-zinc-50 dark:bg-[#18181b] shadow-sm mb-3"
+													class="border border-brand-primary/50 rounded-xl overflow-hidden bg-zinc-50 dark:bg-[#18181b] shadow-sm mb-3"
 												>
 													<div
 														use:editTiptapAction={reply.content ||
@@ -307,7 +302,7 @@
 																reply.id as string,
 															)}
 														type="button"
-														class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm uppercase tracking-wide transition-colors"
+														class="px-4 py-2 bg-brand-primary hover:opacity-90 text-white text-xs font-bold rounded-lg shadow-sm uppercase tracking-wide transition-colors"
 														>Update</button
 													>
 												</div>
@@ -526,7 +521,7 @@
 							class="text-[13px] text-zinc-700 dark:text-zinc-300"
 						>
 							<span
-								class="font-bold text-blue-600 dark:text-blue-500"
+								class="font-bold text-brand-primary dark:text-brand-primary"
 								>{item.userName}</span
 							>
 							{#if item.actionType === "stage_change"}

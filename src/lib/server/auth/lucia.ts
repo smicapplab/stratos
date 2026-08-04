@@ -1,4 +1,4 @@
-import { Lucia } from "lucia";
+import { Lucia, TimeSpan } from "lucia";
 import { DrizzlePostgreSQLAdapter } from "@lucia-auth/adapter-drizzle";
 import { db } from "../db/db";
 import { sessions, users } from "../db/schema";
@@ -7,6 +7,7 @@ import { dev } from "$app/environment";
 const adapter = new DrizzlePostgreSQLAdapter(db, sessions, users);
 
 export const lucia = new Lucia(adapter, {
+	sessionExpiresIn: new TimeSpan(60, "d"),
 	sessionCookie: {
 		attributes: {
 			secure: !dev

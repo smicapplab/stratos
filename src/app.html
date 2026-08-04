@@ -10,6 +10,11 @@
 			} else {
 				document.documentElement.classList.remove('dark')
 			}
+			
+			const brandTheme = localStorage.getItem('stratos-theme');
+			if (brandTheme) {
+				document.documentElement.setAttribute('data-theme', brandTheme);
+			}
 		</script>
 		<meta name="text-scale" content="scale" />
 		%sveltekit.head%

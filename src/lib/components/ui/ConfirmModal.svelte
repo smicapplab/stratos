@@ -28,7 +28,7 @@
 					<button onclick={handleCancel} class="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
 						{modalStore.activeModal.cancelText || 'Cancel'}
 					</button>
-					<button onclick={handleConfirm} class="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors {modalStore.activeModal.destructive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}">
+					<button onclick={handleConfirm} class="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors {modalStore.activeModal.destructive ? 'bg-red-600 hover:bg-red-700' : 'bg-brand-primary hover:opacity-90'}">
 						{modalStore.activeModal.confirmText || 'Confirm'}
 					</button>
 				</div>

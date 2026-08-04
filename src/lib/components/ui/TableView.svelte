@@ -127,7 +127,7 @@
 								<!-- Board Column (Optional) -->
 								{#if showBoard}
 									<div class="flex items-center">
-										<span class="text-[13px] font-medium text-zinc-600 dark:text-zinc-400">Board {task.boardId?.substring(0,8)}</span>
+										<span class="text-[13px] font-medium text-zinc-600 dark:text-zinc-400 truncate" title={task.boardName || ''}>{task.boardName || (task.boardId ? `Board ${task.boardId.substring(0,8)}` : '-')}</span>
 									</div>
 								{/if}
 

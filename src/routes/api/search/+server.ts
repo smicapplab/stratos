@@ -32,10 +32,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		parentTaskId: tasks.parentTaskId
 	}).from(tasks)
 	.leftJoin(boards, eq(tasks.boardId, boards.id))
+	.leftJoin(projects, or(eq(tasks.projectId, projects.id), eq(boards.projectId, projects.id)))
 	.where(and(
 		eq(tasks.groupId, groupId), 
 		isNull(tasks.deletedAt),
 		or(isNull(tasks.boardId), isNull(boards.deletedAt)),
+		or(isNull(projects.id), isNull(projects.deletedAt)),
 		sql`${tasks.searchVector} @@ websearch_to_tsquery('english', ${query})`
 	)).limit(10);
 
@@ -52,10 +54,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			parentTaskId: tasks.parentTaskId
 		}).from(tasks)
 		.leftJoin(boards, eq(tasks.boardId, boards.id))
+		.leftJoin(projects, or(eq(tasks.projectId, projects.id), eq(boards.projectId, projects.id)))
 		.where(and(
 			eq(tasks.groupId, groupId), 
 			isNull(tasks.deletedAt),
 			or(isNull(tasks.boardId), isNull(boards.deletedAt)),
+			or(isNull(projects.id), isNull(projects.deletedAt)),
 			ilike(sql`concat(${boards.prefix}, '-', ${tasks.number})`, searchPattern)
 		)).limit(10);
 
@@ -71,10 +75,13 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	const matchingBoards = await db.select({
 		id: boards.id,
 		name: boards.name
-	}).from(boards).where(
+	}).from(boards)
+	.innerJoin(projects, eq(boards.projectId, projects.id))
+	.where(
 		and(
 			eq(boards.groupId, groupId),
 			isNull(boards.deletedAt),
+			isNull(projects.deletedAt),
 			ilike(boards.name, searchPattern)
 		)
 	).limit(5);

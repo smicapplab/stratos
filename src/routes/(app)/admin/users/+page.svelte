@@ -20,7 +20,7 @@
 			</div>
 			
 			<button 
-				class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm font-medium transition-all transform hover:scale-[1.02] active:scale-95"
+				class="px-5 py-2.5 bg-brand-primary hover:opacity-90 text-white rounded-lg shadow-sm font-medium transition-all transform hover:scale-[1.02] active:scale-95"
 				onclick={() => isInviting = !isInviting}
 			>
 				{isInviting ? 'Cancel' : '+ Invite User'}
@@ -40,11 +40,11 @@
 				<form method="POST" action="?/invite" use:enhance class="flex gap-4 items-end">
 					<div class="flex-1 space-y-2">
 						<label for="email" class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Email Address</label>
-						<input type="email" name="email" id="email" required placeholder="colleague@stratos.local" class="w-full px-4 py-2 bg-transparent border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
+						<input type="email" name="email" id="email" required placeholder="colleague@stratos.local" class="w-full px-4 py-2 bg-transparent border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all" />
 					</div>
 					<div class="w-48 space-y-2">
 						<label for="role" class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Role</label>
-						<select name="role" id="role" class="w-full px-4 py-2 bg-transparent border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:bg-zinc-900">
+						<select name="role" id="role" class="w-full px-4 py-2 bg-transparent border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary transition-all dark:bg-zinc-900">
 							<option value="Viewer">Viewer</option>
 							<option value="Member" selected>Member</option>
 							<option value="Manager">Manager</option>
@@ -121,7 +121,7 @@
 										</button>
 									</form>
 								{:else}
-									<span class="text-xs font-medium px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full">It's You</span>
+									<span class="text-xs font-medium px-2 py-1 bg-brand-primary/20 dark:bg-brand-primary/30 text-brand-primary dark:text-brand-primary rounded-full">It's You</span>
 								{/if}
 							</td>
 						</tr>

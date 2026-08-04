@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
-	import { invalidateAll } from "$app/navigation";
+	import { invalidateAll, goto } from "$app/navigation";
+	import { modalStore } from "$lib/stores/ui.svelte";
 	import {
 		Users,
 		Shield,
@@ -45,6 +46,8 @@
 		switch (log.actionType) {
 			case "project_created":
 				return `${name} created the project`;
+			case "project_updated":
+				return `${name} updated project profile`;
 			case "project_visibility_changed":
 				return `${name} changed project visibility to <span class="font-semibold text-zinc-900 dark:text-zinc-100">${details.visibility}</span>`;
 			case "member_joined":
@@ -167,6 +170,64 @@
 	{/if}
 
 	<div class="space-y-8">
+		<!-- Project Profile Section -->
+		<section
+			class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm p-5"
+		>
+			<h3 class="text-sm font-bold flex items-center gap-2 mb-4">
+				<Settings class="w-4 h-4 text-zinc-400" />
+				Project Profile
+			</h3>
+
+			<form
+				method="POST"
+				action="?/updateProjectSettings"
+				use:enhance
+				class="space-y-4 max-w-md"
+			>
+				<div>
+					<label for="name" class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Project Name</label>
+					<input 
+						type="text" 
+						id="name" 
+						name="name" 
+						value={project.name} 
+						disabled={!isProjectAdmin}
+						required 
+						class="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 disabled:opacity-50"
+					/>
+				</div>
+
+				<div>
+					<label for="icon" class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Project Icon</label>
+					<div class="relative">
+						<select 
+							id="icon" 
+							name="icon" 
+							disabled={!isProjectAdmin}
+							class="w-full appearance-none bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							{#each ['Folder', 'Code', 'Briefcase', 'Layers', 'Rocket', 'Star', 'Heart', 'Zap', 'Box', 'Compass', 'Laptop', 'Database', 'Globe', 'Hash'] as iconName}
+								<option value={iconName} selected={project.icon === iconName}>{iconName}</option>
+							{/each}
+						</select>
+						<div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-500">
+							<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+						</div>
+					</div>
+				</div>
+
+				{#if isProjectAdmin}
+					<button
+						type="submit"
+						class="px-4 py-2 bg-brand-primary hover:opacity-90 text-white text-sm font-semibold rounded-lg transition-colors mt-4"
+					>
+						Save Profile
+					</button>
+				{/if}
+			</form>
+		</section>
+
 		<!-- Visibility Section -->
 		<section
 			class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm p-5"
@@ -191,12 +252,12 @@
 								value="Public"
 								checked={project.visibility === "Public"}
 								disabled={!isProjectAdmin}
-								class="w-4 h-4 text-blue-600 border-zinc-300 focus:ring-blue-500 disabled:opacity-50"
+								class="w-4 h-4 text-brand-primary border-zinc-300 focus:ring-brand-primary disabled:opacity-50"
 							/>
 						</div>
 						<div>
 							<div
-								class="text-sm font-semibold group-hover:text-blue-600 transition-colors"
+								class="text-sm font-semibold group-hover:text-brand-primary transition-colors"
 							>
 								Public to Group
 							</div>
@@ -216,12 +277,12 @@
 								value="Private"
 								checked={project.visibility === "Private"}
 								disabled={!isProjectAdmin}
-								class="w-4 h-4 text-blue-600 border-zinc-300 focus:ring-blue-500 disabled:opacity-50"
+								class="w-4 h-4 text-brand-primary border-zinc-300 focus:ring-brand-primary disabled:opacity-50"
 							/>
 						</div>
 						<div>
 							<div
-								class="text-sm font-semibold group-hover:text-blue-600 transition-colors"
+								class="text-sm font-semibold group-hover:text-brand-primary transition-colors"
 							>
 								Private to Members
 							</div>
@@ -287,7 +348,7 @@
 								bind:value={selectedEmail}
 								required
 								list="available-users"
-								class="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+								class="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
 							/>
 							<datalist id="available-users">
 								{#each availableUsers as u}
@@ -315,7 +376,7 @@
 						<button
 							type="submit"
 							disabled={!selectedEmail}
-							class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
+							class="px-4 py-2 bg-brand-primary hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
 						>
 							Invite
 						</button>
@@ -337,7 +398,7 @@
 						>
 							<div class="flex items-center gap-3">
 								<div
-									class="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shadow-inner"
+									class="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-brand-accent flex items-center justify-center text-white text-sm font-bold shadow-inner"
 								>
 									{member.name.charAt(0).toUpperCase()}
 								</div>
@@ -347,7 +408,7 @@
 									>
 										{member.name}
 										<span
-											class="px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
+											class="px-1.5 py-0.5 rounded-full bg-brand-primary/20 dark:bg-brand-primary/30 text-brand-primary dark:text-brand-primary text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
 										>
 											<Shield class="w-3 h-3" /> Admin
 										</span>
@@ -457,7 +518,7 @@
 										/>
 										<button
 											type="submit"
-											class="p-2 text-zinc-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-md transition-colors"
+											class="p-2 text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 dark:hover:bg-blue-950/30 rounded-md transition-colors"
 											title="Promote to Admin"
 										>
 											<ArrowUpCircle class="w-4 h-4" />
@@ -556,7 +617,7 @@
 							name="tagName"
 							placeholder="e.g. Bug"
 							required
-							class="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+							class="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
 						/>
 					</div>
 
@@ -570,7 +631,7 @@
 							<select
 								id="new-tag-color"
 								name="tagColor"
-								class="w-full appearance-none bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
+								class="w-full appearance-none bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 cursor-pointer"
 							>
 								<option value="blue">Blue</option>
 								<option value="red">Red</option>
@@ -600,7 +661,7 @@
 
 					<button
 						type="submit"
-						class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+						class="px-4 py-2 bg-brand-primary hover:opacity-90 text-white text-sm font-semibold rounded-lg transition-colors"
 					>
 						Add Tag
 					</button>
@@ -624,7 +685,7 @@
 								<div class="relative">
 									<select
 										bind:value={editTagColor}
-										class="appearance-none bg-white dark:bg-black border border-zinc-300 dark:border-zinc-700 rounded px-3 pr-8 py-1.5 text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+										class="appearance-none bg-white dark:bg-black border border-zinc-300 dark:border-zinc-700 rounded px-3 pr-8 py-1.5 text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
 									>
 										<option value="blue">Blue</option>
 										<option value="red">Red</option>
@@ -652,7 +713,7 @@
 								</div>
 								<button
 									onclick={() => saveEditTag(tag)}
-									class="px-3 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded hover:bg-blue-700 whitespace-nowrap"
+									class="px-3 py-1.5 bg-brand-primary text-white text-sm font-semibold rounded hover:opacity-90 whitespace-nowrap"
 									>Save</button
 								>
 								<button
@@ -793,5 +854,58 @@
 				{/if}
 			</div>
 		</section>
+
+		{#if user?.role === 'Admin'}
+			<!-- Danger Zone -->
+			<section class="mt-8 bg-red-50/50 dark:bg-red-950/10 border border-red-200 dark:border-red-900/30 rounded-2xl overflow-hidden">
+				<div class="px-6 py-4 border-b border-red-200 dark:border-red-900/30 flex items-center gap-3">
+					<div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/50 flex items-center justify-center">
+						<svg class="w-4 h-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+					</div>
+					<div>
+						<h3 class="text-base font-semibold text-red-900 dark:text-red-400">Danger Zone</h3>
+						<p class="text-xs text-red-700 dark:text-red-500 mt-0.5">Irreversible actions for this project.</p>
+					</div>
+				</div>
+				<div class="p-6">
+					<div class="flex items-center justify-between">
+						<div>
+							<h4 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Delete Project</h4>
+							<p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-xl">
+								This will permanently hide the project and all its boards and tasks. You will be able to reuse this project name again.
+							</p>
+						</div>
+						
+						<form method="POST" action="?/delete" id="delete-project-form" use:enhance={() => {
+							return async ({ result, update }) => {
+								if (result.type === 'redirect') {
+									await goto(result.location, { invalidateAll: true });
+								} else {
+									await update();
+								}
+							};
+						}}>
+							<button 
+								type="button" 
+								class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors whitespace-nowrap"
+								onclick={() => {
+									modalStore.show({
+										title: 'Delete Project',
+										description: `Are you sure you want to delete "${project.name}"? This will permanently hide the project and all its boards. You will be able to reuse this project name later.`,
+										confirmText: 'Delete Project',
+										destructive: true,
+										onConfirm: () => {
+											(document.getElementById('delete-project-form') as HTMLFormElement)?.requestSubmit();
+										}
+									});
+								}}
+							>
+								Delete Project
+							</button>
+						</form>
+					</div>
+				</div>
+			</section>
+		{/if}
 	</div>
 </div>

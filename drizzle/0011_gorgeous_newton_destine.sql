@@ -1,0 +1,1 @@
+ALTER TABLE "boards" ADD COLUMN "icon" varchar(50) DEFAULT 'KanbanSquare' NOT NULL;

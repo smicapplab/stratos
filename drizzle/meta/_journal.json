@@ -57,6 +57,34 @@
       "when": 1784816242226,
       "tag": "0007_reflective_iceman",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785817155209,
+      "tag": "0008_clumsy_goliath",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785818575499,
+      "tag": "0009_closed_viper",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785819434966,
+      "tag": "0010_mushy_may_parker",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785819798811,
+      "tag": "0011_gorgeous_newton_destine",
+      "breakpoints": true
     }
   ]
 }

@@ -1,16 +1,30 @@
 import { db } from '../db/db';
-import { projects, projectMembers, boards, auditLogs, users } from '../db/schema';
+import { projects, projectMembers, boards, auditLogs, users, tasks } from '../db/schema';
 import { eq, and, or, isNull, inArray, asc, desc } from 'drizzle-orm';
 import type { Actor } from './users';
 
-export async function createProject(actor: Actor, name: string, visibility: 'Public' | 'Private' = 'Public') {
+export async function createProject(actor: Actor, name: string, visibility: 'Public' | 'Private' = 'Public', icon: string = 'Folder') {
 	if (actor.role !== 'Admin') {
 		throw new Error('Unauthorized: Only Admins can create projects.');
+	}
+	
+	// Check if a project with the same name already exists in this group and is not deleted
+	const [existing] = await db.select({ id: projects.id }).from(projects).where(
+		and(
+			eq(projects.groupId, actor.groupId),
+			eq(projects.name, name),
+			isNull(projects.deletedAt)
+		)
+	).limit(1);
+	
+	if (existing) {
+		throw new Error(`A project named "${name}" already exists.`);
 	}
 
 	return await db.transaction(async (tx) => {
 		const [newProject] = await tx.insert(projects).values({
 			name,
+			icon,
 			groupId: actor.groupId,
 			visibility
 		}).returning();
@@ -40,6 +54,7 @@ export async function getAccessibleProjects(actor: Actor) {
 		return await db.select({
 			id: projects.id,
 			name: projects.name,
+			icon: projects.icon,
 			groupId: projects.groupId,
 			visibility: projects.visibility,
 			createdAt: projects.createdAt
@@ -65,6 +80,7 @@ export async function getAccessibleProjects(actor: Actor) {
 	return await db.select({
 		id: projects.id,
 		name: projects.name,
+		icon: projects.icon,
 		groupId: projects.groupId,
 		visibility: projects.visibility,
 		createdAt: projects.createdAt
@@ -86,6 +102,7 @@ export async function getAccessibleBoards(actor: Actor) {
 	return await db.select({
 		id: boards.id,
 		name: boards.name,
+		icon: boards.icon,
 		projectId: boards.projectId,
 		groupId: boards.groupId
 	}).from(boards).where(
@@ -258,4 +275,110 @@ export async function getProjectActivity(actor: Actor, projectId: string, limitC
 	.orderBy(desc(auditLogs.createdAt))
 	.limit(limitCount)
 	.offset(offsetCount);
+}
+
+export async function updateProjectSettings(actor: Actor, projectId: string, name: string, icon: string) {
+	const [project] = await db.select({ id: projects.id }).from(projects).where(
+		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId), isNull(projects.deletedAt))
+	);
+	if (!project) throw new Error('Project not found or access denied');
+
+	if (actor.role !== 'Admin') {
+		const [member] = await db.select({ role: projectMembers.role }).from(projectMembers).where(
+			and(
+				eq(projectMembers.projectId, projectId),
+				eq(projectMembers.userId, actor.id)
+			)
+		);
+		if (!member || member.role !== 'Admin') {
+			throw new Error('Unauthorized: Only Project Admins can update project settings.');
+		}
+	}
+
+	await db.update(projects).set({ name, icon }).where(
+		and(
+			eq(projects.id, projectId),
+			eq(projects.groupId, actor.groupId),
+			isNull(projects.deletedAt)
+		)
+	);
+
+	await db.insert(auditLogs).values({
+		groupId: actor.groupId,
+		projectId,
+		userId: actor.id,
+		actionType: 'project_updated',
+		details: { name, icon }
+	});
+}
+
+export async function deleteProject(actor: Actor, projectId: string) {
+	if (actor.role !== 'Admin') {
+		throw new Error('Unauthorized: Only Admins can delete projects.');
+	}
+
+	const [project] = await db.select({ id: projects.id, name: projects.name }).from(projects).where(
+		and(
+			eq(projects.id, projectId),
+			eq(projects.groupId, actor.groupId),
+			isNull(projects.deletedAt)
+		)
+	);
+
+	if (!project) throw new Error('Project not found');
+
+	const timestamp = new Date().getTime();
+	const newName = `${project.name} (Deleted ${timestamp})`;
+
+	await db.transaction(async (tx) => {
+		// Soft delete the project and append timestamp to name
+		await tx.update(projects)
+			.set({ 
+				deletedAt: new Date(),
+				name: newName
+			})
+			.where(eq(projects.id, projectId));
+
+		// Find child boards
+		const childBoards = await tx.select({ id: boards.id }).from(boards)
+			.where(and(eq(boards.projectId, projectId), isNull(boards.deletedAt)));
+		
+		const childBoardIds = childBoards.map(b => b.id);
+
+		if (childBoardIds.length > 0) {
+			// Soft delete child boards
+			await tx.update(boards)
+				.set({ deletedAt: new Date() })
+				.where(inArray(boards.id, childBoardIds));
+
+			// Soft delete all tasks on this project or its child boards
+			await tx.update(tasks)
+				.set({ deletedAt: new Date() })
+				.where(
+					and(
+						eq(tasks.groupId, actor.groupId),
+						isNull(tasks.deletedAt),
+						or(eq(tasks.projectId, projectId), inArray(tasks.boardId, childBoardIds))
+					)
+				);
+		} else {
+			await tx.update(tasks)
+				.set({ deletedAt: new Date() })
+				.where(
+					and(
+						eq(tasks.groupId, actor.groupId),
+						isNull(tasks.deletedAt),
+						eq(tasks.projectId, projectId)
+					)
+				);
+		}
+
+		// Log audit
+		await tx.insert(auditLogs).values({
+			groupId: actor.groupId,
+			projectId: projectId,
+			userId: actor.id,
+			actionType: 'project_deleted'
+		});
+	});
 }

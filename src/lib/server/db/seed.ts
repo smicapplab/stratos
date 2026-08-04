@@ -68,7 +68,7 @@ async function main() {
 
 	// Create the users list
 	const usersList = [
-		{ id: adminId, groupId, email: 'admin@acme.internal', name: 'Alice Admin', role: 'Admin', hashedPassword: passwordHash }
+		{ id: adminId, groupId, email: 's.torrefranca@gmail.com', name: 'Alice Admin', role: 'Admin', hashedPassword: passwordHash }
 	];
 	if (mode === 'dev') {
 		usersList.push(

@@ -26,7 +26,7 @@
 										checked={item.done}
 										onchange={() =>
 											toggleChecklist(item.id)}
-										class="w-4 h-4 rounded-md border-2 border-zinc-300 dark:border-zinc-600 text-blue-600 focus:ring-blue-500 bg-transparent transition-all cursor-pointer"
+										class="w-4 h-4 rounded-md border-2 border-zinc-300 dark:border-zinc-600 text-brand-primary focus:ring-brand-primary bg-transparent transition-all cursor-pointer"
 									/>
 									<span
 										class="flex-1 text-[15px] {item.done
@@ -52,7 +52,7 @@
 									e.key === "Enter" &&
 									(e.preventDefault(), addChecklistItem())}
 								placeholder="Add an item..."
-								class="flex-1 bg-zinc-50 dark:bg-[#121214] border border-zinc-200 dark:border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 text-zinc-900 dark:text-zinc-100 transition-all placeholder:text-zinc-500"
+								class="flex-1 bg-zinc-50 dark:bg-[#121214] border border-zinc-200 dark:border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary/50 text-zinc-900 dark:text-zinc-100 transition-all placeholder:text-zinc-500"
 							/>
 							<button
 								type="button"

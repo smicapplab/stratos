@@ -27,7 +27,7 @@
 		if (p === 'Urgent') return 'bg-red-500';
 		if (p === 'High') return 'bg-orange-500';
 		if (p === 'Medium') return 'bg-yellow-500';
-		return 'bg-blue-500';
+		return 'bg-brand-primary/100';
 	}
 
 	let showAssigneePopover = $state(false);
@@ -97,7 +97,7 @@
 			onClick();
 		}
 	}}
-	class="group p-3 rounded-lg shadow-sm border cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg relative flex flex-col gap-3 overflow-hidden {focused ? 'ring-2 ring-blue-500 border-transparent' : ''} {task.parentTaskId ? 'bg-zinc-50 dark:bg-[#18181b]/80 border-dashed border-zinc-300 dark:border-white/10 hover:border-zinc-400 dark:hover:border-zinc-600' : 'bg-white dark:bg-[#18181b] border-zinc-200/80 dark:border-white/5 hover:border-zinc-400 dark:hover:border-zinc-600'}"
+	class="group p-3 rounded-lg shadow-sm border cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg relative flex flex-col gap-3 overflow-hidden {focused ? 'ring-2 ring-brand-primary border-transparent' : ''} {task.parentTaskId ? 'bg-zinc-50 dark:bg-[#18181b]/80 border-dashed border-zinc-300 dark:border-white/10 hover:border-zinc-400 dark:hover:border-zinc-600' : 'bg-white dark:bg-[#18181b] border-zinc-200/80 dark:border-white/5 hover:border-zinc-400 dark:hover:border-zinc-600'}"
 >
 	<!-- Priority Left Border Stripe -->
 	<div class="absolute left-0 top-0 bottom-0 w-1 {getPriorityColor(task.priority)}"></div>
@@ -196,7 +196,7 @@
 		<div class="flex items-center gap-2 pl-5 pr-2 -mt-1">
 			<div class="flex-1 h-1 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
 				<div
-					class="h-full rounded-full transition-all duration-300 {pct >= 1 ? 'bg-emerald-500' : 'bg-blue-500'}"
+					class="h-full rounded-full transition-all duration-300 {pct >= 1 ? 'bg-emerald-500' : 'bg-brand-primary/100'}"
 					style="width: {Math.round(pct * 100)}%"
 				></div>
 			</div>

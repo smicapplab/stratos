@@ -7,7 +7,7 @@ While structurally similar to a multi-tenant application, Stratos is strictly an
 
 ## User Management
 - **Users**: Individuals within the company. A user can belong to multiple Groups.
-- **Groups**: Distinct workspaces. All Tasks, Boards, and Projects belong to a Group.
+- **Groups**: Distinct workspaces. All Tasks, Boards, and Projects belong to a Group. Groups include branding configuration: `logoUrl` (optional logo image URL) and `defaultTheme` (default color theme for group users, default `'stratos'`).
 - **Projects**: Can be **Public** (visible to all Group members) or **Private** (visible only to explicitly invited members).
 - **Roles**:
   - `Admin`: Can manage group settings, invite users, and delete boards.

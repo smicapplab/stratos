@@ -54,7 +54,7 @@
 
 	function getPriorityColor(priority: string) {
 		switch (priority) {
-			case 'Low': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800';
+			case 'Low': return 'bg-brand-primary/20 text-brand-primary dark:bg-brand-primary/30 dark:text-brand-primary border-brand-primary/30 dark:border-brand-primary';
 			case 'Medium': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800';
 			case 'High': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-800';
 			case 'Urgent': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800';
@@ -133,7 +133,7 @@
 							<svg xmlns="http://www.w3.org/2000/svg" class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5v14"/></svg>
 							<span>Task</span>
 						</button>
-						<span class="text-xs font-semibold inline-flex items-center justify-center w-6 h-6 rounded-full {isToday ? 'bg-blue-600 text-white font-bold' : (isCurrentMonth ? 'text-zinc-600 dark:text-zinc-400' : 'text-zinc-400 dark:text-zinc-600')}">{date.getDate()}</span>
+						<span class="text-xs font-semibold inline-flex items-center justify-center w-6 h-6 rounded-full {isToday ? 'bg-brand-primary text-white font-bold' : (isCurrentMonth ? 'text-zinc-600 dark:text-zinc-400' : 'text-zinc-400 dark:text-zinc-600')}">{date.getDate()}</span>
 					</div>
 					<div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-1 px-1">
 						{#each dateTasks as task}
@@ -171,7 +171,7 @@
 				<div 
 					draggable="true"
 					ondragstart={(e) => handleDragStart(e, task)}
-					class="p-2.5 bg-white dark:bg-[#18181b] border {parentTask ? 'border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-[#18181b]/50' : 'border-zinc-200 dark:border-zinc-800'} rounded-lg shadow-sm cursor-grab active:cursor-grabbing hover:border-blue-500 transition-colors" 
+					class="p-2.5 bg-white dark:bg-[#18181b] border {parentTask ? 'border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-[#18181b]/50' : 'border-zinc-200 dark:border-zinc-800'} rounded-lg shadow-sm cursor-grab active:cursor-grabbing hover:border-brand-primary transition-colors" 
 					onclick={() => onTaskClick(task)}
 				>
 					<div class="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 mb-2"><span class="text-zinc-500 mr-1.5 text-xs font-semibold">{getTaskIdentifier(task)}</span>{task.title}</div>

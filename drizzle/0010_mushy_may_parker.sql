@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "icon" varchar(50) DEFAULT 'Folder' NOT NULL;

@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { User, Shield, Sliders, LifeBuoy, Terminal } from 'lucide-svelte';
+	import { User, Shield, Sliders, LifeBuoy, Terminal, Building2 } from 'lucide-svelte';
 
 	let { children } = $props();
 
 	// Check if user has developer tab rights (Admins and Managers)
 	let user = $derived($page.data.user);
 	let showDeveloperTab = $derived(user?.role === 'Admin' || user?.role === 'Manager');
+	let showWorkspaceTab = $derived(user?.role === 'Admin');
 
 	const baseNavItems = [
 		{ name: 'Profile', href: '/settings/profile', icon: User },
@@ -15,11 +16,11 @@
 		{ name: 'Helpdesk', href: '/helpdesk/tickets', icon: LifeBuoy },
 	];
 
-	let navItems = $derived(
-		showDeveloperTab 
-			? [...baseNavItems, { name: 'Developer Tokens', href: '/settings/developer', icon: Terminal }]
-			: baseNavItems
-	);
+	let navItems = $derived([
+		...baseNavItems,
+		...(showWorkspaceTab ? [{ name: 'Workspace', href: '/settings/workspace', icon: Building2 }] : []),
+		...(showDeveloperTab ? [{ name: 'Developer Tokens', href: '/settings/developer', icon: Terminal }] : [])
+	]);
 
 	async function handleSignOut() {
 		try {

@@ -15,7 +15,7 @@
 	<select
 		bind:value
 		class={twMerge(
-			"w-full appearance-none bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-zinc-900 dark:text-zinc-100 cursor-pointer",
+			"w-full appearance-none bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all text-zinc-900 dark:text-zinc-100 cursor-pointer",
 			className as string
 		)}
 		{...rest}

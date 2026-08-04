@@ -31,3 +31,10 @@ SSE is a unidirectional stream. If a client disconnects, it will sit with stale 
 On mobile devices, when the Task Detail overlay is active, the underlying Kanban board is hidden via CSS (`display: none`) to preserve its `$state` context without re-rendering.
 - **The Issue:** Svelte 5 continues to process `$derived` reactivity for hidden DOM nodes. Applying 50 SSE updates to a hidden 1000-task board will drain battery and cause foreground jank.
 - **The Solution:** The client sync engine must be visibility-aware. When the board is hidden, incoming SSE deltas are queued in a lightweight JavaScript array. The reactivity bindings to the Svelte `$state` store are paused. When the board becomes visible again (the user hits "Back"), the queue is rapidly flushed into the store in a single batch update.
+
+## Notifications & Mentions Engine
+- **@Mention Extraction:** Comments parse both TipTap rich-text node mentions (`data-id="user-id"`) and plain text `@UserName` references.
+- **Auto-Follower Assignment:** Mentioned team members are automatically added to `taskFollowers` to track ongoing task updates.
+- **Live Streamed Events:** Realtime SSE events (`user:<userId>`) push `notification_created` payloads directly to the target user's active session.
+- **Dual Inbox View:** `/inbox` provides `Received` (Incoming) and `Sent / Outgoing` (Outgoing) tabs.
+- **Task Redirection:** Clicking any notification card in `/inbox` or the header bell dropdown opens the board with the target task drawer (`/boards/[boardId]?task=[taskId]`).

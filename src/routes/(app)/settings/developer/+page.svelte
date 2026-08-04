@@ -71,13 +71,13 @@
 
 	<!-- Plaintext Token Generation Show-Once Box -->
 	{#if justCreatedToken}
-		<div class="p-5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 space-y-4">
+		<div class="p-5 rounded-xl border border-brand-primary/30 dark:border-blue-900 bg-brand-primary/10/50 dark:bg-blue-950/20 space-y-4">
 			<div>
 				<h3 class="text-sm font-semibold text-blue-900 dark:text-blue-200 flex items-center gap-2">
 					<Key class="w-4 h-4" />
 					API Token Created Successfully
 				</h3>
-				<p class="text-xs text-blue-700 dark:text-blue-400 mt-1">
+				<p class="text-xs text-brand-primary dark:text-brand-primary mt-1">
 					Copy this token now. It will not be shown again for security reasons.
 				</p>
 			</div>

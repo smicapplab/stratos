@@ -291,7 +291,7 @@
 	<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-md p-6 rounded-2xl border border-zinc-200/50 dark:border-white/5 shadow-sm">
 		<div>
 			<h2 class="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
-				<BarChart3 class="w-5 h-5 text-blue-500" />
+				<BarChart3 class="w-5 h-5 text-brand-primary" />
 				Manager Dashboard Reports
 			</h2>
 			<p class="text-xs text-zinc-500 mt-0.5">Scoping metrics for active Kanban board cycles</p>
@@ -307,9 +307,9 @@
 
 			{#if rangeType === 'custom'}
 				<div class="flex items-center gap-2">
-					<input type="date" bind:value={customStart} class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 px-3 py-1.5 rounded-lg text-xs font-semibold dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
+					<input type="date" bind:value={customStart} class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 px-3 py-1.5 rounded-lg text-xs font-semibold dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-primary" />
 					<span class="text-zinc-400 text-xs">to</span>
-					<input type="date" bind:value={customEnd} class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 px-3 py-1.5 rounded-lg text-xs font-semibold dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
+					<input type="date" bind:value={customEnd} class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 px-3 py-1.5 rounded-lg text-xs font-semibold dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-primary" />
 				</div>
 			{/if}
 		</div>
@@ -345,10 +345,10 @@
 			<!-- KPI 1: Velocity -->
 			<div class="bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-white/5 p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
 				<div class="absolute -right-4 -bottom-4 opacity-[0.03] dark:opacity-[0.06] group-hover:scale-110 transition-transform">
-					<CheckCircle class="w-28 h-28 text-blue-500" />
+					<CheckCircle class="w-28 h-28 text-brand-primary" />
 				</div>
 				<div class="flex items-center gap-2">
-					<div class="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-lg">
+					<div class="p-2 bg-brand-primary/10 dark:bg-brand-primary/20 text-brand-primary rounded-lg">
 						<CheckCircle class="w-4 h-4" />
 					</div>
 					<span class="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Total Completed</span>
@@ -487,7 +487,7 @@
 								<tr class="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
 									<td class="px-6 py-3 font-mono font-bold text-zinc-400">#{t.taskNumber}</td>
 									<td class="px-6 py-3">
-										<button onclick={() => onTaskClick({ id: t.taskId })} class="font-bold text-blue-600 dark:text-blue-400 hover:underline text-left">
+										<button onclick={() => onTaskClick({ id: t.taskId })} class="font-bold text-brand-primary dark:text-brand-primary hover:underline text-left">
 											{t.taskTitle}
 										</button>
 									</td>
@@ -551,7 +551,7 @@
 									<tr class="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
 										<td class="px-6 py-3 font-mono font-bold text-zinc-400">#{t.number}</td>
 										<td class="px-6 py-3">
-											<button onclick={() => onTaskClick({ id: t.id })} class="font-bold text-blue-600 dark:text-blue-400 hover:underline text-left">
+											<button onclick={() => onTaskClick({ id: t.id })} class="font-bold text-brand-primary dark:text-brand-primary hover:underline text-left">
 												{t.title}
 											</button>
 										</td>
@@ -574,7 +574,7 @@
 									<tr class="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
 										<td class="px-6 py-3 font-mono font-bold text-zinc-400">#{t.number}</td>
 										<td class="px-6 py-3">
-											<button onclick={() => onTaskClick({ id: t.id })} class="font-bold text-blue-600 dark:text-blue-400 hover:underline text-left">
+											<button onclick={() => onTaskClick({ id: t.id })} class="font-bold text-brand-primary dark:text-brand-primary hover:underline text-left">
 												{t.title}
 											</button>
 										</td>
