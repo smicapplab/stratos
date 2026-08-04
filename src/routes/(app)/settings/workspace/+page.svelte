@@ -67,7 +67,7 @@
 					id="name" 
 					bind:value={name}
 					required
-					placeholder="e.g. Pizza Hut"
+					placeholder="e.g. Acme Corp"
 					class="w-full px-3 py-2 bg-white dark:bg-[#1C1C1E] border border-gray-300 dark:border-white/10 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary min-h-[44px] sm:text-sm dark:text-gray-100" 
 				/>
 				<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -133,7 +133,7 @@
 					<input 
 						type="radio" 
 						name="defaultTheme" 
-						value="araneta-city" 
+						value="emerald" 
 						bind:group={defaultTheme} 
 						class="w-4 h-4 text-brand-primary" 
 					/>
@@ -147,7 +147,7 @@
 					<input 
 						type="radio" 
 						name="defaultTheme" 
-						value="pizza-hut" 
+						value="ruby" 
 						bind:group={defaultTheme} 
 						class="w-4 h-4 text-brand-primary" 
 					/>
@@ -161,7 +161,7 @@
 					<input 
 						type="radio" 
 						name="defaultTheme" 
-						value="taco-bell" 
+						value="violet" 
 						bind:group={defaultTheme} 
 						class="w-4 h-4 text-brand-primary" 
 					/>
