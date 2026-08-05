@@ -19,4 +19,4 @@ An `attachments` table will link files to tasks:
 - `mimeType`: String
 
 ## Attachment Garbage Collection (Planned Maintenance Utility)
-Over time, deleted tasks can leave orphaned files on disk. An offline cleanup script `scripts/cleanup-orphan-tasks.ts` can scan for orphaned attachments where the parent task has been removed, call storage deletion, and prune orphaned records.
+Over time, soft-deleted boards and tasks accumulate. While `scripts/cleanup-orphan-tasks.ts` handles pruning orphaned task entities whose parent project/board was deleted, disk storage garbage collection for orphaned attachment files remains a planned offline maintenance utility.

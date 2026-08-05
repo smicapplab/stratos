@@ -1,10 +1,14 @@
 #!/usr/bin/env node
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 console.log('==> Verifying Node container bundle budgets...');
 
-const buildDir = path.join(__dirname, '../stratos/.svelte-kit/output');
+const buildDir = path.join(__dirname, '..', '.svelte-kit', 'output');
 if (!fs.existsSync(buildDir)) {
 	console.log('⚠️ Build output directory not found. Please run scripts/build-review.sh first.');
 	process.exit(0);
