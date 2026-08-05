@@ -38,6 +38,7 @@
 	import Image from "@tiptap/extension-image";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
 	import TaskDrawerProperties from "$lib/components/ui/TaskDrawerProperties.svelte";
+	import { triggerCelebration } from "$lib/stores/celebrationStore";
 	import TaskActivityFeed from "$lib/components/task/TaskActivityFeed.svelte";
 	import TaskDescription from "$lib/components/task/TaskDescription.svelte";
 	import TaskChecklists from "$lib/components/task/TaskChecklists.svelte";
@@ -642,6 +643,7 @@
 		if (doneStage && task.stageId !== doneStage.id) {
 			task.stageId = doneStage.id;
 			handlePropertyChange();
+			triggerCelebration('random');
 		}
 	}
 
@@ -1251,7 +1253,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm z-50 transition-opacity flex justify-end pointer-events-auto"
+	class="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm z-[60] transition-opacity flex justify-end pointer-events-auto"
 	onclick={onClose}
 >
 	<!-- Centered Modal -->
@@ -1803,7 +1805,7 @@
 	<!-- Modal backdrop -->
 	<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
 	<div 
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 sm:p-6"
+		class="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 sm:p-6"
 		onclick={(e) => { if (e.target === e.currentTarget) previewAttachment = null; }}
 		onkeydown={(e) => { if (e.key === 'Escape') previewAttachment = null; }}
 	>
