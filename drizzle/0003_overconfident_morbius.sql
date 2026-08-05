@@ -35,7 +35,7 @@ CREATE TABLE "task_tags" (
 );
 --> statement-breakpoint
 ALTER TABLE "audit_logs" ALTER COLUMN "task_id" DROP NOT NULL;--> statement-breakpoint
-ALTER TABLE "audit_logs" ADD COLUMN "group_id" uuid NOT NULL;--> statement-breakpoint
+ALTER TABLE "audit_logs" ADD COLUMN "group_id" uuid DEFAULT '00000000-0000-0000-0000-000000000000' NOT NULL;--> statement-breakpoint
 ALTER TABLE "audit_logs" ADD COLUMN "project_id" uuid;--> statement-breakpoint
 ALTER TABLE "audit_logs" ADD COLUMN "details" jsonb;--> statement-breakpoint
 ALTER TABLE "boards" ADD COLUMN "prefix" varchar(10) DEFAULT 'TSK' NOT NULL;--> statement-breakpoint

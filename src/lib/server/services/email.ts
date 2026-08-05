@@ -52,7 +52,7 @@ export async function sendEmail({ to, subject, html }: { to: string, subject: st
             console.log(`✅ Email sent via SES to ${to}`);
         } else if (useResend && resend) {
             await resend.emails.send({
-                from: 'Stratos <onboarding@resend.dev>',
+                from: env.EMAIL_FROM || env.RESEND_FROM || 'Stratos <onboarding@resend.dev>',
                 to,
                 subject,
                 html

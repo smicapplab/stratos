@@ -210,3 +210,20 @@ export async function revokeApiToken(actor: Actor, tokenId: string): Promise<voi
 	const cacheKey = `apitoken:${token.tokenHash}`;
 	await redis.del(cacheKey);
 }
+
+/**
+ * Invalidates all Redis cached API tokens for a given user ID.
+ */
+export async function invalidateTokenCache(userId: string): Promise<void> {
+	try {
+		const userTokens = await db.select({ tokenHash: apiTokens.tokenHash })
+			.from(apiTokens)
+			.where(eq(apiTokens.userId, userId));
+		
+		for (const t of userTokens) {
+			await redis.del(`apitoken:${t.tokenHash}`);
+		}
+	} catch (err) {
+		console.error('Failed to invalidate user token cache:', err);
+	}
+}
