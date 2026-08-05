@@ -1,7 +1,7 @@
-import { lucia } from '$lib/server/auth/lucia';
+import { validateSessionToken, setSessionTokenCookie, deleteSessionTokenCookie } from '$lib/server/auth/session';
 import type { Handle } from '@sveltejs/kit';
 import { db } from '$lib/server/db/db';
-import { users, groups } from '$lib/server/db/schema';
+import { groups } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import fs from 'fs';
 import path from 'path';
@@ -11,7 +11,6 @@ const uploadsDir = path.resolve('uploads');
 if (!fs.existsSync(uploadsDir)) {
 	fs.mkdirSync(uploadsDir, { recursive: true });
 }
-
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Initialize locals
@@ -77,59 +76,33 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	// 2. Fallback to standard Session Cookie Auth for UI routes
-	const sessionId = event.cookies.get(lucia.sessionCookieName);
-	if (!sessionId) {
+	const token = event.cookies.get('auth_session');
+	if (!token) {
 		return resolve(event);
 	}
 
-	const { session, user } = await lucia.validateSession(sessionId);
-	if (user) {
-		const [dbUser] = await db.select({ deletedAt: users.deletedAt })
-			.from(users)
-			.where(eq(users.id, user.id))
-			.limit(1);
+	const { session, user } = await validateSessionToken(token);
 
-		if (!dbUser || dbUser.deletedAt) {
-			await lucia.invalidateSession(sessionId);
-			const sessionCookie = lucia.createBlankSessionCookie();
-			event.cookies.set(sessionCookie.name, sessionCookie.value, {
-				path: '/',
-				...sessionCookie.attributes
-			});
-			return resolve(event);
-		}
+	if (!session || !user) {
+		deleteSessionTokenCookie(event);
+		return resolve(event);
 	}
 
-	if (session && session.fresh) {
-		const sessionCookie = lucia.createSessionCookie(session.id);
-		event.cookies.set(sessionCookie.name, sessionCookie.value, {
-			path: '/',
-			...sessionCookie.attributes
-		});
-	}
-	if (!session) {
-		const sessionCookie = lucia.createBlankSessionCookie();
-		event.cookies.set(sessionCookie.name, sessionCookie.value, {
-			path: '/',
-			...sessionCookie.attributes
-		});
-	}
-	
+	setSessionTokenCookie(event, token, session.expiresAt);
+
 	event.locals.user = user;
 	event.locals.session = session;
-	
-	if (user) {
-		const groupData = await db.select({
-			id: groups.id,
-			name: groups.name,
-			logoUrl: groups.logoUrl,
-			showWorkspaceName: groups.showWorkspaceName,
-			defaultTheme: groups.defaultTheme
-		}).from(groups).where(eq(groups.id, user.groupId)).limit(1).then(res => res[0]);
 
-		event.locals.group = groupData || null;
-	}
-	
+	const groupData = await db.select({
+		id: groups.id,
+		name: groups.name,
+		logoUrl: groups.logoUrl,
+		showWorkspaceName: groups.showWorkspaceName,
+		defaultTheme: groups.defaultTheme
+	}).from(groups).where(eq(groups.id, user.groupId)).limit(1).then(res => res[0]);
+
+	event.locals.group = groupData || null;
+
 	return resolve(event);
 };
 
