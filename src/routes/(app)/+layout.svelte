@@ -8,6 +8,7 @@
 	import CreateProjectModal from '$lib/components/projects/CreateProjectModal.svelte';
 	import CreateBoardModal from '$lib/components/boards/CreateBoardModal.svelte';
 	import BrandLogoType from '$lib/components/ui/BrandLogoType.svelte';
+	import CelebrationCanvas from '$lib/components/ui/CelebrationCanvas.svelte';
 	import { LayoutDashboard, CheckCircle2, Inbox, CalendarDays, LifeBuoy } from 'lucide-svelte';
 
 	let { data, children } = $props();
@@ -184,7 +185,7 @@
 				</div>
 			</div>
 
-			<div class="relative z-10 min-h-full h-full flex flex-col flex-1 pb-16 lg:pb-0">
+			<div class="relative min-h-full h-full flex flex-col flex-1 pb-16 lg:pb-0">
 				{@render children()}
 			</div>
 		</main>
@@ -215,3 +216,6 @@
 	{projects}
 	selectedProjectId={selectedProjectIdForBoard}
 />
+
+<CelebrationCanvas />
+
