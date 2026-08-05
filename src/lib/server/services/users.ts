@@ -75,6 +75,8 @@ export async function inviteUser(actor: Actor, email: string, role: string) {
 	return invitedUser;
 }
 
+import { invalidateTokenCache } from './apiTokens';
+
 export async function removeUser(actor: Actor, targetUserId: string) {
 	if (actor.role !== 'Admin') {
 		throw new Error('Unauthorized: Only Admins can remove users.');
@@ -92,6 +94,8 @@ export async function removeUser(actor: Actor, targetUserId: string) {
 				eq(users.groupId, actor.groupId)
 			)
 		);
+
+	await invalidateTokenCache(targetUserId);
 }
 
 export async function changeUserRole(actor: Actor, targetUserId: string, newRole: string) {
@@ -111,4 +115,6 @@ export async function changeUserRole(actor: Actor, targetUserId: string, newRole
 			eq(users.groupId, actor.groupId)
 		)
 	);
+
+	await invalidateTokenCache(targetUserId);
 }

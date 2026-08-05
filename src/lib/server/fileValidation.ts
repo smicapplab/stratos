@@ -30,15 +30,11 @@ export const ALLOWED_MIME_TYPES = new Set<string>([
 	// PowerPoint presentations
 	'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 	'application/vnd.ms-powerpoint',
-	// Plain text / Logs / Configs / Scripts / Web
+	// Plain text / Logs
 	'text/plain',
 	'text/log',
 	'application/json',
 	'text/markdown',
-	'text/html',
-	'text/css',
-	'application/javascript',
-	'application/x-typescript',
 	// Video
 	...VIDEO_MIME_TYPES
 ]);
@@ -49,7 +45,7 @@ export const ALLOWED_EXTENSIONS = new Set<string>([
 	'.docx', '.doc',
 	'.xlsx', '.xls', '.csv',
 	'.pptx', '.ppt',
-	'.txt', '.log', '.json', '.env', '.md', '.js', '.ts', '.html', '.css', '.yaml', '.yml', '.sh', '.py', '.ini', '.conf',
+	'.txt', '.log', '.json', '.md', '.yaml', '.yml', '.ini', '.conf',
 	// Video
 	'.mp4', '.webm', '.ogg', '.mov', '.mkv'
 ]);
@@ -65,14 +61,15 @@ export function isVideoFile(mimeType: string, fileName: string): boolean {
 }
 
 export function validateUploadedFile(file: File): { valid: true } | { valid: false; error: string } {
-	const hasMime = ALLOWED_MIME_TYPES.has(file.type);
-
 	const lastDot = file.name.lastIndexOf('.');
 	const ext = lastDot !== -1 ? file.name.substring(lastDot).toLowerCase() : '';
-	const hasExt = ALLOWED_EXTENSIONS.has(ext);
 
-	if (!hasMime && !hasExt) {
-		return { valid: false, error: `File type "${ext || file.type || 'unknown'}" is not allowed. Only images, PDFs, Office documents, CSV, text/log files, and video files are supported.` };
+	if (file.type && !ALLOWED_MIME_TYPES.has(file.type)) {
+		return { valid: false, error: `File MIME type "${file.type}" is not allowed.` };
+	}
+
+	if (ext && !ALLOWED_EXTENSIONS.has(ext)) {
+		return { valid: false, error: `File extension "${ext}" is not allowed.` };
 	}
 
 	const isVideo = isVideoFile(file.type, file.name);

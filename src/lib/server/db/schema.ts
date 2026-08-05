@@ -124,7 +124,9 @@ export const comments = pgTable('comments', {
 	content: text('content').notNull(),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
-});
+}, (t) => ({
+	taskIdIdx: index('comments_task_id_idx').on(t.taskId)
+}));
 
 export const taskLinks = pgTable('task_links', {
 	id: uuid('id').defaultRandom().primaryKey(),
@@ -132,7 +134,10 @@ export const taskLinks = pgTable('task_links', {
 	targetTaskId: uuid('target_task_id').references(() => tasks.id, { onDelete: 'cascade' }).notNull(),
 	linkType: varchar('link_type', { length: 50 }).notNull(), // e.g., 'blocks', 'relates_to', 'duplicates'
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
-});
+}, (t) => ({
+	sourceTaskIdIdx: index('task_links_source_task_id_idx').on(t.sourceTaskId),
+	targetTaskIdIdx: index('task_links_target_task_id_idx').on(t.targetTaskId)
+}));
 
 export const auditLogs = pgTable('audit_logs', {
 	id: uuid('id').defaultRandom().primaryKey(),
@@ -160,7 +165,9 @@ export const attachments = pgTable('attachments', {
 	mimeType: varchar('mime_type', { length: 100 }),
 	storageBackend: varchar('storage_backend', { length: 10 }).notNull().default('local'),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
-});
+}, (t) => ({
+	taskIdIdx: index('attachments_task_id_idx').on(t.taskId)
+}));
 
 export const commentReactions = pgTable('comment_reactions', {
 	id: uuid('id').defaultRandom().primaryKey(),
@@ -168,7 +175,9 @@ export const commentReactions = pgTable('comment_reactions', {
 	userId: uuid('user_id').references(() => users.id).notNull(),
 	emoji: varchar('emoji', { length: 50 }).notNull(),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
-});
+}, (t) => ({
+	commentIdIdx: index('comment_reactions_comment_id_idx').on(t.commentId)
+}));
 
 export const customFieldDefinitions = pgTable('custom_field_definitions', {
 	id: uuid('id').defaultRandom().primaryKey(),
@@ -189,7 +198,10 @@ export const notifications = pgTable('notifications', {
 	taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }).notNull(),
 	readAt: timestamp('read_at', { withTimezone: true }),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
-});
+}, (t) => ({
+	taskIdIdx: index('notifications_task_id_idx').on(t.taskId),
+	userIdIdx: index('notifications_user_id_idx').on(t.userId)
+}));
 
 export const tags = pgTable('tags', {
 	id: uuid('id').defaultRandom().primaryKey(),

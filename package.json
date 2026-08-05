@@ -53,7 +53,6 @@
 		"@floating-ui/dom": "^1.8.0",
 		"@lucia-auth/adapter-drizzle": "^1.1.0",
 		"@modelcontextprotocol/sdk": "^1.29.0",
-		"@neondatabase/serverless": "^1.1.0",
 		"@tiptap/core": "^3.27.3",
 		"@tiptap/extension-image": "^3.27.3",
 		"@tiptap/extension-mention": "^3.27.3",

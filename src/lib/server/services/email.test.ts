@@ -112,4 +112,13 @@ describe('Email Service', () => {
 			expect(mockSendMail.mock.calls[0][0].subject).toContain("You've been invited to join My Group");
 		});
 	});
+
+	describe('Event Listeners', () => {
+		it('should have exactly one listener registered for comment:created event', async () => {
+			const { globalEventEmitter } = await import('./events');
+			await import('./email');
+			const listeners = globalEventEmitter.listeners('comment:created');
+			expect(listeners.length).toBe(1);
+		});
+	});
 });
