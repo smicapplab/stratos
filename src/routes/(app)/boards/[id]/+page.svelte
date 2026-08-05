@@ -15,6 +15,7 @@
 	import BoardHeader from '$lib/components/board/BoardHeader.svelte';
 	import CreateStageModal from '$lib/components/board/CreateStageModal.svelte';
 	import { modalStore } from '$lib/stores/ui.svelte';
+	import { triggerCelebration } from '$lib/stores/celebrationStore';
 
 	let focusedColumnIndex = $state<number | null>(null);
 	let focusedTaskIndex = $state<number | null>(null);
@@ -239,6 +240,10 @@
 		if (previousIndex) formData.append('previousIndex', previousIndex);
 		if (nextIndex) formData.append('nextIndex', nextIndex);
 
+		if (columns[stageIdx].isCompleted) {
+			triggerCelebration('random');
+		}
+
 		await fetch('?/moveTask', {
 			method: 'POST',
 			body: formData,
@@ -254,9 +259,11 @@
 	let movedPrevIndex = $state<string | null>(null);
 	let movedNextIndex = $state<string | null>(null);
 	let reorderModalOpen = $state(false);
+	let modalColumns = $state<{ id: string; name: string; orderIndex: string }[]>([]);
 	let isCreateStageModalOpen = $state(false);
 
 	function openReorderModal() {
+		modalColumns = columns.map(c => ({ id: c.id, name: c.name, orderIndex: c.orderIndex }));
 		reorderModalOpen = true;
 	}
 
@@ -265,10 +272,6 @@
 	}
 
 	async function handleColumnFinalize(e: any) {
-		console.log('[DEBUG] handleColumnFinalize START');
-		console.log('[DEBUG] Original columns order:', columns.map(c => ({ id: c.id, order: c.orderIndex })));
-		console.log('[DEBUG] e.detail.items order:', e.detail.items.map((c: any) => ({ id: c.id, order: c.orderIndex })));
-
 		columns = e.detail.items;
 		
 		const newIndex = columns.findIndex(c => c.id === e.detail.info.id);
@@ -276,19 +279,41 @@
 		movedPrevIndex = newIndex > 0 ? columns[newIndex - 1].orderIndex : null;
 		movedNextIndex = newIndex < columns.length - 1 ? columns[newIndex + 1].orderIndex : null;
 
-		// fractional-indexing requires prevIndex < nextIndex (strict ASCII).
-		// If we encounter duplicate indices (e.g. bad seed data) or bad sorts, fallback to appending.
 		if (movedPrevIndex !== null && movedNextIndex !== null && movedPrevIndex >= movedNextIndex) {
-			console.warn('[DEBUG] Invalid indices (prev >= next). Falling back to appending.', movedPrevIndex, movedNextIndex);
 			movedNextIndex = null; 
 		}
 
-		console.log(`[DEBUG] Column ${movedStageId} moved to index ${newIndex}.`);
-		console.log(`[DEBUG] prevIndex: ${movedPrevIndex}, nextIndex: ${movedNextIndex}`);
-
 		await tick();
-		console.log('[DEBUG] Submitting form...');
 		moveStageForm?.requestSubmit();
+	}
+
+	function handleModalColumnConsider(e: any) {
+		modalColumns = e.detail.items;
+	}
+
+	async function handleModalColumnFinalize(e: any) {
+		modalColumns = e.detail.items;
+
+		// Sync order back to main columns state
+		const colMap = new Map(columns.map(c => [c.id, c]));
+		const reordered = modalColumns.map(m => colMap.get(m.id)).filter(Boolean) as typeof columns;
+		if (reordered.length === columns.length) {
+			columns = reordered;
+		}
+
+		const newIndex = modalColumns.findIndex(c => c.id === e.detail.info.id);
+		if (newIndex !== -1) {
+			movedStageId = e.detail.info.id;
+			movedPrevIndex = newIndex > 0 ? modalColumns[newIndex - 1].orderIndex : null;
+			movedNextIndex = newIndex < modalColumns.length - 1 ? modalColumns[newIndex + 1].orderIndex : null;
+
+			if (movedPrevIndex !== null && movedNextIndex !== null && movedPrevIndex >= movedNextIndex) {
+				movedNextIndex = null;
+			}
+
+			await tick();
+			moveStageForm?.requestSubmit();
+		}
 	}
 
 	let activeStageId = $state<string | null>(null);
@@ -718,12 +743,12 @@
 			</div>
 			<div class="p-4 max-h-[60vh] overflow-y-auto">
 				<section 
-					use:dndzone={{ items: columns, flipDurationMs, type: 'columns' }} 
-					onconsider={handleColumnConsider} 
-					onfinalize={handleColumnFinalize}
+					use:dndzone={{ items: modalColumns, flipDurationMs, type: 'reorder-modal-columns' }} 
+					onconsider={handleModalColumnConsider} 
+					onfinalize={handleModalColumnFinalize}
 					class="flex flex-col gap-2"
 				>
-					{#each columns as column (column.id)}
+					{#each modalColumns as column (column.id)}
 						<div animate:flip={{duration: flipDurationMs}} class="flex items-center gap-3 p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-white/5 shadow-sm">
 							<svg class="w-4 h-4 text-zinc-400 cursor-grab" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" /></svg>
 							<span class="font-semibold text-sm text-zinc-800 dark:text-zinc-200">{column.name}</span>
