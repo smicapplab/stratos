@@ -7,27 +7,32 @@ import { escapeLikePattern } from '$lib/utils';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
-	if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 });
+	try {
+		if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 });
 
-	const q = url.searchParams.get('q');
-	
-	const conditions = [
-		eq(users.groupId, locals.user.groupId),
-		isNull(users.deletedAt)
-	];
-	if (q && q.trim().length > 0) {
-		conditions.push(ilike(users.name, `%${escapeLikePattern(q)}%`));
+		const q = url.searchParams.get('q');
+		
+		const conditions = [
+			eq(users.groupId, locals.user.groupId),
+			isNull(users.deletedAt)
+		];
+		if (q && q.trim().length > 0) {
+			conditions.push(ilike(users.name, `%${escapeLikePattern(q)}%`));
+		}
+
+		const searchResults = await db
+			.select({
+				id: users.id,
+				name: users.name,
+				email: users.email
+			})
+			.from(users)
+			.where(and(...conditions))
+			.limit(10);
+
+		return json(searchResults);
+	} catch (error) {
+		console.error('API Error:', error);
+		return json({ error: 'Internal server error' }, { status: 500 });
 	}
-
-	const searchResults = await db
-		.select({
-			id: users.id,
-			name: users.name,
-			email: users.email
-		})
-		.from(users)
-		.where(and(...conditions))
-		.limit(10);
-
-	return json(searchResults);
 }

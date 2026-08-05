@@ -14,7 +14,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	try {
-		const body = await request.json();
+		const body = (await request.json().catch(() => null)) || {};
+		if (!body || typeof body !== 'object') return json({ error: 'Invalid JSON payload' }, { status: 400 });
 		const { epic, stories, sourceId } = body;
 
 		if (!epic || !epic.title || !epic.stageId) {
@@ -68,6 +69,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 			// B. Create child Story cards sequentially setting parentTaskId
 			for (const story of storiesList) {
+				if (!story) continue;
 				const storyCard = await createTask(
 					user,
 					epic.stageId, // Appends to same stage

@@ -396,7 +396,7 @@
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true,
-          "default": "'KanbanSquare'"
+          "default": "'SquareKanban'"
         },
         "prefix": {
           "name": "prefix",

@@ -83,7 +83,7 @@
 </svelte:head>
 
 <div class="h-full flex flex-col bg-transparent">
-	<header class="shrink-0 px-6 sm:px-10 py-8 max-w-4xl w-full mx-auto flex flex-col gap-6">
+	<header class="shrink-0 px-6 sm:px-10 py-8 max-w-6xl w-full mx-auto flex flex-col gap-6">
 		<div class="flex items-center justify-between">
 			<div>
 				<h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-3">
@@ -128,7 +128,7 @@
 	</header>
 
 	<div class="flex-1 overflow-y-auto px-6 sm:px-10 pb-20 custom-scrollbar">
-		<div class="max-w-4xl w-full mx-auto">
+		<div class="max-w-6xl w-full mx-auto">
 			{#if activeTab === 'received'}
 				{#if notifications.length === 0}
 					<div class="flex flex-col items-center justify-center py-28 px-4 text-center space-y-6">

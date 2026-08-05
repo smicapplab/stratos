@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		email: users.email,
 		name: users.name,
 		role: users.role,
-		groupId: users.groupId,
+		avatarUrl: users.avatarUrl,
 		createdAt: users.createdAt
 	}).from(users).where(
 		and(

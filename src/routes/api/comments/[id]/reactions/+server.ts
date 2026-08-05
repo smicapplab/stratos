@@ -11,7 +11,8 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		}
 
 		const commentId = params.id;
-		const body = await request.json();
+		const body = (await request.json().catch(() => null)) || {};
+		if (!body || typeof body !== 'object') return json({ error: 'Invalid JSON payload' }, { status: 400 });
 		const { emoji } = body;
 
 		if (!emoji || typeof emoji !== 'string') {

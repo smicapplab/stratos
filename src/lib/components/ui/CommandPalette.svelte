@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Search, FolderKanban, KanbanSquare, CheckSquare } from 'lucide-svelte';
+	import { Search, FolderKanban, SquareKanban, CheckSquare } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { getTaskIdentifier } from '$lib/utils';
 	
@@ -86,7 +86,7 @@
 								<div class="mt-1 space-y-1">
 									{#each results.boards as board}
 										<a href="/boards/{board.id}" onclick={() => isOpen = false} class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors">
-											<KanbanSquare class="w-4 h-4 text-zinc-400" />
+											<SquareKanban class="w-4 h-4 text-zinc-400" />
 											<span class="font-medium">{board.name}</span>
 										</a>
 									{/each}

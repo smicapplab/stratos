@@ -47,19 +47,28 @@ export const handle: Handle = async ({ event, resolve }) => {
 					groupId: validation.groupId
 				};
 
-				const groupData = await db.select({
-					id: groups.id,
-					name: groups.name,
-					logoUrl: groups.logoUrl,
-					showWorkspaceName: groups.showWorkspaceName,
-					defaultTheme: groups.defaultTheme
-				}).from(groups).where(eq(groups.id, validation.user.groupId)).limit(1).then(res => res[0]);
+				try {
+					const groupData = await db.select({
+						id: groups.id,
+						name: groups.name,
+						logoUrl: groups.logoUrl,
+						showWorkspaceName: groups.showWorkspaceName,
+						defaultTheme: groups.defaultTheme
+					}).from(groups).where(eq(groups.id, validation.user.groupId)).limit(1).then(res => res[0]);
 
-				event.locals.group = groupData || null;
+					event.locals.group = groupData || null;
+				} catch (err) {
+					event.locals.group = null;
+				}
 
 				// Bypass CSRF checks for Bearer-authenticated API calls by returning resolving directly
 				// SvelteKit CSRF checking is bypassed here since we skip cookies.
-				return resolve(event);
+				const response = await resolve(event);
+				response.headers.set('X-Content-Type-Options', 'nosniff');
+				response.headers.set('X-Frame-Options', 'DENY');
+				response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+				response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+				return response;
 			} else {
 				return new Response(JSON.stringify({ error: 'Unauthorized' }), {
 					status: 401,
@@ -77,34 +86,69 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// 2. Fallback to standard Session Cookie Auth for UI routes
 	const token = event.cookies.get('auth_session');
-	if (!token) {
-		return resolve(event);
+	if (token) {
+		const { session, user } = await validateSessionToken(token);
+
+		if (!session || !user) {
+			deleteSessionTokenCookie(event);
+		} else {
+			if (session.fresh) {
+				setSessionTokenCookie(event, token, session.expiresAt);
+			}
+
+			event.locals.user = user;
+			event.locals.session = session;
+
+			try {
+				const groupData = await db.select({
+					id: groups.id,
+					name: groups.name,
+					logoUrl: groups.logoUrl,
+					showWorkspaceName: groups.showWorkspaceName,
+					defaultTheme: groups.defaultTheme
+				}).from(groups).where(eq(groups.id, user.groupId)).limit(1).then(res => res[0]);
+
+				event.locals.group = groupData || null;
+			} catch (err) {
+				event.locals.group = null;
+			}
+
+			if (user.mustChangePassword) {
+				const pathname = event.url.pathname;
+				const isAllowed = pathname.startsWith('/settings/security') || 
+					pathname.startsWith('/logout') || 
+					pathname.startsWith('/api/');
+					
+				if (!isAllowed) {
+					const { redirect } = await import('@sveltejs/kit');
+					throw redirect(303, '/settings/security?forced=true');
+				}
+			}
+		}
 	}
 
-	const { session, user } = await validateSessionToken(token);
-
-	if (!session || !user) {
-		deleteSessionTokenCookie(event);
-		return resolve(event);
+	if (event.request.method !== 'GET' && event.url.pathname.startsWith('/api/') && !event.url.pathname.startsWith('/api/v1/')) {
+		const origin = event.request.headers.get('origin');
+		const host = event.request.headers.get('host');
+		if (origin && host) {
+			try {
+				const originUrl = new URL(origin);
+				if (originUrl.host !== host) {
+					return new Response(JSON.stringify({ error: 'CSRF origin mismatch' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+				}
+			} catch {
+				return new Response(JSON.stringify({ error: 'Invalid origin header' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+			}
+		}
 	}
 
-	if (session.fresh) {
-		setSessionTokenCookie(event, token, session.expiresAt);
-	}
+	const response = await resolve(event);
+	
+	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('X-Frame-Options', 'DENY');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
-	event.locals.user = user;
-	event.locals.session = session;
-
-	const groupData = await db.select({
-		id: groups.id,
-		name: groups.name,
-		logoUrl: groups.logoUrl,
-		showWorkspaceName: groups.showWorkspaceName,
-		defaultTheme: groups.defaultTheme
-	}).from(groups).where(eq(groups.id, user.groupId)).limit(1).then(res => res[0]);
-
-	event.locals.group = groupData || null;
-
-	return resolve(event);
+	return response;
 };
 

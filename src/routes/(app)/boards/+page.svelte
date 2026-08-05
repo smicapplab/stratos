@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { KanbanSquare, Trash2, FolderOpen, Plus } from 'lucide-svelte';
+	import { SquareKanban, Trash2, FolderOpen, Plus } from 'lucide-svelte';
 
 	let { data } = $props();
 	let boards = $derived(data.boards);
@@ -38,7 +38,7 @@
 	{#if boards.length === 0}
 		<div class="flex flex-col items-center justify-center py-24 px-8 mt-12 bg-zinc-50/50 dark:bg-zinc-900/20 backdrop-blur-sm border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl text-center">
 			<div class="w-16 h-16 bg-white dark:bg-zinc-800 shadow-sm rounded-2xl flex items-center justify-center mb-6 border border-zinc-100 dark:border-zinc-700">
-				<KanbanSquare class="w-8 h-8 text-zinc-400 dark:text-zinc-500" />
+				<SquareKanban class="w-8 h-8 text-zinc-400 dark:text-zinc-500" />
 			</div>
 			<h3 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">No boards yet</h3>
 			<p class="text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm leading-relaxed">
@@ -53,7 +53,7 @@
 					
 					<div class="flex items-start justify-between">
 						<div class="w-12 h-12 rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 text-brand-primary dark:text-brand-primary flex items-center justify-center mb-4 shrink-0">
-							<KanbanSquare class="w-6 h-6" />
+							<SquareKanban class="w-6 h-6" />
 						</div>
 						
 						{#if user.role === 'Admin'}

@@ -36,7 +36,7 @@
 	<title>Submit a Ticket - Stratos Helpdesk</title>
 </svelte:head>
 
-<div class="space-y-8 p-6 sm:p-8 max-w-4xl mx-auto">
+<div class="space-y-8 p-6 sm:p-8 max-w-6xl mx-auto">
 	<!-- Page Header -->
 	<div class="flex flex-col gap-4 border-b border-zinc-200/60 dark:border-zinc-800/60 pb-6">
 		<div>

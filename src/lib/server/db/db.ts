@@ -26,6 +26,7 @@ const pool = new Pool({
   connectionString,
   max: maxPool, // Avoid exhausting connections
 });
+pool.on('error', (err) => { console.error('[DB] Unexpected error on idle client:', err); });
 
 export const db = drizzle(pool, { schema });
 

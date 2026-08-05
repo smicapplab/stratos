@@ -4,7 +4,7 @@
 	import { page } from '$app/stores';
 	import { dndzone, dragHandleZone, dragHandle } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
-	import { Plus, Settings2, CheckCircle2, GripHorizontal } from 'lucide-svelte';
+	import { Plus, CheckCircle2, GripHorizontal } from 'lucide-svelte';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import TaskDrawer from '$lib/components/task/TaskDrawer.svelte';
 	import TaskCard from '$lib/components/ui/TaskCard.svelte';
@@ -12,7 +12,8 @@
 	import CalendarView from '$lib/components/ui/CalendarView.svelte';
 	import ReportsView from '$lib/components/ui/ReportsView.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
-	import DynamicIcon from '$lib/components/ui/DynamicIcon.svelte';
+	import BoardHeader from '$lib/components/board/BoardHeader.svelte';
+	import CreateStageModal from '$lib/components/board/CreateStageModal.svelte';
 	import { modalStore } from '$lib/stores/ui.svelte';
 
 	let focusedColumnIndex = $state<number | null>(null);
@@ -253,6 +254,7 @@
 	let movedPrevIndex = $state<string | null>(null);
 	let movedNextIndex = $state<string | null>(null);
 	let reorderModalOpen = $state(false);
+	let isCreateStageModalOpen = $state(false);
 
 	function openReorderModal() {
 		reorderModalOpen = true;
@@ -421,64 +423,16 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div class="h-full flex flex-col relative overflow-hidden bg-transparent">
-	<!-- Board Header -->
-	<div class="px-8 py-5 border-b border-zinc-200/50 dark:border-white/5 bg-white/50 dark:bg-[#121214]/50 backdrop-blur-xl flex items-center justify-between shrink-0 relative z-20">
-		<div class="flex items-center gap-4">
-			<div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-primary to-violet-600 flex items-center justify-center text-white shadow-lg shadow-brand-primary/20">
-				<DynamicIcon name={board.icon} class="w-5 h-5" />
-			</div>
-			<div>
-				<h1 class="text-xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50">{board.name}</h1>
-				<div class="flex items-center gap-2 mt-0.5">
-					<span class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 bg-zinc-100 dark:bg-white/5 px-2 py-0.5 rounded">Board</span>
-				</div>
-			</div>
-		</div>
-		
-		<div class="flex items-center bg-zinc-100 dark:bg-white/5 p-1 rounded-lg border border-zinc-200 dark:border-white/10">
-			<button class="px-3 py-1.5 text-xs font-semibold rounded-md transition-all {activeView === 'board' ? 'bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}" onclick={() => activeView = 'board'}>Board</button>
-			<button class="px-3 py-1.5 text-xs font-semibold rounded-md transition-all {activeView === 'table' ? 'bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}" onclick={() => activeView = 'table'}>Table</button>
-			<button class="px-3 py-1.5 text-xs font-semibold rounded-md transition-all {activeView === 'calendar' ? 'bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}" onclick={() => activeView = 'calendar'}>Calendar</button>
-			{#if user.role === 'Admin' || user.role === 'Manager'}
-				<button class="px-3 py-1.5 text-xs font-semibold rounded-md transition-all {activeView === 'reports' ? 'bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}" onclick={() => activeView = 'reports'}>Reports</button>
-			{/if}
-		</div>
-
-		<div class="flex items-center gap-3 relative">
-			{#if activeView === 'board'}
-				<button
-					id="epic-view-toggle"
-					type="button"
-					class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all min-h-[36px]
-						{showEpicsOnly
-							? 'bg-violet-600 text-white border-violet-600 shadow-sm shadow-violet-500/30'
-							: 'bg-white dark:bg-white/5 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-white/5 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-white/10'}"
-					onclick={() => { showEpicsOnly = !showEpicsOnly; }}
-					title={showEpicsOnly ? 'Show all tasks' : 'Show epics only'}
-				>
-					<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18M3 12h12M3 17h8" />
-					</svg>
-					Epics only
-				</button>
-			{/if}
-			{#if user.role === 'Admin'}
-				<button 
-					class="lg:hidden p-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-white dark:bg-white/5 border border-zinc-200 dark:border-white/5 rounded-lg shadow-sm transition-all hover:bg-zinc-50 dark:hover:bg-white/10"
-					onclick={openReorderModal}
-					title="Reorder Columns"
-				>
-					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
-				</button>
-			{/if}
-
-			<button 
-				class="p-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-white dark:bg-white/5 border border-zinc-200 dark:border-white/5 rounded-lg shadow-sm transition-all hover:bg-zinc-50 dark:hover:bg-white/10 {settingsOpen ? 'bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white' : ''}"
-				onclick={() => { settingsOpen = !settingsOpen; settingsTab = 'general'; }}
-				title="Board Settings"
-			>
-				<Settings2 class="w-4 h-4" />
-			</button>
+	<!-- Board Header Component -->
+	<BoardHeader
+		{board}
+		userRole={user.role}
+		bind:activeView
+		bind:showEpicsOnly
+		onOpenSettings={() => { settingsOpen = !settingsOpen; settingsTab = 'general'; }}
+		onOpenReorderModal={openReorderModal}
+		onOpenCreateStageModal={() => isCreateStageModalOpen = true}
+	/>
 
 			{#if settingsOpen}
 				<!-- Overlay to click away -->
@@ -506,7 +460,7 @@
 								<div class="flex flex-col gap-1.5">
 									<label for="board-icon" class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Icon</label>
 									<Select id="board-icon" name="icon">
-										{#each ['KanbanSquare', 'LayoutTemplate', 'ListTodo', 'CheckSquare', 'Calendar', 'Inbox', 'Star', 'Folder', 'Hash', 'Zap', 'Database', 'Globe', 'Briefcase', 'Layers'] as iconName}
+										{#each ['SquareKanban', 'LayoutTemplate', 'ListTodo', 'CheckSquare', 'Calendar', 'Inbox', 'Star', 'Folder', 'Hash', 'Zap', 'Database', 'Globe', 'Briefcase', 'Layers'] as iconName}
 											<option value={iconName} selected={board.icon === iconName}>{iconName}</option>
 										{/each}
 									</Select>
@@ -593,8 +547,6 @@
 					{/if}
 				</div>
 			{/if}
-		</div>
-	</div>
 
 	<!-- Board Canvas -->
 	{#if activeView === 'board'}
@@ -889,4 +841,6 @@
 			}
 		};
 	}}></form>
+
+	<CreateStageModal bind:isOpen={isCreateStageModalOpen} />
 </div>

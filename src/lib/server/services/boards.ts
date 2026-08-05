@@ -3,7 +3,7 @@ import { boards, auditLogs, projects, tasks } from '../db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import type { Actor } from './users';
 
-export async function createBoard(actor: Actor, projectId: string, name: string, prefix: string, icon: string = 'KanbanSquare') {
+export async function createBoard(actor: Actor, projectId: string, name: string, prefix: string, icon: string = 'SquareKanban') {
 	if (actor.role !== 'Admin') {
 		throw new Error('Unauthorized: Only Admins can create boards.');
 	}
@@ -46,7 +46,7 @@ export async function createBoard(actor: Actor, projectId: string, name: string,
 			projectId,
 			userId: actor.id,
 			actionType: 'board_created',
-			details: { boardId: newBoard.id, name, prefix }
+			details: { boardId: newBoard.id, boardName: name, prefix }
 		});
 
 		return newBoard;
@@ -102,7 +102,7 @@ export async function deleteBoard(actor: Actor, boardId: string) {
 			projectId: board.projectId,
 			userId: actor.id,
 			actionType: 'board_deleted',
-			details: { boardId }
+			details: { boardId, boardName: board.name }
 		});
 	});
 }
@@ -110,6 +110,17 @@ export async function deleteBoard(actor: Actor, boardId: string) {
 export async function updateBoard(actor: Actor, boardId: string, updates: { name?: string; projectId?: string; icon?: string }) {
 	if (actor.role === 'Viewer') {
 		throw new Error('Unauthorized: Viewers cannot edit boards.');
+	}
+
+	if (updates.projectId) {
+		const [project] = await db.select({ id: projects.id }).from(projects).where(
+			and(
+				eq(projects.id, updates.projectId),
+				eq(projects.groupId, actor.groupId),
+				isNull(projects.deletedAt)
+			)
+		);
+		if (!project) throw new Error('Project not found or access denied');
 	}
 
 	const [updated] = await db.update(boards).set(updates).where(

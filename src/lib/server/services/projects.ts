@@ -134,7 +134,7 @@ export async function addProjectMember(actor: Actor, projectId: string, targetUs
 	}
 
 	// Verify that the target user belongs to the actor's group and is not deleted
-	const [targetUser] = await db.select({ id: users.id })
+	const [targetUser] = await db.select({ id: users.id, name: users.name })
 		.from(users)
 		.where(
 			and(
@@ -161,8 +161,8 @@ export async function addProjectMember(actor: Actor, projectId: string, targetUs
 		groupId: actor.groupId,
 		projectId,
 		userId: actor.id,
-		actionType: 'member_joined',
-		details: { targetUserId, role }
+		actionType: 'member_added',
+		details: { targetUserId, targetName: targetUser?.name || 'Member', role }
 	});
 }
 
@@ -192,12 +192,50 @@ export async function removeProjectMember(actor: Actor, projectId: string, targe
 		)
 	);
 
+	const [targetUser] = await db.select({ name: users.name }).from(users).where(eq(users.id, targetUserId));
+
 	await db.insert(auditLogs).values({
 		groupId: actor.groupId,
 		projectId,
 		userId: actor.id,
 		actionType: 'member_removed',
-		details: { targetUserId }
+		details: { targetUserId, targetName: targetUser?.name || 'Member' }
+	});
+}
+
+export async function updateProjectMemberRole(actor: Actor, projectId: string, targetUserId: string, role: 'Admin' | 'Member') {
+	const [project] = await db.select({ id: projects.id }).from(projects).where(
+		and(eq(projects.id, projectId), eq(projects.groupId, actor.groupId), isNull(projects.deletedAt))
+	);
+	if (!project) throw new Error('Project not found or access denied');
+
+	if (actor.role !== 'Admin') {
+		const [member] = await db.select({ role: projectMembers.role }).from(projectMembers).where(
+			and(
+				eq(projectMembers.projectId, projectId),
+				eq(projectMembers.userId, actor.id)
+			)
+		);
+		if (!member || member.role !== 'Admin') {
+			throw new Error('Unauthorized: Only Project Admins can manage members.');
+		}
+	}
+
+	const [targetUser] = await db.select({ name: users.name }).from(users).where(eq(users.id, targetUserId));
+
+	await db.update(projectMembers).set({ role }).where(
+		and(
+			eq(projectMembers.projectId, projectId),
+			eq(projectMembers.userId, targetUserId)
+		)
+	);
+
+	await db.insert(auditLogs).values({
+		groupId: actor.groupId,
+		projectId,
+		userId: actor.id,
+		actionType: 'member_role_updated',
+		details: { targetUserId, targetName: targetUser?.name || 'Member', newRole: role }
 	});
 }
 

@@ -68,7 +68,7 @@
 
 	<!-- Main Content Area -->
 	<div class="flex-1 overflow-y-auto">
-		<div class="max-w-3xl mx-auto px-8 py-10">
+		<div class="max-w-6xl mx-auto px-6 lg:px-8 py-8 lg:py-10">
 			{@render children()}
 		</div>
 	</div>

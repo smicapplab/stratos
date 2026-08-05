@@ -14,7 +14,7 @@
 <div class="min-h-full flex flex-col relative">
 
 	<!-- Hero Header -->
-	<header class="shrink-0 px-6 sm:px-10 pt-16 pb-10 max-w-5xl w-full mx-auto text-center relative z-10">
+	<header class="shrink-0 px-6 sm:px-10 pt-16 pb-10 max-w-6xl w-full mx-auto text-center relative z-10">
 		<div class="flex items-center justify-center gap-4 mb-6">
 			<div class="p-3.5 sm:p-4 rounded-3xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-xl shadow-brand-primary/10 inline-flex items-center justify-center">
 				<BrandLogoType class="w-14 h-14 sm:w-20 sm:h-20 text-brand-primary dark:text-brand-primary shrink-0" />
@@ -37,7 +37,7 @@
 	</header>
 
 	<!-- Content Container -->
-	<main class="flex-1 px-6 sm:px-10 pb-20 max-w-5xl w-full mx-auto space-y-12 relative z-10">
+	<main class="flex-1 px-6 sm:px-10 pb-20 max-w-6xl w-full mx-auto space-y-12 relative z-10">
 		<!-- Core System Capabilities Grid -->
 		<section>
 			<h2 class="text-xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight mb-6 flex items-center gap-2">
