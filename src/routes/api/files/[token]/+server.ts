@@ -70,14 +70,15 @@ export const GET: RequestHandler = async ({ params, request, locals }) => {
 		}
 
 		const isVideo = mimeType.startsWith('video/');
+		const isInlineImage = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(mimeType);
+		const dispositionType = (isInlineImage || isVideo) ? 'inline' : 'attachment';
 
 		if (!isVideo) {
-			// Non-video: keep original behaviour — full buffer, 200 OK
 			const fileBuffer = await fs.promises.readFile(filePath);
 			return new Response(fileBuffer, {
 				headers: {
 					'Content-Type': mimeType,
-					'Content-Disposition': `inline; filename="${encodeURIComponent(fileName)}"`
+					'Content-Disposition': `${dispositionType}; filename="${encodeURIComponent(fileName)}"`
 				}
 			});
 		}

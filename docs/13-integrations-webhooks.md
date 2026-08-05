@@ -15,7 +15,7 @@ External services need a way to authenticate and trigger actions within Stratos.
 - **Usage:** External scripts include the token in every request: `Authorization: Bearer <stratos_tok_...>`. See `17-programmatic-integration.md` for the full client contract.
 - **Example:** A GitHub Action runs on PR merge, calling the Stratos API to move the associated task from "In Progress" to "Done".
 
-## 2. Outbound Webhooks
+## 2. Outbound Webhooks (Planned Integration Spec)
 Stratos needs to notify external systems when data changes, without requiring those systems to continuously poll the Stratos API.
 
 - **Registration:** Group Admins can register webhook endpoints (URLs) in the UI and select specific events to listen for (e.g., `task.created`, `task.moved`, `comment.added`).

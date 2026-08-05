@@ -61,21 +61,23 @@ export async function createTag(actor: Actor, projectId: string, name: string, c
 	// Any member of the project can create a tag
 	await checkProjectAccess(actor, projectId);
 	
-	const [newTag] = await db.insert(tags).values({
-		projectId,
-		name,
-		color
-	}).returning();
-	
-	await db.insert(auditLogs).values({
-		groupId: actor.groupId,
-		projectId,
-		userId: actor.id,
-		actionType: 'tag_created',
-		details: { tagId: newTag.id, name, color }
-	});
+	return await db.transaction(async (tx) => {
+		const [newTag] = await tx.insert(tags).values({
+			projectId,
+			name,
+			color
+		}).returning();
+		
+		await tx.insert(auditLogs).values({
+			groupId: actor.groupId,
+			projectId,
+			userId: actor.id,
+			actionType: 'tag_created',
+			details: { tagId: newTag.id, name, color }
+		});
 
-	return newTag;
+		return newTag;
+	});
 }
 
 export async function updateTag(actor: Actor, tagId: string, name: string, color: string) {
@@ -83,21 +85,23 @@ export async function updateTag(actor: Actor, tagId: string, name: string, color
 	// Any member can edit a tag
 	await checkProjectAccess(actor, projectId);
 	
-	const [updatedTag] = await db.update(tags).set({
-		name,
-		color,
-		updatedAt: new Date()
-	}).where(eq(tags.id, tagId)).returning();
-	
-	await db.insert(auditLogs).values({
-		groupId: actor.groupId,
-		projectId,
-		userId: actor.id,
-		actionType: 'tag_updated',
-		details: { tagId, name, color }
-	});
+	return await db.transaction(async (tx) => {
+		const [updatedTag] = await tx.update(tags).set({
+			name,
+			color,
+			updatedAt: new Date()
+		}).where(eq(tags.id, tagId)).returning();
+		
+		await tx.insert(auditLogs).values({
+			groupId: actor.groupId,
+			projectId,
+			userId: actor.id,
+			actionType: 'tag_updated',
+			details: { tagId, name, color }
+		});
 
-	return updatedTag;
+		return updatedTag;
+	});
 }
 
 export async function softDeleteTag(actor: Actor, tagId: string) {
@@ -105,17 +109,19 @@ export async function softDeleteTag(actor: Actor, tagId: string) {
 	// Only Project Admins can delete tags
 	await checkProjectAdmin(actor, projectId);
 	
-	await db.update(tags).set({
-		deletedAt: new Date(),
-		updatedAt: new Date()
-	}).where(eq(tags.id, tagId));
+	await db.transaction(async (tx) => {
+		await tx.update(tags).set({
+			deletedAt: new Date(),
+			updatedAt: new Date()
+		}).where(eq(tags.id, tagId));
 
-	await db.insert(auditLogs).values({
-		groupId: actor.groupId,
-		projectId,
-		userId: actor.id,
-		actionType: 'tag_deleted',
-		details: { tagId }
+		await tx.insert(auditLogs).values({
+			groupId: actor.groupId,
+			projectId,
+			userId: actor.id,
+			actionType: 'tag_deleted',
+			details: { tagId }
+		});
 	});
 }
 

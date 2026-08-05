@@ -1,15 +1,15 @@
 # 10 - Backend Caching
 
 ## Stack Reality Check
-Stratos is a Node-based SvelteKit application. Because we operate in a long-running process, we leverage a dedicated **Redis** instance for all in-memory caching needs across the cluster.
+Stratos is a Node-based SvelteKit application. Because we operate in a long-running process, we leverage a dedicated **Valkey / Redis** instance for all in-memory caching needs across the cluster.
 
-## The Redis Cluster Cache
+## The Valkey / Redis Cluster Cache
 
-We use **Redis** as the industry standard for distributed caching. Because we need a unified cache for auth sessions, rate limiting, and heavy queries across all application containers, Redis acts as our centralized in-memory store.
+We use **Valkey** (the open-source, drop-in Redis replacement) via `ioredis` for distributed caching. Because we need a unified cache for auth sessions, rate limiting, and heavy queries across all application containers, Valkey/Redis acts as our centralized in-memory store.
 
-### Security Imperative: Auth Caching in a Cluster
-- **The Liability:** Caching auth sessions across a cluster introduces a dangerous stale-cache risk. If an admin revokes an employee's access, a 5-minute cache TTL would allow them to continue making authenticated requests.
-- **The Solution:** We cache the session in Redis with a short TTL (e.g., 5 mins). If an admin revokes access, the application must immediately issue a `redis.del(\`session:${sessionId}\`)` to globally invalidate the cache across the entire cluster instantly. Redis's native TTL handling ensures we don't need background CRON jobs to clean up expired sessions.
+### Security Imperative: API Token Caching & Invalidation
+- **The Strategy:** API Bearer tokens are validated using SHA-256 hashes cached in Redis (`5-min TTL`) via `apiTokens.ts`.
+- **Cache Invalidation:** To eliminate stale privilege windows, any user role modification or account removal invokes `invalidateTokenCache(userId)`, which deletes all matching Redis token keys immediately across the cluster.
 
 ### Cache Targets
 **Dashboard aggregations (High Compute)**

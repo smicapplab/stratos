@@ -420,7 +420,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="h-full flex flex-col relative overflow-hidden bg-zinc-50 dark:bg-[#0c0c0d]">
+<div class="h-full flex flex-col relative overflow-hidden bg-transparent">
 	<!-- Board Header -->
 	<div class="px-8 py-5 border-b border-zinc-200/50 dark:border-white/5 bg-white/50 dark:bg-[#121214]/50 backdrop-blur-xl flex items-center justify-between shrink-0 relative z-20">
 		<div class="flex items-center gap-4">
@@ -737,7 +737,7 @@
 		/>
 	</div>
 	{:else if activeView === 'reports' && (user.role === 'Admin' || user.role === 'Manager')}
-	<div class="flex-1 overflow-auto custom-scrollbar bg-zinc-50 dark:bg-[#09090b]">
+	<div class="flex-1 overflow-auto custom-scrollbar bg-transparent">
 		<ReportsView boardId={board.id} onTaskClick={(t: any) => activeTask = t} />
 	</div>
 	{/if}

@@ -24,7 +24,7 @@ vi.mock('../db/db', () => ({
 		transaction: vi.fn(async (cb: any) => cb({
 			insert: vi.fn().mockReturnThis(),
 			values: vi.fn().mockReturnThis(),
-			returning: vi.fn().mockResolvedValue([{ id: 'new-board-id' }]),
+			returning: vi.fn().mockResolvedValue([{ id: 'new-board-id', name: 'Sprint 1', prefix: 'SPR' }]),
 			update: vi.fn().mockReturnThis(),
 			set: vi.fn().mockReturnThis(),
 			where: vi.fn().mockReturnThis(),

@@ -5,6 +5,7 @@
 	import { page } from "$app/stores";
 	import { onMount, onDestroy } from "svelte";
 	import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
+	import BrandLogoType from "$lib/components/ui/BrandLogoType.svelte";
 	import {
 		LogOut,
 		Search,
@@ -23,8 +24,8 @@
 		LifeBuoy,
 		User,
 		Info,
+		BookOpen,
 	} from "lucide-svelte";
-	import BrandLogoType from "$lib/components/ui/BrandLogoType.svelte";
 	import DynamicIcon from "$lib/components/ui/DynamicIcon.svelte";
 
 	let { data, children } = $props();
@@ -254,18 +255,22 @@
 					<img
 						src={data.group.logoUrl}
 						alt={data.group.name}
-						class="h-8 max-w-full object-contain"
+						class="h-9 max-w-[180px] object-contain"
 					/>
-					<span
-						class="font-bold text-lg tracking-tight text-zinc-900 dark:text-white truncate"
-						>{data.group.name}</span
-					>
+					{#if data.group.showWorkspaceName !== false}
+						<span
+							class="font-bold text-lg tracking-tight text-zinc-900 dark:text-white truncate"
+							>{data.group.name}</span
+						>
+					{/if}
 				{:else}
-					<BrandLogoType class="w-8 h-8 text-brand-primary" />
-					<span
-						class="font-bold text-lg tracking-tight text-zinc-900 dark:text-white"
-						>Stratos</span
-					>
+					<BrandLogoType class="w-8 h-8 text-brand-primary shrink-0" />
+					{#if data.group?.showWorkspaceName !== false}
+						<span
+							class="font-bold text-lg tracking-tight text-zinc-900 dark:text-white truncate"
+							>{data.group?.name || 'Stratos'}</span
+						>
+					{/if}
 				{/if}
 			</div>
 		</div>
@@ -466,10 +471,24 @@
 							target="_blank"
 							class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100"
 						>
-							<LifeBuoy
+							<BookOpen
 								class="w-4 h-4 transition-transform group-hover:scale-110"
 							/>
 							User Manual
+						</a>
+					</li>
+					<li>
+						<a
+							href="/helpdesk/tickets"
+							class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group {$page
+								.url.pathname.startsWith('/helpdesk')
+								? 'bg-brand-primary/10 text-brand-primary font-semibold dark:bg-brand-primary/10'
+								: 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100'}"
+						>
+							<LifeBuoy
+								class="w-4 h-4 transition-transform group-hover:scale-110"
+							/>
+							Helpdesk Portal
 						</a>
 					</li>
 					<li>
@@ -507,12 +526,12 @@
 						<span>My Profile</span>
 					</a>
 					<a
-						href="/helpdesk/tickets"
+						href="/settings/preferences"
 						class="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors min-h-[44px]"
 						onclick={() => (isUserMenuOpen = false)}
 					>
-						<LifeBuoy class="w-4 h-4 text-zinc-500" />
-						<span>Helpdesk Portal</span>
+						<Settings class="w-4 h-4 text-zinc-500" />
+						<span>Preferences</span>
 					</a>
 					<a
 						href="/about"
@@ -734,8 +753,20 @@
 		<main
 			class="flex-1 overflow-y-auto relative bg-gradient-to-br from-zinc-50 to-zinc-100/50 dark:from-zinc-950 dark:to-zinc-900/80"
 		>
+			<!-- Dynamic Ambient Light & Brand Emblem Watermark for All App Pages (Strictly Clipped) -->
+			<div class="absolute inset-0 overflow-hidden pointer-events-none z-0">
+				<div class="absolute -top-[20%] left-[10%] w-[600px] h-[600px] rounded-full bg-gradient-to-br from-brand-primary/10 to-purple-500/0 dark:from-brand-primary/15 dark:to-transparent blur-[120px] opacity-70"></div>
+				<div class="absolute top-[40%] -right-[10%] w-[600px] h-[600px] rounded-full bg-gradient-to-tl from-brand-primary/10 to-indigo-500/0 dark:from-brand-primary/15 dark:to-transparent blur-[120px] opacity-70"></div>
+				
+				<div class="absolute bottom-0 right-0 w-[480px] h-[480px] translate-x-12 translate-y-12">
+					<BrandLogoType class="w-full h-full text-brand-primary opacity-[0.08] dark:opacity-[0.05] transition-colors duration-300" />
+				</div>
+			</div>
+
 			<!-- We render the child routes here -->
-			{@render children()}
+			<div class="relative z-10 min-h-full h-full flex flex-col flex-1">
+				{@render children()}
+			</div>
 		</main>
 	</div>
 </div>

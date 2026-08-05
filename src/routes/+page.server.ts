@@ -57,48 +57,58 @@ export const actions: Actions = {
 			return fail(400, { error: 'Invalid email or password' });
 		}
 
-		// Look up user
-		const [user] = await db.select({
-			id: users.id,
-			hashedPassword: users.hashedPassword
-		}).from(users).where(and(eq(users.email, email), isNull(users.deletedAt)));
-		if (!user || !user.hashedPassword) {
-			// Do not leak if user exists or not, standard security practice
-			return fail(400, { error: 'Invalid email or password' });
-		}
-
-		// Verify password
-		let validPassword = false;
+		// Look up user safely
 		try {
-			validPassword = await argon2.verify(user.hashedPassword, password);
-		} catch (e) {
-			return fail(400, { error: 'Invalid email or password' });
+			const [user] = await db.select({
+				id: users.id,
+				hashedPassword: users.hashedPassword
+			}).from(users).where(and(eq(users.email, email), isNull(users.deletedAt)));
+
+			if (!user || !user.hashedPassword) {
+				// Do not leak if user exists or not, standard security practice
+				return fail(400, { error: 'Invalid email or password' });
+			}
+
+			// Verify password
+			let validPassword = false;
+			try {
+				validPassword = await argon2.verify(user.hashedPassword, password);
+			} catch (e) {
+				return fail(400, { error: 'Invalid email or password' });
+			}
+			if (!validPassword) {
+				return fail(400, { error: 'Invalid email or password' });
+			}
+
+			const userAgent = request.headers.get('user-agent') || null;
+			
+			// Create Lucia session
+			const session = await lucia.createSession(user.id, {
+				userAgent,
+				ipAddress: clientIp
+			});
+			const sessionCookie = lucia.createSessionCookie(session.id);
+			
+			const cookieOptions: any = {
+				path: '/',
+				...sessionCookie.attributes
+			};
+
+			if (data.get('remember_me') !== 'on') {
+				delete cookieOptions.maxAge;
+			}
+
+			cookies.set(sessionCookie.name, sessionCookie.value, cookieOptions);
+			const redirectUrl = data.get('redirectUrl')?.toString() || '/dashboard';
+
+			throw redirect(302, redirectUrl);
+		} catch (err) {
+			// If it's already a SvelteKit redirect, rethrow it
+			if (err && typeof err === 'object' && 'status' in err && 'location' in err) {
+				throw err;
+			}
+			console.error('[Login Error]:', err);
+			return fail(500, { error: 'Database connection failed. Please ensure database migrations & seed scripts have been run.' });
 		}
-		if (!validPassword) {
-			return fail(400, { error: 'Invalid email or password' });
-		}
-
-		const userAgent = request.headers.get('user-agent') || null;
-		
-		// Create Lucia session
-		const session = await lucia.createSession(user.id, {
-			userAgent,
-			ipAddress: clientIp
-		});
-		const sessionCookie = lucia.createSessionCookie(session.id);
-		
-		const cookieOptions: any = {
-			path: '/',
-			...sessionCookie.attributes
-		};
-
-		if (data.get('remember_me') !== 'on') {
-			delete cookieOptions.maxAge;
-		}
-
-		cookies.set(sessionCookie.name, sessionCookie.value, cookieOptions);
-		const redirectUrl = data.get('redirectUrl')?.toString() || '/dashboard';
-
-		throw redirect(302, redirectUrl);
 	}
 };

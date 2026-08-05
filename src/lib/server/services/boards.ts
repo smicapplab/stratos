@@ -31,24 +31,26 @@ export async function createBoard(actor: Actor, projectId: string, name: string,
 		}
 	}
 
-	const [newBoard] = await db.insert(boards).values({
-		name,
-		prefix,
-		icon,
-		projectId,
-		groupId: actor.groupId,
-		creatorId: actor.id
-	}).returning();
+	return await db.transaction(async (tx) => {
+		const [newBoard] = await tx.insert(boards).values({
+			name,
+			prefix,
+			icon,
+			projectId,
+			groupId: actor.groupId,
+			creatorId: actor.id
+		}).returning();
 
-	await db.insert(auditLogs).values({
-		groupId: actor.groupId,
-		projectId,
-		userId: actor.id,
-		actionType: 'board_created',
-		details: { boardId: newBoard.id, name, prefix }
+		await tx.insert(auditLogs).values({
+			groupId: actor.groupId,
+			projectId,
+			userId: actor.id,
+			actionType: 'board_created',
+			details: { boardId: newBoard.id, name, prefix }
+		});
+
+		return newBoard;
 	});
-
-	return newBoard;
 }
 
 export async function deleteBoard(actor: Actor, boardId: string) {

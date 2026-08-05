@@ -5,6 +5,10 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
+		"dev:ec2": "bash scripts/run-dev.sh",
+		"pm2:start": "npx drizzle-kit push && pm2 start ecosystem.config.cjs",
+		"pm2:stop": "pm2 stop stratos-dev",
+		"pm2:logs": "pm2 logs stratos-dev",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
@@ -49,7 +53,6 @@
 		"@floating-ui/dom": "^1.8.0",
 		"@lucia-auth/adapter-drizzle": "^1.1.0",
 		"@modelcontextprotocol/sdk": "^1.29.0",
-		"@neondatabase/serverless": "^1.1.0",
 		"@tiptap/core": "^3.27.3",
 		"@tiptap/extension-image": "^3.27.3",
 		"@tiptap/extension-mention": "^3.27.3",

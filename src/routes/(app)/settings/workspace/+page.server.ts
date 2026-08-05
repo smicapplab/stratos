@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db/db';
 import { groups } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { validateLogoImage, saveLogoImage } from '$lib/server/services/storage';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -20,8 +21,10 @@ export const actions: Actions = {
 		
 		const data = await request.formData();
 		const defaultTheme = data.get('defaultTheme')?.toString();
-		const logoUrl = data.get('logoUrl')?.toString() || null;
 		const name = data.get('name')?.toString();
+		const logoSource = data.get('logoSource')?.toString() || 'url';
+		const showWorkspaceName = data.get('showWorkspaceName') === 'true' || data.get('showWorkspaceName') === 'on';
+		let finalLogoUrl: string | null = locals.group.logoUrl;
 
 		if (!defaultTheme) {
 			return fail(400, { message: 'Default theme is required' });
@@ -29,11 +32,30 @@ export const actions: Actions = {
 		if (!name || name.trim() === '') {
 			return fail(400, { message: 'Workspace name is required' });
 		}
+
+		if (logoSource === 'file') {
+			const logoFile = data.get('logoFile') as File | null;
+			if (logoFile && logoFile.size > 0) {
+				const validation = validateLogoImage(logoFile);
+				if (!validation.valid) {
+					return fail(400, { message: validation.error });
+				}
+				finalLogoUrl = await saveLogoImage(logoFile);
+			}
+		} else {
+			const inputUrl = data.get('logoUrl')?.toString()?.trim();
+			finalLogoUrl = inputUrl || null;
+		}
 		
 		await db.update(groups)
-			.set({ defaultTheme, logoUrl, name: name.trim() })
+			.set({ 
+				defaultTheme, 
+				logoUrl: finalLogoUrl, 
+				name: name.trim(),
+				showWorkspaceName 
+			})
 			.where(eq(groups.id, locals.group.id));
 			
-		return { success: true };
+		return { success: true, logoUrl: finalLogoUrl };
 	}
 };

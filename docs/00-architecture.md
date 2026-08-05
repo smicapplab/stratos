@@ -7,22 +7,23 @@ Stratos is an internal Jira/ClickUp replacement optimized for high performance, 
 - **Framework**: Pure SvelteKit (Standard Node adapter for persistent connections).
 - **Frontend State**: Svelte 5 `$state` and `$derived` runes with true real-time syncing.
 - **Database**: Postgres (managed via Drizzle ORM).
-- **Cache / PubSub**: Redis for fast session lookup, rate limiting, and cross-instance Server-Sent Events (SSE) broadcasting.
+- **Cache / PubSub**: `ioredis` for session caching and rate limiting; in-process `EventEmitter` for single-node Server-Sent Events (SSE) broadcasting (with Redis Pub/Sub expansion capability for multi-instance clusters).
 - **Authentication**: Lucia Auth with Drizzle adapter.
 - **Rich Text Sync**: Yjs + Tiptap for collaborative description editing.
+- **Tenant Isolation**: Service-layer scoping using explicit `groupId` query filters across all Drizzle queries.
 
 ## Data Flow & Operations
 1. **Reads (Loaders as Seed Data)**: Svelte components fetch initial data via SvelteKit Server Loaders (`+page.server.ts`). This data securely fetched from Postgres is used to **seed** a global client-side Svelte 5 `$state` store per board.
-2. **Standard Writes (Mutations via OCC)**: Mutations for scalar fields (status, assignee, due date) are handled via native `fetch` to `+server.ts` endpoints using Optimistic Concurrency Control (OCC).
+2. **Standard Writes**: Mutations for scalar fields (status, assignee, due date) are handled via native `fetch` to `+server.ts` endpoints or SvelteKit form actions using optimistic client updates backed by server validation.
 3. **Rich Text Writes (CRDTs)**: The task description uses Yjs to sync document states incrementally, ensuring true multiplayer editing without "last-write-wins" data loss.
 4. **Optimistic UI & Real-Time Patching**: We use optimistic updates on our local Svelte 5 `$state` store for scalar mutations to provide 0ms latency. Real-time updates from other users are received as targeted delta patches over **Server-Sent Events (SSE)**.
-5. **Stateless Server Boundary**: SvelteKit remains stateless. By utilizing standard HTTP SSE streams backed by Redis Pub/Sub, we scale horizontally and mitigate Postgres connection pool exhaustion (connections are only held during HTTP request lifecycles, not for open SSE streams).
+5. **Stateless Server Boundary**: SvelteKit remains stateless. By utilizing standard HTTP SSE streams, we scale efficiently and mitigate Postgres connection pool exhaustion (connections are only held during HTTP request lifecycles, not for open SSE streams).
 
 ## Design Philosophy
 - **Zero Type Escapes**: `any` and `unknown` are strictly forbidden.
 - **Server/Client Isolation**: Database logic and secrets never leak into the client bundle.
 - **Aesthetic Excellence**: UI is built with Tailwind CSS, utilizing modern layouts to achieve a premium, modern UX.
-- **Pragmatic Sync**: We use CRDTs *only* where necessary (Rich Text). For Kanban entity resolution (e.g., dragging a card, changing a status), we rely on REST + OCC. This isolates the complexity of CRDTs.
+- **Pragmatic Sync**: We use CRDTs *only* where necessary (Rich Text). For Kanban entity resolution (e.g., dragging a card, changing a status), we rely on REST endpoints. This isolates the complexity of CRDTs.
 
 ## Architectural Compromises & Limitations
 1. **Local-First vs Offline-First:** This architecture provides **Local-First Latency (0ms Optimistic UI)** but is **NOT Offline-First**. Because we rely on the server as the ultimate authority for LexoRank strings, sequence IDs, and Postgres ACID transactions, the application requires an active internet connection.

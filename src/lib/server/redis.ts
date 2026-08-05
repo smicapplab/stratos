@@ -1,16 +1,28 @@
 import Redis from 'ioredis';
 import { env } from '$env/dynamic/private';
 
-// Fetch Redis URL from dynamic environment variables, default to local docker port
-if (!env.REDIS_URL) {
-	console.warn('[Redis] REDIS_URL environment variable is not set. Falling back to default: redis://localhost:6379');
-}
-const redisUrl = env.REDIS_URL || 'redis://localhost:6379';
+function createRedisClient(): Redis {
+	if (env.REDIS_URL) {
+		return new Redis(env.REDIS_URL, {
+			maxRetriesPerRequest: 3,
+			connectTimeout: 5000
+		});
+	}
 
-export const redis = new Redis(redisUrl, {
-	maxRetriesPerRequest: 3,
-	connectTimeout: 5000
-});
+	const host = env.VALKEY_HOST || env.REDIS_HOST || 'localhost';
+	const port = parseInt(env.VALKEY_PORT || env.REDIS_PORT || '6379', 10);
+	const password = env.VALKEY_PASS || env.REDIS_PASSWORD || undefined;
+
+	return new Redis({
+		host,
+		port,
+		password: password || undefined,
+		maxRetriesPerRequest: 3,
+		connectTimeout: 5000
+	});
+}
+
+export const redis = createRedisClient();
 
 redis.on('error', (err) => {
 	console.error('Redis Client Error:', err);

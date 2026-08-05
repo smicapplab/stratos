@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { User, Shield, Sliders, LifeBuoy, Terminal, Building2 } from 'lucide-svelte';
+	import { User, Shield, Sliders, Terminal, Building2 } from 'lucide-svelte';
 
 	let { children } = $props();
 
@@ -13,7 +13,6 @@
 		{ name: 'Profile', href: '/settings/profile', icon: User },
 		{ name: 'Preferences', href: '/settings/preferences', icon: Sliders },
 		{ name: 'Security', href: '/settings/security', icon: Shield },
-		{ name: 'Helpdesk', href: '/helpdesk/tickets', icon: LifeBuoy },
 	];
 
 	let navItems = $derived([
@@ -36,31 +35,31 @@
 	}
 </script>
 
-<div class="flex flex-col md:flex-row h-full w-full bg-white dark:bg-[#1C1C1E]">
+<div class="flex flex-col md:flex-row h-full min-h-full flex-1 w-full bg-transparent">
 	<!-- Settings Sidebar -->
-	<div class="w-full md:w-[240px] flex-shrink-0 border-b md:border-b-0 md:border-r border-gray-200 dark:border-white/[0.05] bg-[#F9F9F9] dark:bg-[#1E1E20] flex flex-col pt-6">
-		<div class="px-5 mb-6">
-			<h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
+	<div class="w-full md:w-[240px] shrink-0 border-b md:border-b-0 md:border-r border-zinc-200/60 dark:border-zinc-800/60 bg-white/40 dark:bg-zinc-900/30 backdrop-blur-md flex flex-col h-full min-h-full justify-between py-6">
+		<div class="px-5 mb-6 shrink-0">
+			<h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Settings</h1>
 		</div>
 		
-		<nav class="flex-1 px-3 space-y-1">
+		<nav class="px-3 space-y-1 flex-1">
 			{#each navItems as item}
 				{@const isActive = $page.url.pathname === item.href}
 				<a 
 					href={item.href}
-					class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors {isActive ? 'bg-gray-200 dark:bg-white/[0.08] text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/[0.04] hover:text-gray-900 dark:hover:text-gray-200'}"
+					class="flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 {isActive ? 'bg-brand-primary/10 text-brand-primary font-semibold dark:bg-brand-primary/20 dark:text-brand-primary' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100'}"
 				>
-					<item.icon class="w-4 h-4 mr-3 {isActive ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-500'}" />
+					<item.icon class="w-4 h-4 mr-3 {isActive ? 'text-brand-primary' : 'text-zinc-400 dark:text-zinc-500'}" />
 					{item.name}
 				</a>
 			{/each}
 		</nav>
-		
-		<div class="p-4 border-t border-gray-200 dark:border-white/[0.05]">
+
+		<div class="p-4 mt-auto border-t border-zinc-200/60 dark:border-zinc-800/60 shrink-0">
 			<button 
 				type="button" 
 				onclick={handleSignOut}
-				class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-white/[0.05] rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1C1C1E] hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors cursor-pointer"
+				class="w-full flex items-center justify-center px-4 py-2.5 border border-red-200/60 dark:border-red-900/30 rounded-xl text-sm font-medium text-red-600 dark:text-red-400 bg-red-50/50 dark:bg-red-950/20 hover:bg-red-100/70 dark:hover:bg-red-900/40 transition-colors cursor-pointer min-h-[44px]"
 			>
 				Sign out
 			</button>

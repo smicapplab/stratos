@@ -27,6 +27,21 @@ describe('File Upload Security & Pre-Signed URLs (TDD Suite)', () => {
 	});
 
 	describe('validateUploadedFile()', () => {
+		it('should reject scriptable and web content files (.html, .js, .sh, .py, .env)', () => {
+			const filesToReject = [
+				{ name: 'attack.html', type: 'text/html', size: 100 },
+				{ name: 'script.js', type: 'application/javascript', size: 100 },
+				{ name: 'payload.sh', type: 'text/x-shellscript', size: 100 },
+				{ name: 'exploit.py', type: 'text/x-python', size: 100 },
+				{ name: 'secrets.env', type: 'text/plain', size: 100 }
+			];
+
+			for (const file of filesToReject) {
+				const res = validateUploadedFile(file as File);
+				expect(res.valid).toBe(false);
+			}
+		});
+
 		it('should reject file types outside allowed MIME type set (e.g. .exe)', () => {
 			const mockFile = {
 				name: 'malware.exe',

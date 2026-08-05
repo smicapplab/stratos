@@ -18,10 +18,5 @@ An `attachments` table will link files to tasks:
 - `fileUrl`: String (Relative path for local dev, absolute URL for production)
 - `mimeType`: String
 
-## Attachment Garbage Collection
-Over time, users will upload large files to tasks and eventually delete the task, leading to orphaned files that consume expensive storage.
-
-- **The Strategy:** When a task is soft-deleted, its attachments are marked as `pending_deletion`. 
-- **The Worker:** A background Node worker (via BullMQ or `setInterval`) runs nightly. It scans for attachments where the associated task has been permanently deleted, or attachments that have been `pending_deletion` for over 30 days.
-- **Distributed Locking (Cluster Safety):** Because the app is deployed as a cluster (multiple Node instances), a naïve `setInterval` will cause every instance to run the cron job simultaneously. The worker must acquire a distributed lock via Redis (e.g., Redlock) before executing, ensuring only one container performs the garbage collection.
-- **Execution:** The worker calls `storage.delete(fileName)` (which deletes the local file or issues an S3 deletion command) and then drops the row from the `attachments` table.
+## Attachment Garbage Collection (Planned Maintenance Utility)
+Over time, soft-deleted boards and tasks accumulate. While `scripts/cleanup-orphan-tasks.ts` handles pruning orphaned task entities whose parent project/board was deleted, disk storage garbage collection for orphaned attachment files remains a planned offline maintenance utility.

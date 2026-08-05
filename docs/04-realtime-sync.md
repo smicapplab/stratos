@@ -7,10 +7,11 @@ To guarantee **data stability, collaborative speed, and minimal database load**,
 2. **Client-Side Svelte 5 Store & Delta Merging:** SvelteKit Server Loaders **seed** a global client-side `$state` store. 
     - We explicitly **DO NOT** use SvelteKit's `invalidateAll()` for real-time synchronization to avoid "thundering herds".
     - Instead, we apply **Delta-Patching**. A standard SvelteKit `+server.ts` route holds an open `text/event-stream` (SSE) response. As mutations occur, delta payloads are streamed to the client and merged directly into the `$state` store.
-3. **Data Refreshing (Redis Pub/Sub):** 
-    - Server A handles a REST mutation, commits to Postgres, and publishes an event to Redis.
-    - All Servers subscribe to Redis and push the event down their active SSE streams.
-    - **DB Pool Safety:** SSE connections hold standard HTTP requests open, but they **must never** hold a checkout from the Postgres connection pool while idling.
+3. **Data Refreshing (In-Process & Pub/Sub Ready):** 
+    - In single-node deployments, server-side mutations publish events directly via `globalEventEmitter` in `src/lib/server/services/events.ts`.
+    - Active SSE connections listen to board channels and push event payloads down to connected clients.
+    - Multi-instance deployments expand `events.ts` to publish to Redis Pub/Sub so that events cross node boundaries.
+    - **DB Pool Safety:** SSE connections hold standard HTTP requests open, but **must never** hold a checkout from the Postgres connection pool while idling.
 
 ## Dual-Layer Concurrency (Write OCC + Read Sequence IDs)
 

@@ -1,17 +1,14 @@
 # 11 - Testing Strategy (TDD)
 
 ## Pragmatic Testing Philosophy
-While we heavily de-prioritize Playwright E2E testing for basic CRUD pages to maintain velocity, **E2E UI Testing is Mandatory for Core Mechanics**. SvelteKit blurs the frontend/backend boundary. The most complex logic (Optimistic UI rollbacks, drag-and-drop state math, SSE reconnection jitter) lives in the UI layer. Manual testing is insufficient for these critical paths. We mandate Playwright test coverage specifically for:
-1. Kanban Drag-and-Drop (cross-column and intra-column).
-2. Optimistic UI Rollbacks (simulating 409 Conflicts).
-3. SSE (Server-Sent Events) reconnection and delta-patching.
+We prioritize fast, isolated unit testing for backend service logic, access guards, and security validation to maintain velocity. Playwright E2E UI testing for complex interactive flows (Kanban drag-and-drop, optimistic UI rollbacks, and SSE reconnection) is planned as the application transitions to production freeze.
 
-## Backend Unit Testing (TDD is Mandatory)
-Test-Driven Development (TDD) is strictly enforced for all backend business logic and security access guards. 
+## Backend Unit Testing (TDD)
+Test-Driven Development (TDD) is enforced for all backend business logic and security access guards.
 
-- **Framework**: Vitest (runs natively and insanely fast within the SvelteKit/Vite ecosystem).
-- **Target Areas**: 
-  - `src/lib/server/services/*`: All core logic must have corresponding `.test.ts` files.
-  - **Access Guards**: Tests must explicitly verify that a user from Group A cannot read/mutate data belonging to Group B.
-  - **Board Mechanics**: The fractional index generation and rebalancing logic must be heavily unit tested to prevent board corruption.
-- **The "No Mocking" Rule for DBs**: We explicitly **DO NOT mock** the Drizzle database layer (`src/lib/server/db`) during backend service tests. Mocking an ORM is an anti-pattern that results in tests that only verify the mock, completely missing SQL syntax errors, failed RLS constraints, or database trigger failures. Tests must run against a dedicated, isolated Postgres test database (e.g., spun up via Docker/Testcontainers) to guarantee integration safety.
+- **Framework**: Vitest (runs natively and fast within the Vite/SvelteKit ecosystem).
+- **Target Areas**:
+  - `src/lib/server/services/*`: Core business services (users, boards, tasks, notifications, apiTokens, helpdesk, fileAttachments) are covered with unit tests.
+  - **Access Guards**: Tests verify that role restrictions (Admin vs Member vs Viewer) and group scoping rules are strictly enforced.
+  - **Isolation Strategy**: Vitest suites utilize lightweight module mocks (`vi.mock('../db/db')`) to isolate service business logic, while migration and schema integrity are validated via `drizzle-kit check` in `scripts/db-verify.sh`.
+
