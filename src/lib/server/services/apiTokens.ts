@@ -4,7 +4,7 @@ import { eq, and, isNull } from 'drizzle-orm';
 import { createHash, randomBytes } from 'crypto';
 import { redis } from '../redis';
 import type { Actor } from './users';
-import type { SessionUser } from '$lib/server/auth/session';
+import { type SessionUser, toValidRole } from '$lib/server/auth/session';
 
 export interface TokenValidationResult {
 	isValid: boolean;
@@ -82,7 +82,7 @@ export async function validateApiToken(token: string): Promise<TokenValidationRe
 			name: result.userName,
 			email: result.userEmail,
 			groupId: result.groupId,
-			role: result.userRole as 'Admin' | 'Manager' | 'Member' | 'Viewer',
+			role: toValidRole(result.userRole),
 			jobTitle: result.userJobTitle,
 			avatarUrl: result.userAvatarUrl,
 			theme: result.userTheme

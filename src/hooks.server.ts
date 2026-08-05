@@ -88,7 +88,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
-	setSessionTokenCookie(event, token, session.expiresAt);
+	if (session.fresh) {
+		setSessionTokenCookie(event, token, session.expiresAt);
+	}
 
 	event.locals.user = user;
 	event.locals.session = session;
