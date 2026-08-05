@@ -10,5 +10,5 @@ Test-Driven Development (TDD) is enforced for all backend business logic and sec
 - **Target Areas**:
   - `src/lib/server/services/*`: Core business services (users, boards, tasks, notifications, apiTokens, helpdesk, fileAttachments) are covered with unit tests.
   - **Access Guards**: Tests verify that role restrictions (Admin vs Member vs Viewer) and group scoping rules are strictly enforced.
-  - **Isolation Strategy**: Vitest suites utilize lightweight module mocks (`vi.mock`) to isolate business logic, while integration testing against real Postgres containers is conducted during pre-commit quality audits (`scripts/security-audit.sh` and `scripts/db-verify.sh`).
+  - **Isolation Strategy**: Vitest suites utilize lightweight module mocks (`vi.mock('../db/db')`) to isolate service business logic, while migration and schema integrity are validated via `drizzle-kit check` in `scripts/db-verify.sh`.
 

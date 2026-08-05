@@ -99,13 +99,6 @@
       "when": 1785821000000,
       "tag": "0013_add_fk_indexes",
       "breakpoints": true
-    },
-    {
-      "idx": 14,
-      "version": "7",
-      "when": 1785822000000,
-      "tag": "0014_fix_audit_logs_group_id_default",
-      "breakpoints": true
     }
   ]
 }
