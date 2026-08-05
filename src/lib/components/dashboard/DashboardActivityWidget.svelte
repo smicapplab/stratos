@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { Bell, UserPlus, AtSign, CheckCircle2, MessageSquare, Clock, Check, ArrowRight } from 'lucide-svelte';
+	import { Bell, Clock, Check, ArrowRight, CheckCircle2 } from 'lucide-svelte';
+	import {
+		getNotificationIcon,
+		getNotificationText,
+		markNotificationAsRead
+	} from '$lib/utils/notifications';
 
 	let { widgetsPromise }: { widgetsPromise: Promise<any> } = $props();
 
@@ -13,35 +18,7 @@
 
 	async function markRead(id: string) {
 		localNotifications = localNotifications.filter((n) => n.id !== id);
-		try {
-			await fetch('/api/notifications/read', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ id })
-			});
-		} catch (err) {
-			console.error('Failed to mark notification read:', err);
-		}
-	}
-
-	function getNotificationIcon(type: string) {
-		switch (type) {
-			case 'assigned': return { icon: UserPlus, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-500/10' };
-			case 'mentioned': return { icon: AtSign, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-500/10' };
-			case 'status_changed': return { icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10' };
-			case 'comment_added': return { icon: MessageSquare, color: 'text-brand-primary', bg: 'bg-brand-primary/10 dark:bg-brand-primary/10' };
-			default: return { icon: Bell, color: 'text-brand-primary', bg: 'bg-brand-primary/10 dark:bg-brand-primary/10' };
-		}
-	}
-
-	function getNotificationText(type: string) {
-		switch (type) {
-			case 'assigned': return 'assigned you a task';
-			case 'mentioned': return 'mentioned you in a task';
-			case 'status_changed': return 'changed status of a task';
-			case 'comment_added': return 'commented on a task';
-			default: return 'notified you';
-		}
+		await markNotificationAsRead(id);
 	}
 </script>
 

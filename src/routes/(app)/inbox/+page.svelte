@@ -1,8 +1,16 @@
 <script lang="ts">
 	import { 
-		Bell, CheckCircle2, UserPlus, AtSign, Clock, Inbox, Check, MessageSquare, Send
+		Clock, Inbox, Check, Send
 	} from 'lucide-svelte';
 	import Avatar from '$lib/components/ui/Avatar.svelte';
+	import TaskDrawer from '$lib/components/task/TaskDrawer.svelte';
+	import { toastStore } from '$lib/stores/ui.svelte';
+	import {
+		getNotificationIcon,
+		getNotificationText,
+		markNotificationAsRead,
+		markAllNotificationsAsRead
+	} from '$lib/utils/notifications';
 
 	let { data } = $props();
 	
@@ -17,23 +25,38 @@
 
 	let unreadCount = $derived(notifications.filter((n: any) => !n.readAt).length);
 
-	async function markAsRead(id: string) {
-		const idx = notifications.findIndex((n: any) => n.id === id);
-		if (idx > -1 && !notifications[idx].readAt) {
-			notifications[idx].readAt = new Date();
-			try {
-				await fetch('/api/notifications/read', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ id })
-				});
-			} catch (err) {
-				console.error("Failed to mark notification as read", err);
+	// Task drawer state
+	let activeTask = $state<any | null>(null);
+	let isLoadingTask = $state(false);
+
+	async function openTask(taskId: string, notifId?: string) {
+		if (!taskId) return;
+
+		// Optimistically mark notification as read
+		if (notifId) {
+			const idx = notifications.findIndex((n: any) => n.id === notifId);
+			if (idx > -1 && !notifications[idx].readAt) {
+				notifications[idx].readAt = new Date();
+				markNotificationAsRead(notifId);
 			}
+		}
+
+		isLoadingTask = true;
+		try {
+			const res = await fetch(`/api/tasks/${taskId}`);
+			if (!res.ok) {
+				toastStore.error('Failed to load task. It may have been deleted.');
+				return;
+			}
+			activeTask = await res.json();
+		} catch (err) {
+			toastStore.error('Failed to load task.');
+		} finally {
+			isLoadingTask = false;
 		}
 	}
 
-	async function markAllAsRead() {
+	async function handleMarkAllAsRead() {
 		const unread = notifications.filter((n: any) => !n.readAt);
 		if (unread.length === 0) return;
 		
@@ -41,40 +64,7 @@
 			n.readAt = new Date();
 		}
 		
-		try {
-			await fetch('/api/notifications/read', { method: 'POST', body: JSON.stringify({}) });
-		} catch (err) {
-			console.error("Failed to mark all as read", err);
-		}
-	}
-
-	function getNotificationIcon(type: string) {
-		switch (type) {
-			case 'assigned': return { icon: UserPlus, color: 'text-indigo-500 dark:text-indigo-400' };
-			case 'mentioned': return { icon: AtSign, color: 'text-purple-500 dark:text-purple-400' };
-			case 'status_changed': return { icon: CheckCircle2, color: 'text-emerald-500 dark:text-emerald-400' };
-			case 'comment_added': return { icon: MessageSquare, color: 'text-brand-primary dark:text-brand-primary' };
-			default: return { icon: Bell, color: 'text-brand-primary dark:text-brand-primary' };
-		}
-	}
-
-	function getNotificationText(type: string, isSent: boolean = false) {
-		if (isSent) {
-			switch (type) {
-				case 'assigned': return 'assigned a task to';
-				case 'mentioned': return 'mentioned';
-				case 'status_changed': return 'updated a task for';
-				case 'comment_added': return 'commented on a task for';
-				default: return 'notified';
-			}
-		}
-		switch (type) {
-			case 'assigned': return 'assigned you a task';
-			case 'mentioned': return 'mentioned you in a task';
-			case 'status_changed': return 'changed the status of a task';
-			case 'comment_added': return 'commented on a task';
-			default: return 'notified you';
-		}
+		await markAllNotificationsAsRead();
 	}
 </script>
 
@@ -82,7 +72,7 @@
 	<title>Inbox - Stratos</title>
 </svelte:head>
 
-<div class="h-full flex flex-col bg-transparent">
+<div class="h-full flex flex-col bg-transparent relative">
 	<header class="shrink-0 px-6 sm:px-10 py-8 max-w-6xl w-full mx-auto flex flex-col gap-6">
 		<div class="flex items-center justify-between">
 			<div>
@@ -97,7 +87,7 @@
 			
 			{#if activeTab === 'received' && notifications.length > 0}
 				<button 
-					onclick={markAllAsRead}
+					onclick={handleMarkAllAsRead}
 					disabled={unreadCount === 0}
 					class="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl transition-all {unreadCount > 0 ? 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-brand-primary/50 hover:shadow-sm text-zinc-700 dark:text-zinc-300' : 'opacity-50 cursor-not-allowed text-zinc-400 border border-transparent'}"
 				>
@@ -151,11 +141,10 @@
 					<div class="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl shadow-sm overflow-hidden flex flex-col divide-y divide-zinc-100 dark:divide-white/5">
 						{#each notifications as notif}
 							{@const IconInfo = getNotificationIcon(notif.type)}
-							{@const taskUrl = notif.boardId ? `/boards/${notif.boardId}?task=${notif.taskId}` : `/tasks/${notif.taskId}`}
-							<a 
-								href={taskUrl}
-								onclick={() => { if (!notif.readAt) markAsRead(notif.id); }}
-								class="group flex items-start gap-4 p-5 sm:p-6 transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.02] relative {notif.readAt ? 'opacity-70' : ''}"
+							<button
+								type="button"
+								onclick={() => openTask(notif.taskId, notif.id)}
+								class="group w-full text-left flex items-start gap-4 p-5 sm:p-6 transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.02] relative {notif.readAt ? 'opacity-70' : ''}"
 							>
 								{#if !notif.readAt}
 									<div class="absolute left-0 top-0 bottom-0 w-1 bg-brand-primary dark:bg-brand-primary/100"></div>
@@ -182,16 +171,16 @@
 										</span>
 									</div>
 									{#if !notif.readAt}
-										<button 
-											type="button"
-											onclick={(e) => { e.preventDefault(); e.stopPropagation(); markAsRead(notif.id); }}
+										<span
+											role="none"
+											onclick={(e) => { e.stopPropagation(); const idx = notifications.findIndex((n: any) => n.id === notif.id); if (idx > -1) { notifications[idx].readAt = new Date(); markNotificationAsRead(notif.id); } }}
 											class="mt-2 inline-flex items-center text-xs font-bold uppercase tracking-wider text-brand-primary hover:underline cursor-pointer"
 										>
 											Mark as Read
-										</button>
+										</span>
 									{/if}
 								</div>
-							</a>
+							</button>
 						{/each}
 					</div>
 				{/if}
@@ -215,10 +204,10 @@
 					<div class="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl shadow-sm overflow-hidden flex flex-col divide-y divide-zinc-100 dark:divide-white/5">
 						{#each sentNotifications as notif}
 							{@const IconInfo = getNotificationIcon(notif.type)}
-							{@const taskUrl = notif.boardId ? `/boards/${notif.boardId}?task=${notif.taskId}` : `/tasks/${notif.taskId}`}
-							<a 
-								href={taskUrl}
-								class="group flex items-start gap-4 p-5 sm:p-6 transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.02] relative"
+							<button
+								type="button"
+								onclick={() => openTask(notif.taskId)}
+								class="group w-full text-left flex items-start gap-4 p-5 sm:p-6 transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.02] relative"
 							>
 								<div class="shrink-0 relative">
 									<Avatar name={notif.recipientName || "Team Member"} size="lg" />
@@ -241,13 +230,35 @@
 										</span>
 									</div>
 								</div>
-							</a>
+							</button>
 						{/each}
 					</div>
 				{/if}
 			{/if}
 		</div>
 	</div>
+
+	<!-- Loading overlay for task fetch -->
+	{#if isLoadingTask}
+		<div class="absolute inset-0 bg-black/10 dark:bg-black/20 flex items-center justify-center z-40 pointer-events-none">
+			<div class="bg-white dark:bg-zinc-900 rounded-xl px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-300 shadow-lg">
+				Loading task...
+			</div>
+		</div>
+	{/if}
+
+	<!-- Task Drawer -->
+	{#if activeTask}
+		<TaskDrawer
+			bind:task={activeTask}
+			currentUserId={data.user.id}
+			allTasks={[]}
+			groupUsers={data.groupUsers}
+			stages={data.stages}
+			customFields={[]}
+			onClose={() => { activeTask = null; }}
+		/>
+	{/if}
 </div>
 
 <style>

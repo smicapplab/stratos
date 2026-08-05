@@ -61,13 +61,58 @@
 	let editTagName = $state("");
 	let editTagColor = $state("blue");
 
+	let tagsList = $state<any[]>([]);
+
+	$effect(() => {
+		if (projectTags && projectTags.length > 0) {
+			tagsList = projectTags;
+		}
+	});
+
+	$effect(() => {
+		if (showTagDropdown && tagsList.length === 0) {
+			const targetId = projectId || task.projectId || task.boardId || task.id;
+			if (targetId) {
+				fetch(`/api/projects/${targetId}/tags`)
+					.then((r) => (r.ok ? r.json() : []))
+					.then((data) => {
+						if (Array.isArray(data)) tagsList = data;
+					});
+			}
+		}
+	});
+
 	let filteredTags = $derived(
-		projectTags.filter(t => !t.deletedAt && t.name.toLowerCase().includes(tagSearchQuery.toLowerCase()))
+		tagsList.filter(t => !t.deletedAt && t.name.toLowerCase().includes(tagSearchQuery.toLowerCase()))
 	);
 
 	let exactMatch = $derived(
-		projectTags.some(t => !t.deletedAt && t.name.toLowerCase() === tagSearchQuery.toLowerCase())
+		tagsList.some(t => !t.deletedAt && t.name.toLowerCase() === tagSearchQuery.toLowerCase())
 	);
+
+	function getTagStyle(color?: string) {
+		switch (color) {
+			case 'red': return 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20';
+			case 'emerald': return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+			case 'amber': return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+			case 'purple': return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20';
+			case 'pink': return 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20';
+			case 'zinc': return 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20';
+			default: return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+		}
+	}
+
+	function getTagDotColor(color?: string) {
+		switch (color) {
+			case 'red': return 'bg-red-500';
+			case 'emerald': return 'bg-emerald-500';
+			case 'amber': return 'bg-amber-500';
+			case 'purple': return 'bg-purple-500';
+			case 'pink': return 'bg-pink-500';
+			case 'zinc': return 'bg-zinc-500';
+			default: return 'bg-blue-500';
+		}
+	}
 
 	async function toggleTag(tag: any) {
 		if (!task.tags) task.tags = [];
@@ -75,18 +120,46 @@
 		
 		if (isAttached) {
 			task.tags = task.tags.filter((t: any) => t.id !== tag.id);
-			fetch(`/api/tasks/${task.id}/tags`, {
-				method: 'DELETE',
-				body: JSON.stringify({ tagId: tag.id })
-			});
+			try {
+				const res = await fetch(`/api/tasks/${task.id}/tags`, {
+					method: 'DELETE',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ tagId: tag.id })
+				});
+				if (!res.ok) {
+					task.tags = [...task.tags, tag];
+					const err = await res.json().catch(() => ({}));
+					toastStore.error(err.error || "Failed to remove tag");
+				} else {
+					invalidateAll();
+				}
+			} catch (e) {
+				task.tags = [...task.tags, tag];
+				toastStore.error("Failed to remove tag");
+			}
 		} else {
-			task.tags.push(tag);
-			fetch(`/api/tasks/${task.id}/tags`, {
-				method: 'POST',
-				body: JSON.stringify({ tagId: tag.id })
-			});
+			task.tags = [...task.tags, tag];
+			try {
+				const res = await fetch(`/api/tasks/${task.id}/tags`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ tagId: tag.id })
+				});
+				if (!res.ok) {
+					task.tags = task.tags.filter((t: any) => t.id !== tag.id);
+					const err = await res.json().catch(() => ({}));
+					toastStore.error(err.error || "Failed to add tag");
+				} else {
+					invalidateAll();
+				}
+			} catch (e) {
+				task.tags = task.tags.filter((t: any) => t.id !== tag.id);
+				toastStore.error("Failed to add tag");
+			}
 		}
 	}
+
+	import { page } from '$app/stores';
 
 	async function toggleFollower(userId: string) {
 		if (!task.followers) task.followers = [];
@@ -101,7 +174,8 @@
 		const formData = new FormData();
 		formData.append('taskId', task.id);
 		formData.append('userId', userId);
-		await fetch(`/boards/${task.boardId}?/toggleFollower`, {
+		const targetUrl = task.boardId ? `/boards/${task.boardId}` : $page.url.pathname;
+		await fetch(`${targetUrl}?/toggleFollower`, {
 			method: 'POST',
 			body: formData,
 			headers: { 'x-sveltekit-action': 'true' }
@@ -112,22 +186,24 @@
 
 	async function createNewTag() {
 		if (!tagSearchQuery || exactMatch) return;
-		const targetProjectId = projectId || task.projectId || task.boardId;
-		if (!targetProjectId) {
-			toastStore.error("Missing project context to create a tag");
+		const targetId = projectId || task.projectId || task.boardId || task.id;
+		if (!targetId) {
+			toastStore.error("Missing context to create a tag");
 			return;
 		}
-		const res = await fetch(`/api/projects/${targetProjectId}/tags`, {
+		const res = await fetch(`/api/projects/${targetId}/tags`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ name: tagSearchQuery, color: "zinc" }),
 		});
 		if (res.ok) {
 			const newTag = await res.json();
-			projectTags.push(newTag);
-			toggleTag(newTag);
+			tagsList = [...tagsList, newTag];
+			await toggleTag(newTag);
 			tagSearchQuery = "";
-			invalidateAll();
+		} else {
+			const err = await res.json().catch(() => ({}));
+			toastStore.error(err.error || "Failed to create tag");
 		}
 	}
 
@@ -234,9 +310,9 @@
 			</div>
 			<div class="flex flex-wrap gap-1.5 mb-2">
 				{#each (task.tags || []) as tag}
-					<div class="px-2 py-0.5 text-xs font-medium rounded-md bg-{tag.color}-500/10 text-{tag.color}-600 dark:text-{tag.color}-400 border border-{tag.color}-500/20 flex items-center gap-1">
+					<div class="px-2 py-0.5 text-xs font-medium rounded-md border flex items-center gap-1 {getTagStyle(tag.color)}">
 						{tag.name}
-						<button class="hover:text-{tag.color}-800 dark:hover:text-{tag.color}-200" onclick={() => toggleTag(tag)}>
+						<button class="hover:opacity-75" onclick={() => toggleTag(tag)}>
 							&times;
 						</button>
 					</div>
@@ -290,7 +366,7 @@
 									onclick={() => { toggleTag(tag); }}
 								>
 									<div class="flex items-center gap-2">
-										<div class="w-3 h-3 rounded-full bg-{tag.color}-500"></div>
+										<div class="w-3 h-3 rounded-full {getTagDotColor(tag.color)}"></div>
 										<span class="text-zinc-900 dark:text-zinc-100">{tag.name}</span>
 									</div>
 									<div class="flex items-center gap-2">

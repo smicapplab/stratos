@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { updateTag, softDeleteTag } from '$lib/server/services/tags';
+import { updateTag, deleteTag } from '$lib/server/services/tags';
 import type { RequestHandler } from './$types';
 
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
@@ -35,7 +35,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 });
 	
 	try {
-		await softDeleteTag(locals.user, params.id);
+		await deleteTag(locals.user, params.id);
 		return json({ success: true });
 	} catch (e: unknown) {
 		const err = e instanceof Error ? e.message : 'Failed to delete tag';

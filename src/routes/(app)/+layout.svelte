@@ -28,6 +28,8 @@
 		actorId: string | null;
 	}
 
+	import { markNotificationAsRead as apiMarkNotificationAsRead, markAllNotificationsAsRead as apiMarkAllNotificationsAsRead } from '$lib/utils/notifications';
+
 	let notifications = $state<NotificationItem[]>([]);
 	$effect(() => {
 		notifications = data.notifications || [];
@@ -38,28 +40,14 @@
 		if (idx !== -1) {
 			notifications[idx].readAt = new Date();
 		}
-		try {
-			await fetch('/api/notifications/read', {
-				method: 'POST',
-				body: JSON.stringify({ notificationId: id })
-			});
-		} catch (e) {
-			console.error(e);
-		}
+		await apiMarkNotificationAsRead(id);
 	}
 
 	async function markAllAsRead() {
 		for (const n of notifications) {
 			n.readAt = new Date();
 		}
-		try {
-			await fetch('/api/notifications/read', {
-				method: 'POST',
-				body: JSON.stringify({})
-			});
-		} catch (e) {
-			console.error(e);
-		}
+		await apiMarkAllNotificationsAsRead();
 	}
 
 	let userEventSource: EventSource | null = null;

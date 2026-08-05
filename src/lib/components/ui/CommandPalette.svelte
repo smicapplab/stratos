@@ -25,7 +25,7 @@
 	}
 	
 	$effect(() => {
-		if (searchQuery.length >= 2) {
+		if (searchQuery.length >= 1) {
 			fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`)
 				.then(r => r.json())
 				.then(data => {
