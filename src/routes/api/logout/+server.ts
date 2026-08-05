@@ -1,17 +1,11 @@
-import { redirect, json } from '@sveltejs/kit';
-import { lucia } from '$lib/server/auth/lucia';
+import { json } from '@sveltejs/kit';
+import { invalidateSession, deleteSessionTokenCookie } from '$lib/server/auth/session';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ locals, cookies }) => {
-	if (!locals.session) {
-		return json({ success: true, message: 'Already logged out' }, { status: 200 });
+export const POST: RequestHandler = async (event) => {
+	if (event.locals.session) {
+		await invalidateSession(event.locals.session.id);
+		deleteSessionTokenCookie(event);
 	}
-
-	await lucia.invalidateSession(locals.session.id);
-	const sessionCookie = lucia.createBlankSessionCookie();
-	cookies.set(sessionCookie.name, sessionCookie.value, {
-		path: '/',
-		...sessionCookie.attributes
-	});
-	throw redirect(303, '/');
+	return json({ success: true });
 };

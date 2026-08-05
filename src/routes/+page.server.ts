@@ -3,7 +3,7 @@ import { db } from '$lib/server/db/db';
 import { users } from '$lib/server/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import * as argon2 from 'argon2';
-import { lucia } from '$lib/server/auth/lucia';
+import { generateSessionToken, createSession, setSessionTokenCookie } from '$lib/server/auth/session';
 
 import type { PageServerLoad, Actions } from './$types';
 
@@ -43,9 +43,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 }
 
 export const actions: Actions = {
-	default: async ({ request, cookies, getClientAddress }) => {
-		const clientIp = getClientAddress();
-		if (!checkRateLimit(clientIp)) {
+	default: async (event) => {
+		const { request, getClientAddress } = event;
+		const clientAddress = getClientAddress();
+		if (!checkRateLimit(clientAddress)) {
 			return fail(429, { error: 'Too many login attempts. Please try again later.' });
 		}
 
@@ -80,25 +81,11 @@ export const actions: Actions = {
 				return fail(400, { error: 'Invalid email or password' });
 			}
 
-			const userAgent = request.headers.get('user-agent') || null;
-			
-			// Create Lucia session
-			const session = await lucia.createSession(user.id, {
-				userAgent,
-				ipAddress: clientIp
-			});
-			const sessionCookie = lucia.createSessionCookie(session.id);
-			
-			const cookieOptions: any = {
-				path: '/',
-				...sessionCookie.attributes
-			};
+			const userAgent = request.headers.get('user-agent');
+			const token = generateSessionToken();
+			const session = await createSession(token, user.id, { userAgent, ipAddress: clientAddress });
+			setSessionTokenCookie(event, token, session.expiresAt);
 
-			if (data.get('remember_me') !== 'on') {
-				delete cookieOptions.maxAge;
-			}
-
-			cookies.set(sessionCookie.name, sessionCookie.value, cookieOptions);
 			const redirectUrl = data.get('redirectUrl')?.toString() || '/dashboard';
 
 			throw redirect(302, redirectUrl);
