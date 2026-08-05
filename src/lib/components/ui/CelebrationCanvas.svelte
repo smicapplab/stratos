@@ -8,7 +8,7 @@
 	let particles: any[] = [];
 	let canvasWidth = 0;
 	let canvasHeight = 0;
-	let textPopup: { message: string; life: number } | null = null;
+	let textPopup: { message: string; life: number; elapsed: number } | null = null;
 
 	const colors = ['#f43f5e', '#ec4899', '#d946ef', '#a855f7', '#8b5cf6', '#6366f1', '#3b82f6', '#0ea5e9', '#06b6d4', '#14b8a6', '#10b981', '#22c55e', '#84cc16', '#eab308', '#f59e0b', '#f97316'];
 
@@ -56,12 +56,12 @@
 		particles.push({
 			x: canvasWidth * 0.15,
 			y: canvasHeight + 40,
-			vx: canvasWidth / 900,
-			vy: -canvasHeight / 220,
+			vx: canvasWidth / 450,
+			vy: -canvasHeight / 110,
 			size: 60,
 			color: '#e2e8f0',
 			life: 1,
-			decay: 0.006,
+			decay: 0.003,
 			type: 'rocket',
 			trail: []
 		});
@@ -117,10 +117,24 @@
 		}
 	}
 
+	function spawnAlien() {
+		particles.push({
+			x: -120,
+			y: canvasHeight * 0.28,
+			vx: canvasWidth / 140,
+			vy: 0,
+			size: 80,
+			life: 1,
+			decay: 0.0011,
+			type: 'alien',
+			elapsed: 0
+		});
+	}
+
 	function triggerEffect(type: string) {
 		let effType = type;
 		if (type === 'random') {
-			const types = ['rocket', 'starburst', 'confetti', 'supernova'];
+			const types = ['rocket', 'starburst', 'confetti', 'supernova', 'alien'];
 			effType = types[Math.floor(Math.random() * types.length)];
 		}
 
@@ -128,34 +142,60 @@
 		else if (effType === 'rocket') spawnRocket();
 		else if (effType === 'starburst') spawnStarburst();
 		else if (effType === 'supernova') spawnSupernova();
+		else if (effType === 'alien') spawnAlien();
 
 		textPopup = {
 			message: celebrationMessages[Math.floor(Math.random() * celebrationMessages.length)],
-			life: 1
+			life: 1,
+			elapsed: 0
 		};
 	}
 
 	function drawTextPopup() {
 		if (!ctx || !textPopup) return;
 
+		const t = textPopup.elapsed;
 		const appear = Math.min(1, (1 - textPopup.life) * 8);
 		const fade = textPopup.life < 0.3 ? textPopup.life / 0.3 : 1;
-		const scale = 0.6 + 0.4 * appear + Math.sin(appear * Math.PI) * 0.06;
 		const alpha = appear * fade;
-		const fontSize = Math.min(48, canvasWidth * 0.045);
+		const fontSize = Math.min(56, canvasWidth * 0.05);
+
+		// Spring-pop scale on entry, then subtle breathe pulse
+		const entryBounce = 0.6 + 0.4 * appear + Math.sin(appear * Math.PI) * 0.1;
+		const breathe = 1 + Math.sin(t * 2.4) * 0.018;
+		const scaleX = entryBounce * breathe;
+		const scaleY = entryBounce * (1 / breathe); // counter-squeeze for organic feel
+
+		// Vertical float
+		const floatY = Math.sin(t * 1.8) * 6;
 
 		ctx.save();
 		ctx.globalAlpha = alpha;
-		ctx.translate(canvasWidth / 2, canvasHeight / 2);
-		ctx.scale(scale, scale);
-		ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
+		ctx.translate(canvasWidth / 2, canvasHeight / 2 + floatY);
+		ctx.scale(scaleX, scaleY);
+		ctx.font = `700 ${fontSize}px system-ui, -apple-system, sans-serif`;
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
 
+		// Drop shadow
 		const isDark = document.documentElement.classList.contains('dark');
-		ctx.shadowColor = isDark ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.18)';
-		ctx.shadowBlur = 10;
-		ctx.fillStyle = isDark ? '#f4f4f5' : '#27272a';
+		ctx.shadowColor = isDark ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.22)';
+		ctx.shadowBlur = 18;
+		ctx.shadowOffsetY = 3;
+
+		// Moving rainbow gradient sweep across the text width
+		const metrics = ctx.measureText(textPopup.message);
+		const tw = metrics.width;
+		const sweepOffset = ((t * 0.4) % 1) * tw * 2 - tw;
+		const grad = ctx.createLinearGradient(-tw / 2 + sweepOffset, 0, tw / 2 + sweepOffset, 0);
+		grad.addColorStop(0,    '#f43f5e');
+		grad.addColorStop(0.18, '#f97316');
+		grad.addColorStop(0.36, '#eab308');
+		grad.addColorStop(0.54, '#10b981');
+		grad.addColorStop(0.72, '#3b82f6');
+		grad.addColorStop(0.90, '#a855f7');
+		grad.addColorStop(1,    '#f43f5e');
+		ctx.fillStyle = grad;
 		ctx.fillText(textPopup.message, 0, 0);
 
 		ctx.restore();
@@ -283,11 +323,115 @@
 				ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
 				ctx.stroke();
 				ctx.globalAlpha = 1;
+			} else if (p.type === 'alien') {
+				p.x += p.vx;
+				p.elapsed += 0.04;
+				// Gentle sine bob
+				const bob = Math.sin(p.elapsed * 2.5) * 12;
+				const drawY = p.y + bob;
+				const s = p.size;
+				// Beam pulse: width and opacity oscillate
+				const beamPulse = 0.55 + Math.sin(p.elapsed * 5) * 0.2;
+				const beamAlpha = (0.28 + Math.sin(p.elapsed * 5) * 0.12) * p.life;
+				const beamHalfTop = s * 0.42 * beamPulse;
+				const beamHalfBot = s * 1.1 * beamPulse;
+				const beamLength = canvasHeight - drawY;
+
+				ctx.save();
+				ctx.globalAlpha = beamAlpha;
+				// Tractor beam cone — gradient from bright green at ship to transparent
+				const beamGrad = ctx.createLinearGradient(p.x, drawY + s * 0.45, p.x, drawY + s * 0.45 + beamLength);
+				beamGrad.addColorStop(0,   'rgba(74, 222, 128, 0.85)');
+				beamGrad.addColorStop(0.4, 'rgba(74, 222, 128, 0.35)');
+				beamGrad.addColorStop(1,   'rgba(74, 222, 128, 0)');
+				ctx.fillStyle = beamGrad;
+				ctx.beginPath();
+				ctx.moveTo(p.x - beamHalfTop, drawY + s * 0.45);
+				ctx.lineTo(p.x + beamHalfTop, drawY + s * 0.45);
+				ctx.lineTo(p.x + beamHalfBot, drawY + s * 0.45 + beamLength * 0.75);
+				ctx.lineTo(p.x - beamHalfBot, drawY + s * 0.45 + beamLength * 0.75);
+				ctx.closePath();
+				ctx.fill();
+				ctx.restore();
+
+				// Beam edge sparkles
+				if (Math.random() < 0.4) {
+					const sparkT = Math.random();
+					const sparkHalf = beamHalfTop + (beamHalfBot - beamHalfTop) * sparkT;
+					const side = Math.random() > 0.5 ? 1 : -1;
+					particles.push({
+						x: p.x + side * sparkHalf * (0.85 + Math.random() * 0.2),
+						y: drawY + s * 0.45 + beamLength * 0.75 * sparkT,
+						vx: side * (Math.random() * 1.2 + 0.4),
+						vy: (Math.random() - 0.5) * 1.2,
+						size: Math.random() * 2.5 + 1,
+						color: Math.random() > 0.5 ? '#4ade80' : '#a3e635',
+						life: 1,
+						decay: 0.06 + Math.random() * 0.04,
+						type: 'star'
+					});
+				}
+
+				ctx.save();
+				ctx.globalAlpha = p.life;
+				ctx.translate(p.x, drawY);
+
+				// Saucer undercarriage (flat disc)
+				const discGrad = ctx.createRadialGradient(0, s * 0.1, s * 0.05, 0, s * 0.1, s * 0.5);
+				discGrad.addColorStop(0, '#94a3b8');
+				discGrad.addColorStop(0.6, '#64748b');
+				discGrad.addColorStop(1, '#334155');
+				ctx.fillStyle = discGrad;
+				ctx.beginPath();
+				ctx.ellipse(0, s * 0.12, s * 0.72, s * 0.22, 0, 0, Math.PI * 2);
+				ctx.fill();
+
+				// Metallic rim highlight
+				ctx.strokeStyle = '#cbd5e1';
+				ctx.lineWidth = 2;
+				ctx.beginPath();
+				ctx.ellipse(0, s * 0.12, s * 0.72, s * 0.22, 0, Math.PI, Math.PI * 2);
+				ctx.stroke();
+
+				// Running lights along rim — 5 evenly spaced, blinking
+				const lightColors = ['#f43f5e', '#facc15', '#4ade80', '#38bdf8', '#c084fc'];
+				for (let li = 0; li < 5; li++) {
+					const lAngle = (li / 5) * Math.PI * 2 + p.elapsed * 1.5;
+					const lx = Math.cos(lAngle) * s * 0.6;
+					const ly = s * 0.12 + Math.sin(lAngle) * s * 0.1;
+					const blink = 0.5 + 0.5 * Math.sin(p.elapsed * 8 + li * 1.3);
+					ctx.globalAlpha = blink * p.life;
+					ctx.fillStyle = lightColors[li];
+					ctx.beginPath();
+					ctx.arc(lx, ly, 4, 0, Math.PI * 2);
+					ctx.fill();
+				}
+				ctx.globalAlpha = p.life;
+
+				// Dome (upper cockpit)
+				const domeGrad = ctx.createRadialGradient(-s * 0.1, -s * 0.28, s * 0.02, 0, -s * 0.15, s * 0.42);
+				domeGrad.addColorStop(0, 'rgba(186,230,253,0.95)');
+				domeGrad.addColorStop(0.45, 'rgba(56,189,248,0.8)');
+				domeGrad.addColorStop(1, 'rgba(14,165,233,0.4)');
+				ctx.fillStyle = domeGrad;
+				ctx.beginPath();
+				ctx.ellipse(0, s * 0.05, s * 0.38, s * 0.32, 0, Math.PI, Math.PI * 2);
+				ctx.fill();
+
+				// Dome rim
+				ctx.strokeStyle = 'rgba(186,230,253,0.6)';
+				ctx.lineWidth = 1.5;
+				ctx.beginPath();
+				ctx.ellipse(0, s * 0.05, s * 0.38, s * 0.07, 0, 0, Math.PI * 2);
+				ctx.stroke();
+
+				ctx.restore();
 			}
 		}
 
 		if (textPopup) {
-			textPopup.life -= 0.01;
+			textPopup.life -= 0.008;
+			textPopup.elapsed += 0.016;
 			if (textPopup.life <= 0) {
 				textPopup = null;
 			} else {
