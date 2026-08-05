@@ -70,22 +70,34 @@
 <aside class="w-64 h-full bg-white/70 dark:bg-zinc-900/50 border-r border-zinc-200/80 dark:border-zinc-800/80 flex flex-col justify-between flex-shrink-0 backdrop-blur-xl relative">
 	<!-- Top Area: Workspace Header & Navigation -->
 	<div class="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
-		<!-- Workspace / Brand Header -->
-		<div class="h-16 flex items-center px-5 border-b border-zinc-200/50 dark:border-zinc-800/50 shrink-0">
-			<div class="flex items-center gap-3 min-w-0">
+		<!-- Workspace / Brand Header (clickable to Dashboard) -->
+		<a
+			href="/dashboard"
+			class="h-16 flex items-center px-5 border-b border-zinc-200/50 dark:border-zinc-800/50 shrink-0 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors"
+			title="Go to Dashboard"
+		>
+			<div class="flex items-center gap-3 min-w-0 {group?.showWorkspaceName === false ? 'justify-center w-full' : ''}">
 				{#if group?.logoUrl}
-					<img src={group.logoUrl} alt={group.name} class="w-8 h-8 rounded-xl object-cover border border-zinc-200 dark:border-zinc-800 shrink-0" />
+					<!-- Logo: natural aspect ratio, no cropping, no border -->
+					<img
+						src={group.logoUrl}
+						alt={group.name}
+						class="{group?.showWorkspaceName === false ? 'max-h-10 max-w-[10rem]' : 'max-h-8 max-w-[7rem]'} w-auto object-contain shrink-0 transition-all duration-200"
+					/>
 				{:else}
-					<div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-primary to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-md shrink-0">
+					<!-- Fallback: generated initials avatar stays square -->
+					<div class="{group?.showWorkspaceName === false ? 'w-10 h-10 text-sm' : 'w-8 h-8 text-xs'} rounded-xl bg-gradient-to-tr from-brand-primary to-purple-600 flex items-center justify-center text-white font-bold shadow-md shrink-0 transition-all duration-200">
 						{group?.name?.charAt(0).toUpperCase() || 'S'}
 					</div>
 				{/if}
-				<div class="flex flex-col min-w-0">
-					<span class="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">{group?.name || 'Workspace'}</span>
-					<span class="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Stratos Platform</span>
-				</div>
+				{#if group?.showWorkspaceName !== false}
+					<div class="flex flex-col min-w-0">
+						<span class="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">{group?.name || 'Workspace'}</span>
+						<span class="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Stratos Platform</span>
+					</div>
+				{/if}
 			</div>
-		</div>
+		</a>
 
 		<!-- Main Section Nav Links -->
 		<div class="p-3 space-y-1">

@@ -32,7 +32,7 @@
 		class="flex items-center gap-3 px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-zinc-100/70 dark:bg-zinc-800/50 hover:bg-zinc-200/70 dark:hover:bg-zinc-800 rounded-full transition-all border border-zinc-200/50 dark:border-zinc-700/50 min-h-[36px]"
 	>
 		<Search class="w-3.5 h-3.5" />
-		<span class="font-medium">Search or jump to...</span>
+		<span class="font-medium pr-10">Search or jump to...</span>
 		<kbd class="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-zinc-900 rounded border border-zinc-200 dark:border-zinc-700 shadow-2xs">⌘K</kbd>
 	</button>
 
