@@ -3,7 +3,7 @@
 ## Concept
 Because Stratos is designed to be environment-agnostic (capable of running on a bare-metal VPS or via managed clouds), we cannot assume magic backups exist. As the source of truth for company operations, data loss is catastrophic.
 
-## 1. Database Backups
+## 1. Database Backups (Planned Infrastructure Spec)
 If using a managed service (like AWS RDS, Supabase, or Neon), automated backups are typically included. However, if self-hosting Postgres (e.g., via Docker on a VPS), an explicit backup strategy is mandatory.
 
 - **Point-In-Time Recovery (PITR):** Standard `pg_dump` cron jobs are insufficient for an active Kanban board, as you can lose up to 24 hours of work between nightly dumps. We mandate **WAL (Write-Ahead Log) Archiving**.

@@ -19,8 +19,7 @@ To support drag-and-drop without cascading database updates, we use **Lexicograp
 - **Drag-and-Drop Optimistic UI:** The client calculates a temporary string midpoint locally and applies it to the Svelte `$state`. 
 - **Server Authority:** The client PATCHes the order. The server calculates the authoritative midpoint and returns the final string.
 - **Strict ASCII Collation Required:** The string math inside `fractional-indexing` operates purely on ASCII byte values (where `'Z'` < `'a'`). The frontend and backend **must never** sort arrays using `String.prototype.localeCompare()`, as it interleaves uppercase and lowercase, which fundamentally breaks the math when users drag items. You must sort strictly using standard JS operators (`a < b`).
-- **The Rebalancing Reality (Compromise):** Strings cannot grow infinitely. Repeated insertions at the exact same index will eventually cause the `orderIndex` to exceed optimal indexing sizes. To solve this, a background CRON job runs nightly to rebalance the `orderIndex` strings for congested boards. 
-- **Deadlock Mitigation:** To prevent the CRON job from blocking live users dragging cards, the rebalancing job **must** process rows in small chunks (e.g., 50 rows per transaction) using `SELECT ... FOR UPDATE SKIP LOCKED`. If a user is actively modifying a task's order, the CRON job will safely skip it and retry on the next pass.
+- **The Rebalancing Reality (Planned Maintenance Utility):** Strings cannot grow infinitely. Repeated insertions at the exact same index will eventually cause the `orderIndex` to grow in length. An offline rebalancing utility can be executed to reset `orderIndex` strings for congested boards using `SELECT ... FOR UPDATE SKIP LOCKED`.
 
 ### Column (Stage) Repositioning
 The exact same LexoRank string mechanics apply to `Stages` (columns). 

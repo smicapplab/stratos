@@ -4,18 +4,7 @@
 We use **Lucia Auth** with a Drizzle adapter backed by our Postgres database.
 
 - **Why Lucia?** Avoids vendor lock-in (no Supabase Auth, no AWS Cognito). All auth logic lives inside our SvelteKit app, is fully typesafe, and is deletable without migrating a third-party service.
-- **Session vs JWT:** Lucia uses **Session-based authentication**. On login, a cryptographically random Session ID is created, stored in an `HTTP-only` cookie, and saved to a `sessions` table in Postgres. This allows instant session revocation by deleting the row — impossible with stateless JWTs.
-
-## SvelteKit Hooks Guard (`hooks.server.ts`)
-
-SvelteKit's `handle` hook fires on **every** incoming request that reaches the Node server. Executing a standard Postgres query on every single request would:
-
-1. Exhaust the database connection pool under any meaningful load.
-2. Add 50–200ms of DB latency before the route handler even runs.
-
-*(Note: Static assets and images should ideally **never** reach the Node server. They must be intercepted and served by a CDN or reverse-proxy like Vercel Edge or Nginx. However, for any traffic that does hit Node, we must be defensive.)*
-
-To mitigate this, we securely cache active sessions in Redis (see `10-backend-caching.md`) with a 5-minute TTL. This cuts our auth latency to near-zero while preserving our ability to instantly revoke compromised sessions cluster-wide.
+- **Session vs JWT:** Lucia uses **Session-based authentication**. On login, a cryptographically random Session ID is created, stored in an `HTTP-only` cookie, and saved to a `sessions` table in Postgres. For API Bearer tokens, credentials are validated via SHA-256 hashes cached in Redis (`5-min TTL`) and instantly invalidated via `invalidateTokenCache(userId)` on role change or user removal.
 
 ### The Pathname Guard (Critical)
 
