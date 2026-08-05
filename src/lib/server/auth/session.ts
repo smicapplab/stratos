@@ -15,12 +15,22 @@ export interface SessionUser {
 	theme: string;
 }
 
+const VALID_ROLES = new Set<SessionUser['role']>(['Admin', 'Manager', 'Member', 'Viewer']);
+
+export function toValidRole(role: string | null | undefined): SessionUser['role'] {
+	if (role && VALID_ROLES.has(role as SessionUser['role'])) {
+		return role as SessionUser['role'];
+	}
+	return 'Member';
+}
+
 export interface Session {
 	id: string;
 	userId: string;
 	expiresAt: Date;
 	userAgent: string | null;
 	ipAddress: string | null;
+	fresh?: boolean;
 }
 
 const BASE32_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
@@ -60,7 +70,8 @@ export async function createSession(
 		userId,
 		expiresAt,
 		userAgent: metadata?.userAgent || null,
-		ipAddress: metadata?.ipAddress || null
+		ipAddress: metadata?.ipAddress || null,
+		fresh: true
 	};
 
 	await db.insert(sessions).values({
@@ -117,6 +128,7 @@ export async function validateSessionToken(
 	}
 
 	// Sliding renewal window: extend if under 15 days remaining
+	let fresh = false;
 	const fifteenDaysMs = 1000 * 60 * 60 * 24 * 15;
 	if (dbSession.expiresAt.getTime() - now < fifteenDaysMs) {
 		dbSession.expiresAt = new Date(now + 1000 * 60 * 60 * 24 * 30);
@@ -124,13 +136,14 @@ export async function validateSessionToken(
 			.update(sessions)
 			.set({ expiresAt: dbSession.expiresAt })
 			.where(eq(sessions.id, dbSession.id));
+		fresh = true;
 	}
 
 	const user: SessionUser = {
 		id: dbUser.id,
 		email: dbUser.email,
 		name: dbUser.name,
-		role: dbUser.role as SessionUser['role'],
+		role: toValidRole(dbUser.role),
 		groupId: dbUser.groupId,
 		jobTitle: dbUser.jobTitle,
 		avatarUrl: dbUser.avatarUrl,
@@ -142,7 +155,8 @@ export async function validateSessionToken(
 		userId: dbSession.userId,
 		expiresAt: dbSession.expiresAt,
 		userAgent: dbSession.userAgent,
-		ipAddress: dbSession.ipAddress
+		ipAddress: dbSession.ipAddress,
+		fresh
 	};
 
 	return { session, user };

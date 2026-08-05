@@ -6,7 +6,8 @@ import {
 	validateSessionToken,
 	invalidateSession,
 	setSessionTokenCookie,
-	deleteSessionTokenCookie
+	deleteSessionTokenCookie,
+	toValidRole
 } from './session';
 import { db } from '../db/db';
 
@@ -101,6 +102,22 @@ describe('Session Auth Engine', () => {
 			const token1 = generateSessionToken();
 			const token2 = generateSessionToken();
 			expect(token1).not.toBe(token2);
+		});
+	});
+
+	describe('toValidRole', () => {
+		it('returns exact role if valid', () => {
+			expect(toValidRole('Admin')).toBe('Admin');
+			expect(toValidRole('Manager')).toBe('Manager');
+			expect(toValidRole('Member')).toBe('Member');
+			expect(toValidRole('Viewer')).toBe('Viewer');
+		});
+
+		it('falls back to Member if role is invalid or null/undefined', () => {
+			expect(toValidRole('SuperAdmin')).toBe('Member');
+			expect(toValidRole(null)).toBe('Member');
+			expect(toValidRole(undefined)).toBe('Member');
+			expect(toValidRole('')).toBe('Member');
 		});
 	});
 
@@ -264,6 +281,7 @@ describe('Session Auth Engine', () => {
 			expect(result.session).not.toBeNull();
 			expect(result.user).not.toBeNull();
 			expect(result.user?.id).toBe('user-1');
+			expect(result.session?.fresh).toBe(true);
 			// Should update database to extend expiresAt
 			expect(db.update).toHaveBeenCalled();
 			expect(result.session?.expiresAt.getTime()).toBeGreaterThan(tenDaysFromNow.getTime());
@@ -306,6 +324,7 @@ describe('Session Auth Engine', () => {
 
 			expect(result.session).not.toBeNull();
 			expect(result.user).not.toBeNull();
+			expect(result.session?.fresh).toBe(false);
 			expect(db.update).not.toHaveBeenCalled();
 		});
 	});
