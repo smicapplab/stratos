@@ -32,35 +32,44 @@
 	}
 </script>
 
-<div class="min-h-full py-8 px-4 sm:px-6 lg:px-8 flex flex-col justify-center items-center space-y-4">
-	<div class="w-full max-w-xl flex items-center justify-between">
-		<a 
-			href="/helpdesk/tickets" 
-			class="inline-flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors min-h-[44px]"
-		>
-			<ArrowLeft class="w-4 h-4" />
-			Back to Dashboard
-		</a>
-	</div>
+<svelte:head>
+	<title>Submit a Ticket - Stratos Helpdesk</title>
+</svelte:head>
 
-	<div class="w-full max-w-xl bg-white dark:bg-zinc-900 shadow-xl rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 overflow-hidden transition-all duration-300">
-		<!-- Decorative Top Banner -->
-		<div class="h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600"></div>
+<div class="space-y-8 p-6 sm:p-8 max-w-4xl mx-auto">
+	<!-- Page Header -->
+	<div class="flex flex-col gap-4 border-b border-zinc-200/60 dark:border-zinc-800/60 pb-6">
+		<div>
+			<a 
+				href="/helpdesk/tickets" 
+				class="inline-flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors min-h-[44px]"
+			>
+				<ArrowLeft class="w-4 h-4" />
+				Back to Tickets
+			</a>
+		</div>
 
-		<!-- Card Content -->
-		<div class="p-6 sm:p-8 space-y-6">
-			<!-- Header -->
-			<div class="text-center space-y-2">
-				<div class="inline-flex p-3 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-2xl text-brand-primary dark:text-brand-primary">
-					<LifeBuoy class="w-8 h-8" />
+		<div class="flex items-center justify-between">
+			<div class="space-y-1">
+				<div class="flex items-center gap-2 text-brand-primary">
+					<LifeBuoy class="w-5 h-5" />
+					<span class="text-xs font-bold uppercase tracking-wider">Helpdesk</span>
 				</div>
-				<h1 class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Submit a Ticket</h1>
+				<h1 class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Submit a Ticket</h1>
 				<p class="text-sm text-zinc-500 dark:text-zinc-400">
-					Select a category, describe your request, and submit. Our development team will review it shortly.
+					Select a category, describe your issue or feature request, and attach supporting files.
 				</p>
 			</div>
+		</div>
+	</div>
 
-			<!-- Main Form -->
+	<!-- Main Form Card -->
+	<div class="bg-white dark:bg-zinc-900 shadow-sm rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 overflow-hidden">
+		<!-- Decorative Top Accent Bar -->
+		<div class="h-1.5 bg-gradient-to-r from-brand-primary via-indigo-500 to-purple-600"></div>
+
+		<!-- Card Body -->
+		<div class="p-6 sm:p-8">
 			<form 
 				method="POST" 
 				action="?/submitTicket" 
@@ -107,9 +116,9 @@
 						<button
 							type="button"
 							onclick={() => ticketType = 'Bug'}
-							class="flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all duration-200 group min-h-[44px]
+							class="flex flex-col items-center justify-center p-3.5 rounded-xl border text-center transition-all duration-200 group min-h-[44px]
 							{ticketType === 'Bug' 
-								? 'border-red-500/50 bg-red-50/30 dark:bg-red-950/10 text-red-600 dark:text-red-400 shadow-sm' 
+								? 'border-red-500/50 bg-red-50/40 dark:bg-red-950/20 text-red-600 dark:text-red-400 shadow-sm' 
 								: 'border-zinc-200 dark:border-zinc-800 bg-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 hover:text-zinc-900 dark:hover:text-zinc-100'}"
 						>
 							<Bug class="w-5 h-5 mb-1.5 transition-transform group-hover:scale-110" />
@@ -119,9 +128,9 @@
 						<button
 							type="button"
 							onclick={() => ticketType = 'Feature'}
-							class="flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all duration-200 group min-h-[44px]
+							class="flex flex-col items-center justify-center p-3.5 rounded-xl border text-center transition-all duration-200 group min-h-[44px]
 							{ticketType === 'Feature' 
-								? 'border-indigo-500/50 bg-indigo-50/30 dark:bg-indigo-950/10 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+								? 'border-indigo-500/50 bg-indigo-50/40 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 shadow-sm' 
 								: 'border-zinc-200 dark:border-zinc-800 bg-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 hover:text-zinc-900 dark:hover:text-zinc-100'}"
 						>
 							<Lightbulb class="w-5 h-5 mb-1.5 transition-transform group-hover:scale-110" />
@@ -131,9 +140,9 @@
 						<button
 							type="button"
 							onclick={() => ticketType = 'Support'}
-							class="flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all duration-200 group min-h-[44px]
+							class="flex flex-col items-center justify-center p-3.5 rounded-xl border text-center transition-all duration-200 group min-h-[44px]
 							{ticketType === 'Support' 
-								? 'border-emerald-500/50 bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-600 dark:text-emerald-400 shadow-sm' 
+								? 'border-emerald-500/50 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 shadow-sm' 
 								: 'border-zinc-200 dark:border-zinc-800 bg-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 hover:text-zinc-900 dark:hover:text-zinc-100'}"
 						>
 							<LifeBuoy class="w-5 h-5 mb-1.5 transition-transform group-hover:scale-110" />
@@ -171,9 +180,9 @@
 						id="description"
 						name="description"
 						bind:value={description}
-						rows="12"
+						rows="10"
 						placeholder="Provide as much context as possible. For bugs, include steps to reproduce..."
-						class="w-full px-4 py-2.5 rounded-xl border text-sm bg-transparent border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all duration-200 dark:text-zinc-100 resize-y min-h-[220px]"
+						class="w-full px-4 py-2.5 rounded-xl border text-sm bg-transparent border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all duration-200 dark:text-zinc-100 resize-y min-h-[200px]"
 					></textarea>
 				</div>
 
@@ -220,11 +229,17 @@
 				{/if}
 
 				<!-- Actions / Submit Button -->
-				<div class="pt-2">
+				<div class="pt-4 flex items-center justify-end gap-3 border-t border-zinc-100 dark:border-zinc-800/50">
+					<a
+						href="/helpdesk/tickets"
+						class="px-5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors min-h-[44px] flex items-center"
+					>
+						Cancel
+					</a>
 					<button
 						type="submit"
 						disabled={isSubmitting}
-						class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-brand-primary to-brand-accent hover:from-brand-primary hover:opacity-90 hover:to-brand-accent text-white font-medium text-sm rounded-xl shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500/25 disabled:opacity-50 transition-all duration-200 min-h-[44px]"
+						class="flex items-center justify-center gap-2 py-2.5 px-6 bg-brand-primary hover:opacity-90 text-white font-bold text-sm rounded-xl shadow-md focus:outline-none focus:ring-2 focus:ring-brand-primary/25 disabled:opacity-50 transition-all duration-200 min-h-[44px]"
 					>
 						{#if isSubmitting}
 							<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
