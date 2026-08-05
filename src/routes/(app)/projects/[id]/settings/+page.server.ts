@@ -4,15 +4,18 @@ import { projects, projectMembers, users } from '$lib/server/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { addProjectMember, removeProjectMember, updateProjectVisibility, getAccessibleProjects, getProjectActivity, updateProjectSettings, deleteProject } from '$lib/server/services/projects';
 import { sendProjectInviteEmail } from '$lib/server/services/email';
+import { generateTempPassword } from '$lib/server/services/users';
+import * as argon2 from 'argon2';
 import { getProjectTags } from '$lib/server/services/tags';
 
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
+	if (!locals.user) throw redirect(302, '/');
 	const projectId = params.id;
 	
 	// Ensure they have access to even view the project
-	const accessible = await getAccessibleProjects(locals.user!);
+	const accessible = await getAccessibleProjects(locals.user);
 	if (!accessible.find(p => p.id === projectId)) {
 		throw error(404, 'Project not found or access denied');
 	}
@@ -117,6 +120,19 @@ export const actions: Actions = {
 		if (!email) return fail(400, { error: 'Email is required' });
 
 		try {
+			const actor = locals.user!;
+			if (actor.role !== 'Admin') {
+				const [member] = await db.select({ role: projectMembers.role }).from(projectMembers).where(
+					and(
+						eq(projectMembers.projectId, params.id),
+						eq(projectMembers.userId, actor.id)
+					)
+				);
+				if (!member || member.role !== 'Admin') {
+					return fail(403, { error: 'Not authorized to manage project members' });
+				}
+			}
+
 			// Find existing user in group (ensuring not soft-deleted)
 			let [targetUser] = await db.select({
 				id: users.id,
@@ -133,14 +149,21 @@ export const actions: Actions = {
 			);
 
 			let isNewUser = false;
+			let tempPassword: string | undefined;
+
 			if (!targetUser) {
 				isNewUser = true;
-				// User doesn't exist, create a pending user in the group
+				tempPassword = generateTempPassword();
+				const hashedTempPassword = await argon2.hash(tempPassword);
+
+				// User doesn't exist, create a pending user in the group with temporary password & mustChangePassword flag
 				[targetUser] = await db.insert(users).values({
 					email,
 					name: email.split('@')[0], // placeholder name
 					groupId: locals.user!.groupId,
-					role: 'Member'
+					role: 'Member',
+					hashedPassword: hashedTempPassword,
+					mustChangePassword: true
 				}).returning();
 			}
 
@@ -149,7 +172,7 @@ export const actions: Actions = {
 			// Fire and forget email invite
 			const [project] = await db.select({ name: projects.name }).from(projects).where(and(eq(projects.id, params.id), eq(projects.groupId, locals.user!.groupId)));
 			if (project) {
-				sendProjectInviteEmail(email, project.name, locals.user!.name || 'A teammate', isNewUser).catch(console.error);
+				sendProjectInviteEmail(email, project.name, locals.user!.name || 'A teammate', isNewUser, tempPassword).catch(console.error);
 			}
 
 			return { success: true };

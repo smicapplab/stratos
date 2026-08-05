@@ -1,5 +1,5 @@
 import { db } from '../db/db';
-import { users } from '../db/schema';
+import { users, auditLogs } from '../db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 
 export interface Actor {
@@ -26,6 +26,14 @@ export async function getGroupUsers(actor: Actor) {
 import { sendGroupInviteEmail } from './email';
 import { groups } from '../db/schema';
 
+import * as argon2 from 'argon2';
+import crypto from 'node:crypto';
+
+export function generateTempPassword(): string {
+	const randomHex = crypto.randomBytes(3).toString('hex'); // 6 chars
+	return `Str@${randomHex}!9`; // Complies with min 8, Upper, Lower, Number, Special
+}
+
 export async function inviteUser(actor: Actor, email: string, role: string) {
 	if (actor.role !== 'Admin') {
 		throw new Error('Unauthorized: Only Admins can invite users.');
@@ -39,28 +47,41 @@ export async function inviteUser(actor: Actor, email: string, role: string) {
 	// Prevent cross-tenant user hijacking: Check if email already exists
 	const [existingUser] = await db.select({
 		id: users.id,
-		groupId: users.groupId
+		groupId: users.groupId,
+		deletedAt: users.deletedAt
 	}).from(users).where(eq(users.email, email)).limit(1);
 
 	let invitedUser;
+	let isNewUser = false;
+	let tempPassword: string | undefined;
 
 	if (existingUser) {
 		if (existingUser.groupId !== actor.groupId) {
 			throw new Error('EmailBelongsToAnotherGroup');
 		}
-		// Safe same-group re-invite path
-		const [updatedUser] = await db.update(users).set({
-			deletedAt: null,
-			name: 'Pending Invite',
-			role: role
-		}).where(eq(users.id, existingUser.id)).returning();
-		invitedUser = updatedUser;
+		if (existingUser.deletedAt === null) {
+			invitedUser = existingUser;
+		} else {
+			// Safe same-group re-invite path
+			const [updatedUser] = await db.update(users).set({
+				deletedAt: null,
+				name: 'Pending Invite',
+				role: role
+			}).where(eq(users.id, existingUser.id)).returning();
+			invitedUser = updatedUser;
+		}
 	} else {
+		isNewUser = true;
+		tempPassword = generateTempPassword();
+		const hashedTempPassword = await argon2.hash(tempPassword);
+
 		const [newUser] = await db.insert(users).values({
 			email,
 			name: 'Pending Invite',
 			groupId: actor.groupId,
 			role,
+			hashedPassword: hashedTempPassword,
+			mustChangePassword: true,
 		}).returning();
 		invitedUser = newUser;
 	}
@@ -70,7 +91,14 @@ export async function inviteUser(actor: Actor, email: string, role: string) {
 	// Ensure actor has a name in their db row. We'll fallback to "An Admin" if not available in this minimal context
 	const [actorRow] = await db.select({ name: users.name }).from(users).where(eq(users.id, actor.id));
 
-	await sendGroupInviteEmail(email, group?.name || 'Your Workspace', actorRow?.name || 'An Admin');
+	await db.insert(auditLogs).values({
+		groupId: actor.groupId,
+		userId: actor.id,
+		actionType: 'user_invited',
+		details: { email, role }
+	});
+
+	await sendGroupInviteEmail(email, group?.name || 'Your Workspace', actorRow?.name || 'An Admin', isNewUser, tempPassword);
 
 	return invitedUser;
 }
@@ -85,7 +113,8 @@ export async function removeUser(actor: Actor, targetUserId: string) {
 		throw new Error('CannotDeleteSelf');
 	}
 
-	// Make sure they can only remove users from their OWN group
+	const [targetUser] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, targetUserId));
+
 	await db.update(users)
 		.set({ deletedAt: new Date() })
 		.where(
@@ -94,6 +123,13 @@ export async function removeUser(actor: Actor, targetUserId: string) {
 				eq(users.groupId, actor.groupId)
 			)
 		);
+
+	await db.insert(auditLogs).values({
+		groupId: actor.groupId,
+		userId: actor.id,
+		actionType: 'user_removed',
+		details: { targetUserId, targetName: targetUser?.name || 'User', email: targetUser?.email }
+	});
 
 	await invalidateTokenCache(targetUserId);
 }

@@ -86,6 +86,14 @@ export const actions: Actions = {
 			return fail(401, { error: 'Unauthorized' });
 		}
 
+		const { eq, and, isNull } = await import('drizzle-orm');
+		const { tasks } = await import('$lib/server/db/schema');
+
+		const ticketData = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, params.id), eq(tasks.groupId, locals.user.groupId), isNull(tasks.deletedAt)));
+		if (ticketData.length === 0) {
+			return fail(404, { error: 'Ticket not found' });
+		}
+
 		const data = await request.formData();
 		const files = data.getAll('files') as File[];
 

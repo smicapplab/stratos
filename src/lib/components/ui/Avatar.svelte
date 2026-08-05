@@ -1,5 +1,7 @@
 <script lang="ts">
-	let { name = 'Unknown', photo = null, size = 'md' }: { name?: string; photo?: string | null; size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' } = $props();
+	import md5 from 'md5';
+	
+	let { name = 'Unknown', email = null, photo = null, size = 'md' }: { name?: string; email?: string | null; photo?: string | null; size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' } = $props();
 
 	// Sizes mapping
 	const sizes = {
@@ -10,37 +12,70 @@
 		xl: 'w-12 h-12 text-base'
 	};
 
-	// Tailwind vibrant background colors for avatars
-	const colors = [
-		'bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-green-500', 
-		'bg-emerald-500', 'bg-teal-500', 'bg-cyan-500', 'bg-brand-primary/100', 
-		'bg-indigo-500', 'bg-violet-500', 'bg-purple-500', 'bg-fuchsia-500', 
-		'bg-pink-500', 'bg-rose-500'
+	// 16 vibrant linear gradient themes
+	const gradients = [
+		'bg-gradient-to-tr from-violet-600 via-indigo-600 to-blue-500',
+		'bg-gradient-to-tr from-emerald-500 to-teal-700',
+		'bg-gradient-to-tr from-rose-500 via-pink-500 to-purple-600',
+		'bg-gradient-to-tr from-cyan-500 to-blue-600',
+		'bg-gradient-to-tr from-amber-400 to-orange-500',
+		'bg-gradient-to-tr from-fuchsia-500 to-pink-600',
+		'bg-gradient-to-tr from-green-400 to-emerald-600',
+		'bg-gradient-to-tr from-red-500 to-rose-600',
+		'bg-gradient-to-tr from-blue-500 via-cyan-500 to-teal-400',
+		'bg-gradient-to-tr from-indigo-500 to-purple-600',
+		'bg-gradient-to-tr from-pink-500 to-rose-500',
+		'bg-gradient-to-tr from-orange-400 to-red-500',
+		'bg-gradient-to-tr from-teal-400 to-emerald-500',
+		'bg-gradient-to-tr from-purple-500 to-fuchsia-600',
+		'bg-gradient-to-tr from-yellow-400 to-amber-500',
+		'bg-gradient-to-tr from-blue-600 to-indigo-700',
 	];
-
-	// Deterministic color based on name
-	let bgColor = $derived((() => {
-		let hash = 0;
-		for (let i = 0; i < name.length; i++) {
-			hash = name.charCodeAt(i) + ((hash << 5) - hash);
-		}
-		return colors[Math.abs(hash) % colors.length];
-	})());
 
 	// Initials (up to 2 characters)
 	let initials = $derived((() => {
-		const parts = name.split(' ').filter(p => p.length > 0);
+		const parts = name.trim().split(/\s+/).filter(Boolean);
 		if (parts.length >= 2) {
 			return (parts[0][0] + parts[1][0]).toUpperCase();
 		}
-		return name.substring(0, 2).toUpperCase();
+		const cleanName = parts[0] || 'UK';
+		return cleanName.length >= 2
+			? cleanName.substring(0, 2).toUpperCase()
+			: cleanName.toUpperCase().padEnd(2, 'X');
 	})());
+
+	let gravatarUrl = $derived((() => {
+		if (!email) return null;
+		const hash = md5(email.trim().toLowerCase());
+		return `https://www.gravatar.com/avatar/${hash}?d=404&s=200`;
+	})());
+
+	let imgFailed = $state(false);
+	let activePhoto = $derived(photo || (imgFailed ? null : gravatarUrl));
+
+	// Deterministic gradient based on seed
+	let gradientClass = $derived((() => {
+		const seed = `${initials}:${name}`;
+		let hash = 0;
+		for (let i = 0; i < seed.length; i++) {
+			hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+		}
+		return gradients[Math.abs(hash) % gradients.length];
+	})());
+
+
 </script>
 
-{#if photo}
-	<img src={photo} alt={name} class="{sizes[size]} rounded-full object-cover shadow-sm ring-2 ring-white dark:ring-zinc-950 shrink-0" title={name} />
+{#if activePhoto}
+	<img 
+		src={activePhoto} 
+		alt={name} 
+		class="{sizes[size]} rounded-full object-cover shadow-xs ring-1 ring-black/10 dark:ring-white/20 shrink-0" 
+		title={name} 
+		onerror={() => { imgFailed = true; }}
+	/>
 {:else}
-	<div class="{sizes[size]} {bgColor} rounded-full flex items-center justify-center text-white font-bold shadow-sm shrink-0 ring-2 ring-white dark:ring-zinc-950" title={name}>
+	<div class="{sizes[size]} {gradientClass} rounded-full flex items-center justify-center text-white font-semibold shadow-xs shrink-0 ring-1 ring-white/20 dark:ring-zinc-900/40 select-none" title={name}>
 		{initials}
 	</div>
 {/if}

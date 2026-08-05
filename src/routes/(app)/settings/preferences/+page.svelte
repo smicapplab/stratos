@@ -6,28 +6,50 @@
 
 	let theme = $state('system');
 	let brandTheme = $state('stratos');
-	$effect(() => {
-		theme = data.profileUser.theme || 'system';
-		if (browser) {
-			brandTheme = localStorage.getItem('stratos-theme') || 'stratos';
-		}
-	});
 	let isSaving = $state(false);
 
-	// When theme changes in the form, apply it instantly to UI for a better UX
+	let initialized = $state(false);
+	let initialTheme = $state('');
+	let initialBrandTheme = $state('');
+
 	$effect(() => {
-		if (browser) {
-			if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+		if (browser && !initialized) {
+			const savedLocal = localStorage.getItem('theme');
+			const activeTheme = savedLocal || data.profileUser?.theme || 'system';
+			theme = activeTheme;
+			initialTheme = activeTheme;
+
+			const activeBrand = localStorage.getItem('stratos-theme') || 'stratos';
+			brandTheme = activeBrand;
+			initialBrandTheme = activeBrand;
+
+			initialized = true;
+		}
+	});
+
+	// Only apply theme changes when user explicitly changes the radio selection
+	$effect(() => {
+		if (browser && initialized && theme !== initialTheme) {
+			if (theme === 'dark') {
 				document.documentElement.classList.add('dark');
-			} else {
+				localStorage.setItem('theme', 'dark');
+			} else if (theme === 'light') {
 				document.documentElement.classList.remove('dark');
+				localStorage.setItem('theme', 'light');
+			} else if (theme === 'system') {
+				localStorage.setItem('theme', 'system');
+				if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+					document.documentElement.classList.add('dark');
+				} else {
+					document.documentElement.classList.remove('dark');
+				}
 			}
-			localStorage.setItem('theme', theme);
+			initialTheme = theme;
 		}
 	});
 
 	$effect(() => {
-		if (browser) {
+		if (browser && initialized && brandTheme !== initialBrandTheme) {
 			if (brandTheme === 'stratos') {
 				localStorage.removeItem('stratos-theme');
 				document.documentElement.removeAttribute('data-theme');
@@ -35,6 +57,7 @@
 				localStorage.setItem('stratos-theme', brandTheme);
 				document.documentElement.setAttribute('data-theme', brandTheme);
 			}
+			initialBrandTheme = brandTheme;
 		}
 	});
 </script>
@@ -43,7 +66,7 @@
 	<title>Preferences | Stratos</title>
 </svelte:head>
 
-<div class="max-w-2xl">
+<div class="w-full">
 	<h2 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-8">Preferences</h2>
 
 	<form 

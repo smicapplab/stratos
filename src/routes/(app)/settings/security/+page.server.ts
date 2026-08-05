@@ -9,7 +9,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user || !locals.session) {
 		throw error(401, 'Unauthorized');
 	}
-	const [user] = await db.select().from(users).where(
+	const { sql } = await import('drizzle-orm');
+	const [user] = await db.select({
+		id: users.id,
+		email: users.email,
+		mustChangePassword: users.mustChangePassword,
+		hasPassword: sql<boolean>`${users.hashedPassword} IS NOT NULL`
+	}).from(users).where(
 		and(eq(users.id, locals.user.id), isNull(users.deletedAt))
 	);
 	if (!user) {
@@ -44,11 +50,17 @@ export const actions: Actions = {
 			return fail(400, { error: 'New passwords do not match' });
 		}
 
-		if (newPassword.length < 8) {
-			return fail(400, { error: 'Password must be at least 8 characters long' });
+		const hasMinLength = newPassword.length >= 8;
+		const hasUpper = /[A-Z]/.test(newPassword);
+		const hasLower = /[a-z]/.test(newPassword);
+		const hasNumber = /[0-9]/.test(newPassword);
+		const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(newPassword);
+
+		if (!hasMinLength || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+			return fail(400, { error: 'Password does not meet security requirements (min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special character).' });
 		}
 
-		const [user] = await db.select().from(users).where(
+		const [user] = await db.select({ id: users.id, hashedPassword: users.hashedPassword }).from(users).where(
 			and(eq(users.id, actor.id), isNull(users.deletedAt))
 		);
 		if (!user) {
@@ -70,7 +82,7 @@ export const actions: Actions = {
 
 		try {
 			await db.update(users)
-				.set({ hashedPassword: newHashed })
+				.set({ hashedPassword: newHashed, mustChangePassword: false })
 				.where(and(eq(users.id, actor.id), isNull(users.deletedAt)));
 			return { success: true };
 		} catch (e: unknown) {

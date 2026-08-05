@@ -101,7 +101,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	try {
-		const body = await request.json();
+		const body = (await request.json().catch(() => null)) || {};
+		if (!body || typeof body !== 'object') return json({ error: 'Invalid JSON payload' }, { status: 400 });
 		const { stageId, title, previousIndex, nextIndex, parentTaskId } = body;
 
 		if (!stageId || !title) {

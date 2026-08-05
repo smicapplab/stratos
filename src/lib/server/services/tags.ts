@@ -73,7 +73,7 @@ export async function createTag(actor: Actor, projectId: string, name: string, c
 			projectId,
 			userId: actor.id,
 			actionType: 'tag_created',
-			details: { tagId: newTag.id, name, color }
+			details: { tagId: newTag.id, tagName: name, color }
 		});
 
 		return newTag;
@@ -97,7 +97,7 @@ export async function updateTag(actor: Actor, tagId: string, name: string, color
 			projectId,
 			userId: actor.id,
 			actionType: 'tag_updated',
-			details: { tagId, name, color }
+			details: { tagId, tagName: name, color }
 		});
 
 		return updatedTag;
@@ -109,6 +109,8 @@ export async function softDeleteTag(actor: Actor, tagId: string) {
 	// Only Project Admins can delete tags
 	await checkProjectAdmin(actor, projectId);
 	
+	const [tag] = await db.select({ name: tags.name }).from(tags).where(eq(tags.id, tagId));
+
 	await db.transaction(async (tx) => {
 		await tx.update(tags).set({
 			deletedAt: new Date(),
@@ -120,7 +122,7 @@ export async function softDeleteTag(actor: Actor, tagId: string) {
 			projectId,
 			userId: actor.id,
 			actionType: 'tag_deleted',
-			details: { tagId }
+			details: { tagId, tagName: tag.name }
 		});
 	});
 }

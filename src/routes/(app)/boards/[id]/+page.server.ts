@@ -12,7 +12,8 @@ import { fail, error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	const actor = locals.user!;
+	if (!locals.user) throw redirect(302, '/');
+	const actor = locals.user;
 	const boardId = params.id;
 	
 	const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -270,10 +271,17 @@ export const actions: Actions = {
 		// We need to import `taskFollowers` at the top if it's not there.
 		// It's safer to just import it here to avoid messing up imports or we can add it to the top.
 		const { db } = await import('$lib/server/db/db');
-		const { taskFollowers } = await import('$lib/server/db/schema');
-		const { eq, and } = await import('drizzle-orm');
+		const { taskFollowers, tasks, users } = await import('$lib/server/db/schema');
+		const { eq, and, isNull } = await import('drizzle-orm');
 
 		try {
+			const [task] = await db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.groupId, locals.user.groupId), isNull(tasks.deletedAt)));
+			if (!task) return fail(404, { error: 'Task not found' });
+			if (userId !== locals.user.id) {
+				const [targetUser] = await db.select().from(users).where(and(eq(users.id, userId), eq(users.groupId, locals.user.groupId), isNull(users.deletedAt)));
+				if (!targetUser) return fail(400, { error: 'Target user not found' });
+			}
+
 			const existing = await db.select().from(taskFollowers).where(and(eq(taskFollowers.taskId, taskId), eq(taskFollowers.userId, userId))).limit(1);
 			
 			if (existing.length > 0) {

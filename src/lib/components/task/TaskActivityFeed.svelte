@@ -471,9 +471,7 @@
 										<div
 											class="shrink-0 mt-1 hidden sm:block"
 										>
-											<div
-												class="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 shadow-sm border border-white dark:border-zinc-900"
-											></div>
+											<Avatar name={'User'} size="md" />
 										</div>
 										<div
 											class="flex-1 border border-zinc-200 dark:border-white/10 rounded-xl overflow-hidden focus-within:border-indigo-500/50 transition-all bg-zinc-50/50 dark:bg-[#18181b]"
