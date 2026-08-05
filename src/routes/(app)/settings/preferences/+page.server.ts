@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
 	}
-	const [user] = await db.select().from(users).where(
+	const [user] = await db.select({ id: users.id, email: users.email, name: users.name, theme: users.theme }).from(users).where(
 		and(eq(users.id, locals.user.id), isNull(users.deletedAt))
 	);
 	if (!user) {

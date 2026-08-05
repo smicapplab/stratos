@@ -22,6 +22,7 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   name: varchar('name', { length: 255 }).notNull(),
   hashedPassword: text('hashed_password'), // Can be null if invited but not registered yet
+  mustChangePassword: boolean('must_change_password').default(false).notNull(),
   groupId: uuid('group_id').references(() => groups.id).notNull(),
   role: varchar('role', { length: 50 }).notNull(), // Admin, Member, etc.
   jobTitle: varchar('job_title', { length: 100 }),
@@ -63,7 +64,7 @@ export const projectMembers = pgTable('project_members', {
 export const boards = pgTable('boards', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
-  icon: varchar('icon', { length: 50 }).default('KanbanSquare').notNull(),
+  icon: varchar('icon', { length: 50 }).default('SquareKanban').notNull(),
   prefix: varchar('prefix', { length: 10 }).notNull().default('TSK'),
   projectId: uuid('project_id').references(() => projects.id).notNull(),
   groupId: uuid('group_id').references(() => groups.id).notNull(),

@@ -13,6 +13,7 @@ export interface SessionUser {
 	jobTitle: string | null;
 	avatarUrl: string | null;
 	theme: string;
+	mustChangePassword: boolean;
 }
 
 const VALID_ROLES = new Set<SessionUser['role']>(['Admin', 'Manager', 'Member', 'Viewer']);
@@ -102,6 +103,7 @@ export async function validateSessionToken(
 				jobTitle: users.jobTitle,
 				avatarUrl: users.avatarUrl,
 				theme: users.theme,
+				mustChangePassword: users.mustChangePassword,
 				deletedAt: users.deletedAt
 			}
 		})
@@ -147,7 +149,8 @@ export async function validateSessionToken(
 		groupId: dbUser.groupId,
 		jobTitle: dbUser.jobTitle,
 		avatarUrl: dbUser.avatarUrl,
-		theme: dbUser.theme
+		theme: dbUser.theme,
+		mustChangePassword: dbUser.mustChangePassword
 	};
 
 	const session: Session = {

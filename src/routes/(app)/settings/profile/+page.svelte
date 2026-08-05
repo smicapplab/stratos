@@ -26,7 +26,7 @@
 	<title>Profile Settings | Stratos</title>
 </svelte:head>
 
-<div class="max-w-2xl">
+<div class="w-full">
 	<h2 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-8">Profile</h2>
 
 	<div class="mb-10">

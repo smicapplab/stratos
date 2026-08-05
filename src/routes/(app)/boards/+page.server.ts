@@ -46,7 +46,7 @@ export const actions: Actions = {
 		const name = data.get('name')?.toString();
 		const projectId = data.get('projectId')?.toString();
 		let prefix = data.get('prefix')?.toString()?.toUpperCase();
-		const icon = data.get('icon')?.toString() || 'KanbanSquare';
+		const icon = data.get('icon')?.toString() || 'SquareKanban';
 
 		if (!name || !projectId || !prefix) {
 			return fail(400, { error: 'Name, Prefix, and Project are required' });

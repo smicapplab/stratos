@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { modalStore } from '$lib/stores/ui.svelte';
+	import Avatar from '$lib/components/ui/Avatar.svelte';
 
 	let { data, form } = $props();
 	let users = $derived(data.users);
@@ -10,7 +11,7 @@
 </script>
 
 <div class="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-8 text-zinc-900 dark:text-zinc-100">
-	<div class="max-w-5xl mx-auto space-y-8">
+	<div class="max-w-6xl mx-auto space-y-8">
 		
 		<!-- Header -->
 		<div class="flex items-center justify-between pb-6 border-b border-zinc-200 dark:border-zinc-800">
@@ -74,9 +75,7 @@
 						<tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors group">
 							<td class="px-6 py-4">
 								<div class="flex items-center gap-3">
-									<div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white font-medium shadow-inner">
-										{user.name.charAt(0).toUpperCase()}
-									</div>
+									<Avatar name={user.name} email={user.email} photo={user.avatarUrl} size="md" />
 									<div>
 										<div class="font-medium">{user.name}</div>
 										<div class="text-sm text-zinc-500 dark:text-zinc-400">{user.email}</div>

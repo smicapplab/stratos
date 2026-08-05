@@ -64,11 +64,11 @@ export function validateUploadedFile(file: File): { valid: true } | { valid: fal
 	const lastDot = file.name.lastIndexOf('.');
 	const ext = lastDot !== -1 ? file.name.substring(lastDot).toLowerCase() : '';
 
-	if (file.type && !ALLOWED_MIME_TYPES.has(file.type)) {
+	if (!file.type || !ALLOWED_MIME_TYPES.has(file.type)) {
 		return { valid: false, error: `File MIME type "${file.type}" is not allowed.` };
 	}
 
-	if (ext && !ALLOWED_EXTENSIONS.has(ext)) {
+	if (!ext || !ALLOWED_EXTENSIONS.has(ext)) {
 		return { valid: false, error: `File extension "${ext}" is not allowed.` };
 	}
 

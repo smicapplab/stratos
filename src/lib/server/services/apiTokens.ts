@@ -61,7 +61,8 @@ export async function validateApiToken(token: string): Promise<TokenValidationRe
 			userRole: users.role,
 			userJobTitle: users.jobTitle,
 			userAvatarUrl: users.avatarUrl,
-			userTheme: users.theme
+			userTheme: users.theme,
+			userMustChangePassword: users.mustChangePassword
 		})
 		.from(apiTokens)
 		.innerJoin(users, eq(apiTokens.userId, users.id))
@@ -85,7 +86,8 @@ export async function validateApiToken(token: string): Promise<TokenValidationRe
 			role: toValidRole(result.userRole),
 			jobTitle: result.userJobTitle,
 			avatarUrl: result.userAvatarUrl,
-			theme: result.userTheme
+			theme: result.userTheme,
+			mustChangePassword: result.userMustChangePassword
 		};
 
 		const validationData = {

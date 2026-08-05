@@ -84,7 +84,8 @@ export async function createTask(
 			userId: actor.id,
 			actionType: 'task_created',
 			oldValue: null,
-			newValue: null
+			newValue: null,
+			details: { taskId: newTask.id, taskTitle: title, stageId }
 		});
 
 		return { newTask, boardId };
@@ -172,18 +173,28 @@ export async function softDeleteTask(actor: Actor, taskId: string) {
 	if (actor.role === 'Viewer') {
 		throw new Error('Unauthorized: Viewers cannot delete tasks.');
 	}
+	const [task] = await db.select({ title: tasks.title, boardId: tasks.boardId }).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)));
+
 	const result = await db.transaction(async (tx) => {
-		const [task] = await tx.update(tasks)
+		const [deletedTask] = await tx.update(tasks)
 			.set({ deletedAt: new Date() })
 			.where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId)))
 			.returning();
 
-		if (task) {
+		if (deletedTask) {
 			await tx.update(tasks)
 				.set({ parentTaskId: null })
 				.where(and(eq(tasks.parentTaskId, taskId), eq(tasks.groupId, actor.groupId)));
+
+			await tx.insert(auditLogs).values({
+				groupId: actor.groupId,
+				taskId,
+				userId: actor.id,
+				actionType: 'task_deleted',
+				details: { taskId, taskTitle: task?.title }
+			});
 		}
-		return task;
+		return deletedTask;
 	});
 
 	if (result && result.boardId) {
