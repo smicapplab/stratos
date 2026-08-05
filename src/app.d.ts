@@ -1,9 +1,11 @@
+import type { SessionUser, Session } from '$lib/server/auth/session';
+
 declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			user: import('lucia').User | null;
-			session: import('lucia').Session | null;
+			user: SessionUser | null;
+			session: Session | null;
 			group: {
 				id: string;
 				name: string;
@@ -11,7 +13,10 @@ declare global {
 				showWorkspaceName: boolean;
 				defaultTheme: string;
 			} | null;
-			apiToken: { tokenId: string; groupId: string } | null;
+			apiToken: {
+				tokenId: string;
+				groupId: string;
+			} | null;
 		}
 		// interface PageData {}
 		// interface PageState {}
