@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { History, Users, Settings, Tag, LayoutTemplate, Activity } from 'lucide-svelte';
+	import { htmlEscape as escapeHtml } from '$lib/utils';
 
 	let { projectId, initialActivity = [] }: { projectId: string; initialActivity: any[] } = $props();
 
@@ -23,7 +24,7 @@
 	}
 
 	function getActionText(log: any) {
-		const name = `<span class="font-semibold text-zinc-900 dark:text-zinc-100">${log.userName || 'User'}</span>`;
+		const name = `<span class="font-semibold text-zinc-900 dark:text-zinc-100">${escapeHtml(log.userName || 'User')}</span>`;
 		const details = log.details || {};
 
 		switch (log.actionType) {
@@ -32,35 +33,35 @@
 			case 'project_updated':
 				return `${name} updated project profile`;
 			case 'project_visibility_changed':
-				return `${name} changed visibility to ${details.visibility || 'new setting'}`;
+				return `${name} changed visibility to ${escapeHtml(details.visibility || 'new setting')}`;
 			case 'user_invited':
-				return `${name} invited <span class="font-medium text-zinc-900 dark:text-zinc-100">${details.email}</span> as ${details.role || 'Member'}`;
+				return `${name} invited <span class="font-medium text-zinc-900 dark:text-zinc-100">${escapeHtml(details.email || '')}</span> as ${escapeHtml(details.role || 'Member')}`;
 			case 'user_removed':
-				return `${name} removed user <span class="font-medium text-zinc-900 dark:text-zinc-100">${details.targetName || details.email || 'a user'}</span>`;
+				return `${name} removed user <span class="font-medium text-zinc-900 dark:text-zinc-100">${escapeHtml(details.targetName || details.email || 'a user')}</span>`;
 			case 'member_added':
-				return `${name} added <span class="font-medium text-zinc-900 dark:text-zinc-100">${details.targetName || 'a member'}</span> as ${details.role || 'Member'}`;
+				return `${name} added <span class="font-medium text-zinc-900 dark:text-zinc-100">${escapeHtml(details.targetName || 'a member')}</span> as ${escapeHtml(details.role || 'Member')}`;
 			case 'member_removed':
-				return `${name} removed <span class="font-medium text-zinc-900 dark:text-zinc-100">${details.targetName || 'a member'}</span> from project`;
+				return `${name} removed <span class="font-medium text-zinc-900 dark:text-zinc-100">${escapeHtml(details.targetName || 'a member')}</span> from project`;
 			case 'member_role_updated':
-				return `${name} updated role for <span class="font-medium text-zinc-900 dark:text-zinc-100">${details.targetName || 'a member'}</span> to ${details.newRole || details.role || 'new role'}`;
+				return `${name} updated role for <span class="font-medium text-zinc-900 dark:text-zinc-100">${escapeHtml(details.targetName || 'a member')}</span> to ${escapeHtml(details.newRole || details.role || 'new role')}`;
 			case 'tag_created':
-				return `${name} created tag <span class="font-medium text-zinc-900 dark:text-zinc-100">"${details.tagName || details.name}"</span>`;
+				return `${name} created tag <span class="font-medium text-zinc-900 dark:text-zinc-100">"${escapeHtml(details.tagName || details.name || '')}"</span>`;
 			case 'tag_updated':
-				return `${name} updated tag <span class="font-medium text-zinc-900 dark:text-zinc-100">"${details.tagName || details.name}"</span>`;
+				return `${name} updated tag <span class="font-medium text-zinc-900 dark:text-zinc-100">"${escapeHtml(details.tagName || details.name || '')}"</span>`;
 			case 'tag_deleted':
-				return `${name} deleted tag <span class="font-medium text-zinc-900 dark:text-zinc-100">"${details.tagName || details.name || ''}"</span>`;
+				return `${name} deleted tag <span class="font-medium text-zinc-900 dark:text-zinc-100">"${escapeHtml(details.tagName || details.name || '')}"</span>`;
 			case 'board_created':
-				return `${name} created board <span class="font-medium text-zinc-900 dark:text-zinc-100">"${details.boardName || details.name}"</span>`;
+				return `${name} created board <span class="font-medium text-zinc-900 dark:text-zinc-100">"${escapeHtml(details.boardName || details.name || '')}"</span>`;
 			case 'board_deleted':
-				return `${name} deleted board <span class="font-medium text-zinc-900 dark:text-zinc-100">"${details.boardName || details.name || ''}"</span>`;
+				return `${name} deleted board <span class="font-medium text-zinc-900 dark:text-zinc-100">"${escapeHtml(details.boardName || details.name || '')}"</span>`;
 			case 'task_created':
-				return `${name} created task <span class="font-medium text-zinc-900 dark:text-zinc-100">"${details.taskTitle || details.title || ''}"</span>`;
+				return `${name} created task <span class="font-medium text-zinc-900 dark:text-zinc-100">"${escapeHtml(details.taskTitle || details.title || '')}"</span>`;
 			case 'task_deleted':
-				return `${name} deleted task <span class="font-medium text-zinc-900 dark:text-zinc-100">"${details.taskTitle || details.title || ''}"</span>`;
+				return `${name} deleted task <span class="font-medium text-zinc-900 dark:text-zinc-100">"${escapeHtml(details.taskTitle || details.title || '')}"</span>`;
 			case 'stage_changed':
-				return `${name} moved task <span class="font-medium text-zinc-900 dark:text-zinc-100">"${details.taskTitle || ''}"</span>`;
+				return `${name} moved task <span class="font-medium text-zinc-900 dark:text-zinc-100">"${escapeHtml(details.taskTitle || '')}"</span>`;
 			default:
-				const readableAction = (log.actionType || 'action').replace(/_/g, ' ');
+				const readableAction = escapeHtml((log.actionType || 'action').replace(/_/g, ' '));
 				return `${name} ${readableAction}`;
 		}
 	}

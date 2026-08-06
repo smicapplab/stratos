@@ -16,6 +16,14 @@ export const groupRateLimiter = new RateLimiterRedis({
 	keyPrefix: 'ratelimit:group'
 });
 
+export const loginRateLimiter = new RateLimiterRedis({
+	storeClient: redis,
+	points: 5,      // 5 attempts
+	duration: 60,   // per 60 seconds
+	keyPrefix: 'ratelimit:login',
+	blockDuration: 60 // block for 60s after limit hit
+});
+
 export interface RateLimitResult {
 	allowed: boolean;
 	retryAfter?: number;

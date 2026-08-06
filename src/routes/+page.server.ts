@@ -4,36 +4,9 @@ import { users } from '$lib/server/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import * as argon2 from 'argon2';
 import { generateSessionToken, createSession, setSessionTokenCookie } from '$lib/server/auth/session';
+import { loginRateLimiter } from '$lib/server/rateLimiter';
 
 import type { PageServerLoad, Actions } from './$types';
-
-// Simple in-memory rate limiter for login attempts (per-IP, sliding window - Reset)
-const LOGIN_WINDOW_MS = 60_000; // 60 seconds
-const LOGIN_MAX_ATTEMPTS = 5;
-const loginAttempts = new Map<string, { count: number; firstAttempt: number }>();
-
-function checkRateLimit(ip: string): boolean {
-	const now = Date.now();
-	
-	// Lazy cleanup of all expired entries to prevent memory growth
-	for (const [key, entry] of loginAttempts.entries()) {
-		if (now - entry.firstAttempt > LOGIN_WINDOW_MS) {
-			loginAttempts.delete(key);
-		}
-	}
-
-	const entry = loginAttempts.get(ip);
-	if (!entry) {
-		loginAttempts.set(ip, { count: 1, firstAttempt: now });
-		return true;
-	}
-	if (now - entry.firstAttempt > LOGIN_WINDOW_MS) {
-		loginAttempts.set(ip, { count: 1, firstAttempt: now });
-		return true;
-	}
-	entry.count++;
-	return entry.count <= LOGIN_MAX_ATTEMPTS;
-}
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.session) {
@@ -46,7 +19,11 @@ export const actions: Actions = {
 	default: async (event) => {
 		const { request, getClientAddress } = event;
 		const clientAddress = getClientAddress();
-		if (!checkRateLimit(clientAddress)) {
+
+		// Redis-backed rate limiting (works across multiple instances)
+		try {
+			await loginRateLimiter.consume(clientAddress);
+		} catch {
 			return fail(429, { error: 'Too many login attempts. Please try again later.' });
 		}
 
@@ -86,7 +63,11 @@ export const actions: Actions = {
 			const session = await createSession(token, user.id, { userAgent, ipAddress: clientAddress });
 			setSessionTokenCookie(event, token, session.expiresAt);
 
-			const redirectUrl = data.get('redirectUrl')?.toString() || '/dashboard';
+			// Validate redirect URL to prevent open redirect attacks
+			let redirectUrl = data.get('redirectUrl')?.toString() || '/dashboard';
+			if (!redirectUrl.startsWith('/') || redirectUrl.startsWith('//')) {
+				redirectUrl = '/dashboard';
+			}
 
 			throw redirect(302, redirectUrl);
 		} catch (err) {

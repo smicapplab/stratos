@@ -60,7 +60,7 @@ export const GET: RequestHandler = async ({ params, request, locals }) => {
 
 		const { filePath, mimeType, fileName, userId, groupId } = JSON.parse(dataStr) as TokenData;
 
-		if (userId !== locals.user.id || groupId !== locals.user.groupId) {
+		if (groupId !== locals.user.groupId || (userId && userId !== locals.user.id)) {
 			return json({ error: 'Forbidden' }, { status: 403 });
 		}
 
