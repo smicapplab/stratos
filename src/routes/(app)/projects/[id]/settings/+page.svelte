@@ -2,6 +2,7 @@
 	import { ArrowLeft, Settings } from 'lucide-svelte';
 	import ProjectProfileCard from '$lib/components/project-settings/ProjectProfileCard.svelte';
 	import ProjectVisibilityCard from '$lib/components/project-settings/ProjectVisibilityCard.svelte';
+	import ProjectStandupsCard from '$lib/components/project-settings/ProjectStandupsCard.svelte';
 	import ProjectMembersCard from '$lib/components/project-settings/ProjectMembersCard.svelte';
 	import ProjectTagsCard from '$lib/components/project-settings/ProjectTagsCard.svelte';
 	import ProjectDangerZoneCard from '$lib/components/project-settings/ProjectDangerZoneCard.svelte';
@@ -39,7 +40,7 @@
 				{project.name} Settings
 			</h1>
 			<p class="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
-				Manage visibility, access, tags, and team members for this project.
+				Manage visibility, access, tags, daily standups, and team members for this project.
 			</p>
 		</div>
 	</div>
@@ -52,10 +53,11 @@
 
 	<!-- 2-Column Responsive Grid -->
 	<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-		<!-- Left Settings Column (7 cols on lg, 8 cols on xl) -->
+		<!-- Left Settings Column -->
 		<div class="lg:col-span-7 xl:col-span-8 space-y-6">
 			<ProjectProfileCard {project} {isProjectAdmin} />
 			<ProjectVisibilityCard {project} {isProjectAdmin} />
+			<ProjectStandupsCard {project} {isProjectAdmin} />
 			<ProjectMembersCard {members} {availableUsers} {isProjectAdmin} />
 			<ProjectTagsCard {project} bind:tags={data.tags} {isProjectAdmin} />
 			{#if user?.role === 'Admin'}
@@ -63,7 +65,7 @@
 			{/if}
 		</div>
 
-		<!-- Right Column: Project Ledger History (5 cols on lg, 4 cols on xl, sticky on desktop) -->
+		<!-- Right Column: Project Ledger History -->
 		<div class="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-6">
 			<ProjectLedgerCard projectId={project.id} initialActivity={data.activity} />
 		</div>

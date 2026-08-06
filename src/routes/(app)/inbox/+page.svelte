@@ -1,42 +1,60 @@
 <script lang="ts">
 	import { 
-		Clock, Inbox, Check, Send
+		Inbox, Check, Send, Loader2
 	} from 'lucide-svelte';
-	import Avatar from '$lib/components/ui/Avatar.svelte';
 	import TaskDrawer from '$lib/components/task/TaskDrawer.svelte';
+	import InboxTaskGroupCard from '$lib/components/inbox/InboxTaskGroupCard.svelte';
 	import { toastStore } from '$lib/stores/ui.svelte';
 	import {
-		getNotificationIcon,
-		getNotificationText,
+		groupNotificationsByTask,
 		markNotificationAsRead,
+		markTaskNotificationsAsRead,
 		markAllNotificationsAsRead
 	} from '$lib/utils/notifications';
 
 	let { data } = $props();
-	
+
 	let activeTab = $state<'received' | 'sent'>('received');
-	let notifications = $state<any[]>([]);
-	let sentNotifications = $state<any[]>([]);
+	let readFilter = $state<'all' | 'unread'>('all');
+
+	let rawReceivedNotifications = $state<any[]>([]);
+	let hasMoreReceived = $state(false);
+
+	let rawSentNotifications = $state<any[]>([]);
+	let hasMoreSent = $state(false);
+
+	let isLoadingMore = $state(false);
 
 	$effect(() => {
-		notifications = data.notifications || [];
-		sentNotifications = data.sentNotifications || [];
+		rawReceivedNotifications = data.notifications || [];
+		hasMoreReceived = !!data.hasMoreReceived;
+		rawSentNotifications = data.sentNotifications || [];
+		hasMoreSent = !!data.hasMoreSent;
 	});
 
-	let unreadCount = $derived(notifications.filter((n: any) => !n.readAt).length);
+	let receivedGroups = $derived(groupNotificationsByTask(rawReceivedNotifications));
+	let sentGroups = $derived(groupNotificationsByTask(rawSentNotifications));
+
+	let filteredReceivedGroups = $derived(
+		readFilter === 'unread' 
+			? receivedGroups.filter((g) => g.unreadCount > 0)
+			: receivedGroups
+	);
+
+	let unreadCount = $derived(rawReceivedNotifications.filter((n: any) => !n.readAt).length);
 
 	// Task drawer state
 	let activeTask = $state<any | null>(null);
 	let isLoadingTask = $state(false);
 
-	async function openTask(taskId: string, notifId?: string) {
+	async function openTask(taskId: string | null, notifId?: string) {
 		if (!taskId) return;
 
 		// Optimistically mark notification as read
 		if (notifId) {
-			const idx = notifications.findIndex((n: any) => n.id === notifId);
-			if (idx > -1 && !notifications[idx].readAt) {
-				notifications[idx].readAt = new Date();
+			const idx = rawReceivedNotifications.findIndex((n: any) => n.id === notifId);
+			if (idx > -1 && !rawReceivedNotifications[idx].readAt) {
+				rawReceivedNotifications[idx].readAt = new Date();
 				markNotificationAsRead(notifId);
 			}
 		}
@@ -56,15 +74,84 @@
 		}
 	}
 
+	async function handleMarkSingleRead(notifId: string) {
+		const idx = rawReceivedNotifications.findIndex((n: any) => n.id === notifId);
+		if (idx > -1 && !rawReceivedNotifications[idx].readAt) {
+			rawReceivedNotifications[idx].readAt = new Date();
+			await markNotificationAsRead(notifId);
+		}
+	}
+
+	async function handleMarkGroupRead(taskId: string) {
+		let updatedCount = 0;
+		for (const n of rawReceivedNotifications) {
+			if (n.taskId === taskId && !n.readAt) {
+				n.readAt = new Date();
+				updatedCount++;
+			}
+		}
+		if (updatedCount > 0) {
+			await markTaskNotificationsAsRead(taskId);
+		}
+	}
+
 	async function handleMarkAllAsRead() {
-		const unread = notifications.filter((n: any) => !n.readAt);
-		if (unread.length === 0) return;
-		
+		const unread = rawReceivedNotifications.filter((n: any) => !n.readAt);
+		if (unread.length === 0) {
+			toastStore.success('All notifications are already marked as read');
+			return;
+		}
+
 		for (const n of unread) {
 			n.readAt = new Date();
 		}
-		
+
 		await markAllNotificationsAsRead();
+		toastStore.success('Marked all notifications as read');
+	}
+
+	// Infinite Scroll Load More (by Distinct Task Offset)
+	async function loadMore() {
+		if (isLoadingMore) return;
+		const currentGroups = activeTab === 'received' ? receivedGroups : sentGroups;
+		const canLoadMore = activeTab === 'received' ? hasMoreReceived : hasMoreSent;
+
+		if (!canLoadMore) return;
+
+		isLoadingMore = true;
+		try {
+			const taskOffset = currentGroups.length;
+			const res = await fetch(`/api/notifications?limit=20&offset=${taskOffset}&tab=${activeTab}`);
+			if (res.ok) {
+				const resData = await res.json();
+				const fetched = resData.notifications || [];
+				if (fetched.length === 0) {
+					if (activeTab === 'received') hasMoreReceived = false;
+					else hasMoreSent = false;
+				} else {
+					if (activeTab === 'received') {
+						rawReceivedNotifications = [...rawReceivedNotifications, ...fetched];
+						hasMoreReceived = resData.hasMore;
+					} else {
+						rawSentNotifications = [...rawSentNotifications, ...fetched];
+						hasMoreSent = resData.hasMore;
+					}
+				}
+			}
+		} catch (err) {
+			console.error('Failed to load more notifications:', err);
+		} finally {
+			isLoadingMore = false;
+		}
+	}
+
+	function handleScroll(e: Event) {
+		const target = e.target as HTMLElement;
+		if (!target) return;
+		const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+		if (scrollBottom < 200) {
+			loadMore();
+		}
 	}
 </script>
 
@@ -79,114 +166,113 @@
 				<h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-3">
 					Inbox 
 					{#if unreadCount > 0}
-						<span class="bg-brand-primary text-white text-xs font-bold px-2 py-0.5 rounded-full">{unreadCount} new</span>
+						<span class="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{unreadCount} unread</span>
 					{/if}
 				</h1>
-				<p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Catch up on your latest activity.</p>
+				<p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Catch up on your latest task activity across all company boards.</p>
 			</div>
-			
-			{#if activeTab === 'received' && notifications.length > 0}
+
+			{#if activeTab === 'received' && rawReceivedNotifications.length > 0}
 				<button 
+					type="button"
 					onclick={handleMarkAllAsRead}
-					disabled={unreadCount === 0}
-					class="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl transition-all {unreadCount > 0 ? 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-brand-primary/50 hover:shadow-sm text-zinc-700 dark:text-zinc-300' : 'opacity-50 cursor-not-allowed text-zinc-400 border border-transparent'}"
+					class="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition-all min-h-[44px] shadow-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-brand-primary/60 hover:text-brand-primary text-zinc-800 dark:text-zinc-200"
 				>
-					<Check class="w-4 h-4" />
-					Mark all read
+					<Check class="w-4 h-4 text-emerald-500" />
+					<span>Mark all as read</span>
 				</button>
 			{/if}
 		</div>
 
-		<!-- Navigation Tabs -->
-		<div class="flex items-center border-b border-zinc-200 dark:border-zinc-800 gap-6">
-			<button 
-				class="pb-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 {activeTab === 'received' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'}"
-				onclick={() => activeTab = 'received'}
-			>
-				<Inbox class="w-4 h-4" />
-				Received ({notifications.length})
-			</button>
+		<!-- Navigation Tabs & Filter Toggle -->
+		<div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-200 dark:border-zinc-800 gap-4">
+			<div class="flex items-center gap-6">
+				<button 
+					type="button"
+					class="pb-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 min-h-[44px] {activeTab === 'received' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'}"
+					onclick={() => activeTab = 'received'}
+				>
+					<Inbox class="w-4 h-4" />
+					Received ({receivedGroups.length} tasks)
+				</button>
 
-			<button 
-				class="pb-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 {activeTab === 'sent' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'}"
-				onclick={() => activeTab = 'sent'}
-			>
-				<Send class="w-4 h-4" />
-				Sent / Outgoing ({sentNotifications.length})
-			</button>
+				<button 
+					type="button"
+					class="pb-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 min-h-[44px] {activeTab === 'sent' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'}"
+					onclick={() => activeTab = 'sent'}
+				>
+					<Send class="w-4 h-4" />
+					Sent / Outgoing ({sentGroups.length} tasks)
+				</button>
+			</div>
+
+			{#if activeTab === 'received'}
+				<div class="pb-3 flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800/60 p-1 rounded-xl shrink-0 self-start sm:self-auto">
+					<button
+						type="button"
+						onclick={() => readFilter = 'all'}
+						class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all min-h-[36px] {readFilter === 'all' ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'}"
+					>
+						All Tasks ({receivedGroups.length})
+					</button>
+					<button
+						type="button"
+						onclick={() => readFilter = 'unread'}
+						class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all min-h-[36px] flex items-center gap-1.5 {readFilter === 'unread' ? 'bg-white dark:bg-zinc-900 text-amber-600 dark:text-amber-400 shadow-sm' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'}"
+					>
+						<span>Unread Only</span>
+						{#if unreadCount > 0}
+							<span class="bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+								{unreadCount}
+							</span>
+						{/if}
+					</button>
+				</div>
+			{/if}
 		</div>
 	</header>
 
-	<div class="flex-1 overflow-y-auto px-6 sm:px-10 pb-20 custom-scrollbar">
-		<div class="max-w-6xl w-full mx-auto">
+	<div 
+		class="flex-1 overflow-y-auto px-6 sm:px-10 pb-20 custom-scrollbar"
+		onscroll={handleScroll}
+	>
+		<div class="max-w-6xl w-full mx-auto space-y-4">
 			{#if activeTab === 'received'}
-				{#if notifications.length === 0}
+				{#if filteredReceivedGroups.length === 0}
 					<div class="flex flex-col items-center justify-center py-28 px-4 text-center space-y-6">
 						<div class="relative w-24 h-24 flex items-center justify-center">
 							<div class="absolute inset-0 bg-emerald-400/20 dark:bg-emerald-500/10 rounded-full calm-pulse"></div>
 							<div class="absolute inset-2 bg-emerald-50 dark:bg-emerald-950/40 rounded-full border border-emerald-100 dark:border-emerald-800/25"></div>
-							
+
 							<div class="relative calm-float p-4 text-emerald-600 dark:text-emerald-400">
 								<Inbox class="w-10 h-10" />
 							</div>
 						</div>
 						<div class="max-w-md space-y-2">
-							<h3 class="text-xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">All caught up! 🌿</h3>
+							<h3 class="text-xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+								{readFilter === 'unread' ? 'No unread notifications! 🎉' : 'All caught up! 🌿'}
+							</h3>
 							<p class="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-								Your inbox is clear and peaceful. No new activities require your response.
+								{readFilter === 'unread' 
+									? 'You have read all your latest notifications.'
+									: 'Your inbox is clear and peaceful. No new activities require your response.'}
 							</p>
 						</div>
 					</div>
 				{:else}
-					<div class="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl shadow-sm overflow-hidden flex flex-col divide-y divide-zinc-100 dark:divide-white/5">
-						{#each notifications as notif}
-							{@const IconInfo = getNotificationIcon(notif.type)}
-							<button
-								type="button"
-								onclick={() => openTask(notif.taskId, notif.id)}
-								class="group w-full text-left flex items-start gap-4 p-5 sm:p-6 transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.02] relative {notif.readAt ? 'opacity-70' : ''}"
-							>
-								{#if !notif.readAt}
-									<div class="absolute left-0 top-0 bottom-0 w-1 bg-brand-primary dark:bg-brand-primary/100"></div>
-								{/if}
-								
-								<div class="shrink-0 relative">
-									<Avatar name={notif.actorName || "System"} size="lg" />
-									<div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white dark:bg-zinc-900 border-2 border-white dark:border-[#09090b] shadow-sm flex items-center justify-center {IconInfo.color}">
-										<IconInfo.icon class="w-3 h-3" />
-									</div>
-								</div>
-								
-								<div class="flex-1 min-w-0">
-									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 mb-1">
-										<p class="text-[15px] text-zinc-900 dark:text-zinc-100 leading-snug pr-4">
-											<span class="font-bold">{notif.actorName || 'Someone'}</span> {getNotificationText(notif.type)}
-											{#if notif.taskTitle}
-												<span class="font-medium text-zinc-600 dark:text-zinc-400">"{notif.taskTitle}"</span>
-											{/if}
-										</p>
-										<span class="shrink-0 flex items-center gap-1.5 text-xs font-medium text-zinc-400">
-											<Clock class="w-3.5 h-3.5" />
-											{new Date(notif.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-										</span>
-									</div>
-									{#if !notif.readAt}
-										<span
-											role="none"
-											onclick={(e) => { e.stopPropagation(); const idx = notifications.findIndex((n: any) => n.id === notif.id); if (idx > -1) { notifications[idx].readAt = new Date(); markNotificationAsRead(notif.id); } }}
-											class="mt-2 inline-flex items-center text-xs font-bold uppercase tracking-wider text-brand-primary hover:underline cursor-pointer"
-										>
-											Mark as Read
-										</span>
-									{/if}
-								</div>
-							</button>
-						{/each}
-					</div>
+					{#each filteredReceivedGroups as group (group.taskId || 'system')}
+						<InboxTaskGroupCard
+							{group}
+							isSent={false}
+							onOpenTask={openTask}
+							onMarkGroupRead={handleMarkGroupRead}
+							onMarkSingleRead={handleMarkSingleRead}
+						/>
+					{/each}
 				{/if}
 			{:else}
-				<!-- Sent / Outgoing Tab -->
-				{#if sentNotifications.length === 0}
+				<!-- Sent Tab -->
+				{#if sentGroups.length === 0}
 					<div class="flex flex-col items-center justify-center py-28 px-4 text-center space-y-6">
 						<div class="relative w-24 h-24 flex items-center justify-center">
 							<div class="relative calm-float p-4 text-zinc-400">
@@ -201,39 +287,23 @@
 						</div>
 					</div>
 				{:else}
-					<div class="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl shadow-sm overflow-hidden flex flex-col divide-y divide-zinc-100 dark:divide-white/5">
-						{#each sentNotifications as notif}
-							{@const IconInfo = getNotificationIcon(notif.type)}
-							<button
-								type="button"
-								onclick={() => openTask(notif.taskId)}
-								class="group w-full text-left flex items-start gap-4 p-5 sm:p-6 transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.02] relative"
-							>
-								<div class="shrink-0 relative">
-									<Avatar name={notif.recipientName || "Team Member"} size="lg" />
-									<div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white dark:bg-zinc-900 border-2 border-white dark:border-[#09090b] shadow-sm flex items-center justify-center {IconInfo.color}">
-										<IconInfo.icon class="w-3 h-3" />
-									</div>
-								</div>
-								
-								<div class="flex-1 min-w-0">
-									<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 mb-1">
-										<p class="text-[15px] text-zinc-900 dark:text-zinc-100 leading-snug pr-4">
-											<span class="font-bold">You</span> {getNotificationText(notif.type, true)} <span class="font-bold">{notif.recipientName || 'a team member'}</span>
-											{#if notif.taskTitle}
-												<span class="font-medium text-zinc-600 dark:text-zinc-400"> on "{notif.taskTitle}"</span>
-											{/if}
-										</p>
-										<span class="shrink-0 flex items-center gap-1.5 text-xs font-medium text-zinc-400">
-											<Clock class="w-3.5 h-3.5" />
-											{new Date(notif.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-										</span>
-									</div>
-								</div>
-							</button>
-						{/each}
-					</div>
+					{#each sentGroups as group (group.taskId || 'system')}
+						<InboxTaskGroupCard
+							{group}
+							isSent={true}
+							onOpenTask={openTask}
+							onMarkGroupRead={handleMarkGroupRead}
+							onMarkSingleRead={handleMarkSingleRead}
+						/>
+					{/each}
 				{/if}
+			{/if}
+
+			{#if isLoadingMore}
+				<div class="flex items-center justify-center py-6 text-sm text-zinc-500 gap-2">
+					<Loader2 class="w-4 h-4 animate-spin text-brand-primary" />
+					<span>Loading more task activity...</span>
+				</div>
 			{/if}
 		</div>
 	</div>
@@ -241,7 +311,8 @@
 	<!-- Loading overlay for task fetch -->
 	{#if isLoadingTask}
 		<div class="absolute inset-0 bg-black/10 dark:bg-black/20 flex items-center justify-center z-40 pointer-events-none">
-			<div class="bg-white dark:bg-zinc-900 rounded-xl px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-300 shadow-lg">
+			<div class="bg-white dark:bg-zinc-900 rounded-xl px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-300 shadow-lg flex items-center gap-2">
+				<Loader2 class="w-4 h-4 animate-spin text-brand-primary" />
 				Loading task...
 			</div>
 		</div>
@@ -251,10 +322,10 @@
 	{#if activeTask}
 		<TaskDrawer
 			bind:task={activeTask}
-			currentUserId={data.user.id}
+			currentUserId={data.user?.id || ''}
 			allTasks={[]}
-			groupUsers={data.groupUsers}
-			stages={data.stages}
+			groupUsers={data.groupUsers || []}
+			stages={data.stages || []}
 			customFields={[]}
 			onClose={() => { activeTask = null; }}
 		/>

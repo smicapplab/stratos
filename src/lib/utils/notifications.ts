@@ -6,6 +6,15 @@ import {
 	MessageSquare
 } from 'lucide-svelte';
 
+export interface TaskNotificationGroup {
+	taskId: string | null;
+	taskTitle: string;
+	boardId?: string | null;
+	latestCreatedAt: string | Date;
+	unreadCount: number;
+	notifications: any[];
+}
+
 export function getNotificationIcon(type: string) {
 	switch (type) {
 		case 'assigned':
@@ -40,6 +49,42 @@ export function getNotificationText(type: string, isSent: boolean = false) {
 	}
 }
 
+export function groupNotificationsByTask(notificationsList: any[]): TaskNotificationGroup[] {
+	if (!notificationsList || notificationsList.length === 0) return [];
+
+	const groupsMap = new Map<string, TaskNotificationGroup>();
+
+	for (const notif of notificationsList) {
+		const key = notif.taskId || 'system';
+		const existing = groupsMap.get(key);
+
+		if (!existing) {
+			groupsMap.set(key, {
+				taskId: notif.taskId || null,
+				taskTitle: notif.taskTitle || (notif.taskId ? 'Untitled Task' : 'System Notifications'),
+				boardId: notif.boardId || null,
+				latestCreatedAt: notif.createdAt,
+				unreadCount: notif.readAt ? 0 : 1,
+				notifications: [notif]
+			});
+		} else {
+			existing.notifications.push(notif);
+			if (!notif.readAt) {
+				existing.unreadCount += 1;
+			}
+			// Keep latestCreatedAt updated
+			if (new Date(notif.createdAt).getTime() > new Date(existing.latestCreatedAt).getTime()) {
+				existing.latestCreatedAt = notif.createdAt;
+			}
+		}
+	}
+
+	// Sort groups by latestCreatedAt descending
+	return Array.from(groupsMap.values()).sort(
+		(a, b) => new Date(b.latestCreatedAt).getTime() - new Date(a.latestCreatedAt).getTime()
+	);
+}
+
 export async function markNotificationAsRead(id: string): Promise<boolean> {
 	try {
 		const res = await fetch('/api/notifications/read', {
@@ -54,12 +99,26 @@ export async function markNotificationAsRead(id: string): Promise<boolean> {
 	}
 }
 
+export async function markTaskNotificationsAsRead(taskId: string): Promise<boolean> {
+	try {
+		const res = await fetch('/api/notifications/read', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ taskId })
+		});
+		return res.ok;
+	} catch (err) {
+		console.error("Failed to mark task notifications as read", err);
+		return false;
+	}
+}
+
 export async function markAllNotificationsAsRead(): Promise<boolean> {
 	try {
 		const res = await fetch('/api/notifications/read', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({})
+			body: JSON.stringify({ markAll: true })
 		});
 		return res.ok;
 	} catch (err) {

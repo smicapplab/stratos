@@ -57,6 +57,7 @@ export async function getAccessibleProjects(actor: Actor) {
 			icon: projects.icon,
 			groupId: projects.groupId,
 			visibility: projects.visibility,
+			enableStandups: projects.enableStandups,
 			createdAt: projects.createdAt
 		}).from(projects).where(
 			and(
@@ -83,6 +84,7 @@ export async function getAccessibleProjects(actor: Actor) {
 		icon: projects.icon,
 		groupId: projects.groupId,
 		visibility: projects.visibility,
+		enableStandups: projects.enableStandups,
 		createdAt: projects.createdAt
 	}).from(projects).where(
 		and(
