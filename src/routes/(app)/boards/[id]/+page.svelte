@@ -115,13 +115,14 @@
 	let groupUsers = $derived(data.groupUsers);
 	let projects = $derived(data.projects);
 	let customFields = $derived(data.customFields);
-	
-	// Create a reactive local copy of tasks mapped by stageId so we can mutate them on drag/drop
 	let columns = $state<{id: string, name: string, isCompleted: boolean, orderIndex: string, dragDisabled?: boolean, items: any[]}[]>([]);
 	let showEpicsOnly = $state(false);
+	let isDragging = $state(false);
 
 	// Sync server data to local mutable state whenever the server data updates
 	$effect(() => {
+		if (isDragging) return;
+
 		const completedStageIds = new Set<string>(
 			stages.filter((s: { id: string; isCompleted: boolean }) => s.isCompleted).map((s: { id: string; isCompleted: boolean }) => s.id)
 		);
@@ -152,22 +153,26 @@
 				if (a.orderIndex > b.orderIndex) return 1;
 				return 0;
 			});
+			const mappedTasks = stageTasks.map(t => {
+				const subtaskCount: number = subtaskCounts.get(t.id) || 0;
+				const completedSubtaskCount: number = completedSubtaskCounts.get(t.id) || 0;
+				const isParentIncomplete: boolean =
+					completedStageIds.has(t.stageId) && subtaskCount > 0 && completedSubtaskCount < subtaskCount;
+				return {
+					...t,
+					subtaskCount,
+					completedSubtaskCount,
+					isParentIncomplete,
+					parentTask: t.parentTaskId ? taskMap.get(t.parentTaskId) : null
+				};
+			});
+
+			const items = showEpicsOnly ? mappedTasks.filter(t => t.parentTaskId === null) : mappedTasks;
+
 			return {
 				...stage,
 				dragDisabled: user.role !== 'Admin',
-				items: stageTasks.map(t => {
-					const subtaskCount: number = subtaskCounts.get(t.id) || 0;
-					const completedSubtaskCount: number = completedSubtaskCounts.get(t.id) || 0;
-					const isParentIncomplete: boolean =
-						completedStageIds.has(t.stageId) && subtaskCount > 0 && completedSubtaskCount < subtaskCount;
-					return {
-						...t,
-						subtaskCount,
-						completedSubtaskCount,
-						isParentIncomplete,
-						parentTask: t.parentTaskId ? taskMap.get(t.parentTaskId) : null
-					};
-				})
+				items
 			};
 		});
 	});
@@ -213,8 +218,6 @@
 
 	const flipDurationMs = 200;
 
-	let isDragging = false;
-
 	function handleDndConsider(e: any, stageIdx: number) {
 		isDragging = true;
 		columns = columns.map((c, i) => i === stageIdx ? { ...c, items: e.detail.items } : c);
@@ -222,14 +225,16 @@
 
 	async function handleDndFinalize(e: any, stageIdx: number) {
 		columns = columns.map((c, i) => i === stageIdx ? { ...c, items: e.detail.items } : c);
-		setTimeout(() => { isDragging = false; }, 0);
 		
 		const movedItemId = e.detail.info.id;
 		const stageId = columns[stageIdx].id;
 		
 		// Find where the item was dropped to calculate fractional index
 		const newIndex = e.detail.items.findIndex((t: any) => t.id === movedItemId);
-		if (newIndex === -1) return; // Item was dragged OUT of this column, handled by the target column's event
+		if (newIndex === -1) {
+			isDragging = false;
+			return; // Item was dragged OUT of this column, handled by the target column's event
+		}
 		
 		const previousIndex = newIndex > 0 ? e.detail.items[newIndex - 1].orderIndex : null;
 		const nextIndex = newIndex < e.detail.items.length - 1 ? e.detail.items[newIndex + 1].orderIndex : null;
@@ -244,14 +249,18 @@
 			triggerCelebration('random');
 		}
 
-		await fetch('?/moveTask', {
-			method: 'POST',
-			body: formData,
-			headers: {
-				'x-sveltekit-action': 'true'
-			}
-		});
-		await invalidateAll();
+		try {
+			await fetch('?/moveTask', {
+				method: 'POST',
+				body: formData,
+				headers: {
+					'x-sveltekit-action': 'true'
+				}
+			});
+			await invalidateAll();
+		} finally {
+			isDragging = false;
+		}
 	}
 
 	let moveStageForm = $state<HTMLFormElement | null>(null);
@@ -629,20 +638,20 @@
 
 					<!-- Drag and Drop Zone -->
 					<div 
-						use:dndzone={{items: showEpicsOnly ? column.items.filter((t: { parentTaskId: string | null }) => t.parentTaskId === null) : column.items, flipDurationMs, dragDisabled: isTouchDevice, dropTargetStyle: { outline: '2px solid rgba(59, 130, 246, 0.5)', outlineOffset: '-2px', borderRadius: '0.75rem', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}} 
+						use:dndzone={{items: column.items, flipDurationMs, dragDisabled: isTouchDevice, dropTargetStyle: { outline: '2px solid rgba(59, 130, 246, 0.5)', outlineOffset: '-2px', borderRadius: '0.75rem', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}} 
 						onconsider={(e) => handleDndConsider(e, stageIdx)} 
 						onfinalize={(e) => handleDndFinalize(e, stageIdx)}
 						class="flex-1 overflow-y-auto px-3 pb-3 min-h-[150px] custom-scrollbar flex flex-col gap-2 relative"
 					>
-						{#each (showEpicsOnly ? column.items.filter((t: { parentTaskId: string | null }) => t.parentTaskId === null) : column.items) as task, taskIdx (task.id)}
+						{#each column.items as task, taskIdx (task.id)}
 							<div animate:flip={{duration: flipDurationMs}} id="task-{stageIdx}-{taskIdx}">
 								<TaskCard {task} {groupUsers} userRole={user.role} focused={focusedColumnIndex === stageIdx && focusedTaskIndex === taskIdx} onClick={() => { if (!isDragging) activeTask = task; }} />
 							</div>
 						{/each}
 						
-						{#if (showEpicsOnly ? column.items.filter((t: { parentTaskId: string | null }) => t.parentTaskId === null) : column.items).length === 0}
+						{#if column.items.length === 0}
 							<div class="absolute inset-0 flex flex-col items-center justify-center opacity-40 pointer-events-none p-4 text-center mt-6">
-								<svg class="w-10 h-10 mb-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+								<svg class="w-10 h-10 mb-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012-2M9 5a2 2 0 012 2"/></svg>
 								<span class="text-xs font-semibold text-zinc-500 tracking-wide">Drop tasks here</span>
 							</div>
 						{/if}

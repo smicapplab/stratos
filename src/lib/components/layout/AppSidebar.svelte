@@ -201,6 +201,15 @@
 										<span class="truncate">{board.name}</span>
 									</a>
 								{/each}
+								{#if project.enableStandups}
+									<a
+										href="/projects/{project.id}/standups"
+										class="flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors min-h-[36px] {currentPath === `/projects/${project.id}/standups` ? 'bg-brand-primary/10 text-brand-primary font-semibold dark:bg-brand-primary/20 dark:text-brand-primary' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/40 hover:text-zinc-900 dark:hover:text-zinc-100'}"
+									>
+										<CalendarDays class="w-3.5 h-3.5 text-brand-primary/70 shrink-0" />
+										<span class="truncate">Daily Standup</span>
+									</a>
+								{/if}
 							</div>
 						{/if}
 					</div>

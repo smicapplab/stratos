@@ -9,7 +9,8 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Getting Started', link: '/01-getting-started.md' },
-      { text: 'Projects', link: '/02-projects-and-boards.md' }
+      { text: 'Projects', link: '/02-projects-and-boards.md' },
+      { text: 'Standups', link: '/08-daily-standups.md' }
     ],
     sidebar: [
       {
@@ -20,8 +21,9 @@ export default defineConfig({
           { text: '3. Managing Tasks', link: '/03-managing-tasks.md' },
           { text: '4. Staying Updated', link: '/04-staying-updated.md' },
           { text: '5. Reports & Calendar', link: '/05-reports-and-calendar.md' },
-          { text: '6. MCP Integrations', link: '/06-mcp-integration.md' },
-          { text: '7. Keyboard Shortcuts', link: '/07-keyboard-shortcuts.md' }
+          { text: '6. Daily Standups', link: '/08-daily-standups.md' },
+          { text: '7. MCP Integrations', link: '/06-mcp-integration.md' },
+          { text: '8. Keyboard Shortcuts', link: '/07-keyboard-shortcuts.md' }
         ]
       }
     ],

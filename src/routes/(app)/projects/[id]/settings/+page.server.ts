@@ -25,6 +25,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		name: projects.name,
 		icon: projects.icon,
 		visibility: projects.visibility,
+		enableStandups: projects.enableStandups,
 		groupId: projects.groupId,
 		createdAt: projects.createdAt
 	}).from(projects).where(
@@ -154,6 +155,27 @@ export const actions: Actions = {
 
 		try {
 			await updateProjectVisibility(locals.user!, params.id, visibility);
+			return { success: true };
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
+		}
+	},
+
+	updateStandupsToggle: async ({ request, params, locals }) => {
+		const data = await request.formData();
+		const enableStandups = data.get('enableStandups') === 'true' || data.get('enableStandups') === 'on';
+
+		try {
+			await db.update(projects)
+				.set({ enableStandups })
+				.where(
+					and(
+						eq(projects.id, params.id),
+						eq(projects.groupId, locals.user!.groupId),
+						isNull(projects.deletedAt)
+					)
+				);
 			return { success: true };
 		} catch (err) {
 			const error = err as Error;

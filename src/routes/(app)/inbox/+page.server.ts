@@ -11,15 +11,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	const [notifications, sentNotifications, groupUsers, stages] = await Promise.all([
-		getNotifications(locals.user),
-		getSentNotifications(locals.user),
+		getNotifications(locals.user, 20, 0),
+		getSentNotifications(locals.user, 20, 0),
 		getGroupUsers(locals.user),
 		getGroupStages(locals.user)
 	]);
 
 	return {
 		notifications,
+		hasMoreReceived: notifications.length > 0,
 		sentNotifications,
+		hasMoreSent: sentNotifications.length > 0,
 		groupUsers,
 		stages
 	};
