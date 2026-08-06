@@ -65,7 +65,7 @@
 			userName: string;
 		}[];
 	};
-	type ChecklistItem = { id: string; text: string; done: boolean };
+	type ChecklistItem = { id: string; text: string; done: boolean; assigneeId?: string | null; dueDate?: string | null };
 	type TaskType = {
 		id: string;
 		title: string;
@@ -1249,7 +1249,7 @@
 		if (!newChecklistText.trim()) return;
 		checklists = [
 			...checklists,
-			{ id: crypto.randomUUID(), text: newChecklistText, done: false },
+			{ id: crypto.randomUUID(), text: newChecklistText, done: false, assigneeId: null, dueDate: null },
 		];
 		newChecklistText = "";
 		saveChecklists();
@@ -1262,6 +1262,12 @@
 	}
 	function deleteChecklist(id: string) {
 		checklists = checklists.filter((c) => c.id !== id);
+		saveChecklists();
+	}
+	function updateChecklistMeta(id: string, assigneeId: string | null, dueDate: string | null) {
+		checklists = checklists.map((c) =>
+			c.id === id ? { ...c, assigneeId, dueDate } : c,
+		);
 		saveChecklists();
 	}
 	function saveChecklists() {
@@ -1502,8 +1508,10 @@
 						{checklists}
 						{toggleChecklist}
 						{deleteChecklist}
+						{updateChecklistMeta}
 						bind:newChecklistText
 						{addChecklistItem}
+						{groupUsers}
 					/>
 					<TaskActivityFeed 
 						bind:activeTab 

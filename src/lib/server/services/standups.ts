@@ -109,9 +109,25 @@ export async function upsertStandup(actor: Actor, projectId: string, payload: St
 		)
 		.limit(1);
 
-	const morningIntent = payload.morningIntent !== undefined ? payload.morningIntent : existing?.morningIntent || null;
-	const eveningOutcome = payload.eveningOutcome !== undefined ? payload.eveningOutcome : existing?.eveningOutcome || null;
-	const blockers = payload.blockers !== undefined ? payload.blockers : existing?.blockers || null;
+	const morningIntentRaw = payload.morningIntent !== undefined ? payload.morningIntent : existing?.morningIntent || null;
+	const eveningOutcomeRaw = payload.eveningOutcome !== undefined ? payload.eveningOutcome : existing?.eveningOutcome || null;
+	const blockersRaw = payload.blockers !== undefined ? payload.blockers : existing?.blockers || null;
+
+	if (
+		(morningIntentRaw && morningIntentRaw.length > 2000) ||
+		(eveningOutcomeRaw && eveningOutcomeRaw.length > 2000) ||
+		(blockersRaw && blockersRaw.length > 2000)
+	) {
+		throw new Error('Standup entries cannot exceed 2000 characters.');
+	}
+
+	const morningIntent = morningIntentRaw && morningIntentRaw.trim().length > 0 ? morningIntentRaw : null;
+	const eveningOutcome = eveningOutcomeRaw && eveningOutcomeRaw.trim().length > 0 ? eveningOutcomeRaw : null;
+	const blockers = blockersRaw && blockersRaw.trim().length > 0 ? blockersRaw : null;
+
+	if (!morningIntent && !eveningOutcome && !blockers) {
+		throw new Error('At least one entry (Morning Focus, Evening Accomplishments, or Blockers) is required.');
+	}
 
 	const morningTaskIds = payload.morningTaskIds !== undefined ? payload.morningTaskIds : existing?.morningTaskIds || [];
 	const eveningTaskIds = payload.eveningTaskIds !== undefined ? payload.eveningTaskIds : existing?.eveningTaskIds || [];
@@ -305,7 +321,9 @@ export async function getStandupReportData(actor: Actor, projectId: string, star
 			userEmail: users.email,
 			status: dailyStandups.status,
 			morningIntent: dailyStandups.morningIntent,
+			morningTaskIds: dailyStandups.morningTaskIds,
 			eveningOutcome: dailyStandups.eveningOutcome,
+			eveningTaskIds: dailyStandups.eveningTaskIds,
 			blockers: dailyStandups.blockers,
 			morningLoggedAt: dailyStandups.morningLoggedAt,
 			eveningLoggedAt: dailyStandups.eveningLoggedAt,
@@ -323,10 +341,79 @@ export async function getStandupReportData(actor: Actor, projectId: string, star
 		)
 		.orderBy(desc(dailyStandups.date));
 
+	// Fetch all project tasks for ongoing task progress sheet
+	const projectTasks = await db
+		.select({
+			id: tasks.id,
+			number: tasks.number,
+			title: tasks.title,
+			customFields: tasks.customFields,
+			assigneeId: tasks.assigneeId,
+			assigneeName: users.name,
+			assigneeEmail: users.email,
+			stageName: stages.name,
+			isCompleted: stages.isCompleted
+		})
+		.from(tasks)
+		.leftJoin(users, eq(users.id, tasks.assigneeId))
+		.leftJoin(stages, eq(stages.id, tasks.stageId))
+		.where(
+			and(
+				eq(tasks.groupId, actor.groupId),
+				eq(tasks.projectId, projectId),
+				isNull(tasks.deletedAt)
+			)
+		)
+		.orderBy(desc(tasks.updatedAt));
+
+	const ongoingTasks = projectTasks.map((t) => {
+		let latestProgress = t.isCompleted ? '100%' : 'In Progress';
+		let estimate = 'N/A';
+
+		if (t.customFields && typeof t.customFields === 'object') {
+			const cf = t.customFields as Record<string, any>;
+			if (cf.estimate) estimate = `${cf.estimate}h`;
+			else if (cf.storyPoints) estimate = `${cf.storyPoints} pts`;
+		}
+
+		// Search records for logged progress on this task
+		for (const r of records) {
+			if (Array.isArray(r.eveningTaskIds)) {
+				const item = (r.eveningTaskIds as any[]).find(
+					(x) => typeof x === 'object' && x !== null && (x.taskId === t.id || x.id === t.id)
+				);
+				if (item && item.progress !== undefined) {
+					latestProgress = `${item.progress}%`;
+					break;
+				}
+			}
+			// Regex fallback in evening outcome text
+			if (r.eveningOutcome && r.eveningOutcome.includes(t.id)) {
+				const match = r.eveningOutcome.match(new RegExp(`\\/tasks\\/${t.id}[^\\n]*?-\\s*(\\d{1,3})%`));
+				if (match && match[1]) {
+					latestProgress = `${match[1]}%`;
+					break;
+				}
+			}
+		}
+
+		return {
+			id: t.id,
+			taskIdDisplay: t.number ? `#${t.number}` : t.id.slice(0, 8),
+			title: t.title,
+			assigneeName: t.assigneeName || 'Unassigned',
+			assigneeEmail: t.assigneeEmail || '',
+			stageName: t.stageName || (t.isCompleted ? 'Done' : 'In Progress'),
+			estimate,
+			progress: latestProgress
+		};
+	});
+
 	return {
 		dateStrings,
 		records,
-		grid
+		grid,
+		ongoingTasks
 	};
 }
 

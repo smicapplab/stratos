@@ -161,6 +161,19 @@ describe('Tasks Service (Security Hardening & FTS Text Extraction)', () => {
 			expect(setCall.description).toBeNull();
 			expect(setCall.searchText).toBe('');
 		});
+
+		it('should update checklists with assigneeId and dueDate', async () => {
+			const updatedChecklists = [
+				{ id: 'chk-1', text: 'Write tests', done: false, assigneeId: 'user-2', dueDate: '2026-08-10' },
+				{ id: 'chk-2', text: 'Security audit', done: true, assigneeId: null, dueDate: null }
+			];
+
+			await updateTask(memberActor, 'task-1', { checklists: updatedChecklists });
+
+			expect(mockTx.update).toHaveBeenCalled();
+			const setCall = mockTx.set.mock.calls[0][0];
+			expect(setCall.checklists).toEqual(updatedChecklists);
+		});
 	});
 
 	describe('getBoardTasks()', () => {
