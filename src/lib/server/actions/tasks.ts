@@ -1,5 +1,5 @@
 import { fail } from '@sveltejs/kit';
-import { createTask, updateTask, softDeleteTask, moveTask } from '$lib/server/services/tasks';
+import { createTask, updateTask, softDeleteTask, moveTask, toggleTaskFollower } from '$lib/server/services/tasks';
 import type { TaskUpdatePayload } from '$lib/server/services/tasks';
 import type { RequestEvent } from '@sveltejs/kit';
 
@@ -132,6 +132,25 @@ export const taskActions = {
 			return { success: true };
 		} catch (e: unknown) {
 			const err = e instanceof Error ? e.message : 'Failed to delete task';
+			return fail(400, { error: err });
+		}
+	},
+
+	toggleFollower: async ({ request, locals }: RequestEvent) => {
+		const actor = locals.user;
+		if (!actor) return fail(401, { error: 'Unauthorized' });
+
+		const data = await request.formData();
+		const taskId = data.get('taskId')?.toString();
+		const userId = data.get('userId')?.toString() || undefined;
+
+		if (!taskId) return fail(400, { error: 'Task ID required' });
+
+		try {
+			const result = await toggleTaskFollower(actor, taskId, userId);
+			return { success: true, ...result };
+		} catch (e: unknown) {
+			const err = e instanceof Error ? e.message : 'Failed to toggle follower';
 			return fail(400, { error: err });
 		}
 	}

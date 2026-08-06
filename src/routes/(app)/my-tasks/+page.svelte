@@ -44,7 +44,11 @@
 	];
 
 	function handleTaskClick(task: Task) {
-		activeTask = task;
+		// Use the original task from data.tasks — it has the real DB stageId.
+		// The `tasks` derived list replaces stageId with a grouping key ('overdue', 'today', etc.)
+		// which breaks createTask and linkSubtask actions that validate stageId against the DB.
+		const original = data.tasks.find((t) => t.id === task.id);
+		activeTask = original ?? task;
 	}
 </script>
 
@@ -73,7 +77,7 @@
 				currentUserId={data.user.id}
 				allTasks={data.tasks} 
 				groupUsers={data.groupUsers} 
-				stages={[]} 
+				stages={data.stages} 
 				customFields={[]} 
 				onClose={() => { activeTask = null; }} 
 			/>

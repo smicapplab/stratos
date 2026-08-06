@@ -48,9 +48,31 @@ export const projects = pgTable('projects', {
   icon: varchar('icon', { length: 50 }).default('Folder').notNull(),
   groupId: uuid('group_id').references(() => groups.id).notNull(),
   visibility: varchar('visibility', { length: 50 }).default('Public').notNull(),
+  enableStandups: boolean('enable_standups').default(false).notNull(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const dailyStandups = pgTable('daily_standups', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  groupId: uuid('group_id').references(() => groups.id, { onDelete: 'cascade' }).notNull(),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  date: varchar('date', { length: 10 }).notNull(), // YYYY-MM-DD
+  morningIntent: text('morning_intent'),
+  morningLoggedAt: timestamp('morning_logged_at', { withTimezone: true }),
+  morningTaskIds: jsonb('morning_task_ids').default([]),
+  eveningOutcome: text('evening_outcome'),
+  eveningLoggedAt: timestamp('evening_logged_at', { withTimezone: true }),
+  eveningTaskIds: jsonb('evening_task_ids').default([]),
+  blockers: text('blockers'),
+  status: varchar('status', { length: 50 }).default('PENDING').notNull(), // PENDING, CHECKED_IN, COMPLETED, CHECKED_OUT_DIRECTLY
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+}, (t) => ({
+  projectUserDateIdx: index('daily_standups_project_user_date_idx').on(t.projectId, t.userId, t.date),
+  groupProjectIdx: index('daily_standups_group_project_idx').on(t.groupId, t.projectId)
+}));
 
 export const projectMembers = pgTable('project_members', {
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),

@@ -1,6 +1,6 @@
 import { db } from '../db/db';
 import { notifications, tasks, taskFollowers, users } from '../db/schema';
-import { eq, and, desc, isNull, or } from 'drizzle-orm';
+import { eq, and, desc, isNull, or, max, inArray } from 'drizzle-orm';
 import type { Actor } from './users';
 import { globalEventEmitter } from './events';
 
@@ -37,7 +37,40 @@ export async function createNotification(
 	});
 }
 
-export async function getNotifications(actor: Actor) {
+export async function getNotifications(actor: Actor, limit = 20, offset = 0) {
+	// Step 1: Select distinct task IDs for user ordered by latest activity
+	const taskSubquery = await db
+		.select({
+			taskId: notifications.taskId,
+			latestActivity: max(notifications.createdAt)
+		})
+		.from(notifications)
+		.leftJoin(tasks, eq(tasks.id, notifications.taskId))
+		.where(
+			and(
+				eq(notifications.userId, actor.id),
+				or(isNull(notifications.taskId), isNull(tasks.deletedAt))
+			)
+		)
+		.groupBy(notifications.taskId)
+		.orderBy(desc(max(notifications.createdAt)))
+		.limit(limit)
+		.offset(offset);
+
+	if (taskSubquery.length === 0) return [];
+
+	const targetTaskIds = taskSubquery.map((t) => t.taskId);
+	const hasNullTask = targetTaskIds.some((id) => id === null);
+	const validTaskIds = targetTaskIds.filter((id): id is string => id !== null);
+
+	const taskConditions = [];
+	if (validTaskIds.length > 0) {
+		taskConditions.push(inArray(notifications.taskId, validTaskIds));
+	}
+	if (hasNullTask) {
+		taskConditions.push(isNull(notifications.taskId));
+	}
+
 	return await db.select({
 		id: notifications.id,
 		type: notifications.type,
@@ -55,14 +88,47 @@ export async function getNotifications(actor: Actor) {
 	.where(
 		and(
 			eq(notifications.userId, actor.id),
-			or(isNull(notifications.taskId), isNull(tasks.deletedAt))
+			or(isNull(notifications.taskId), isNull(tasks.deletedAt)),
+			or(...taskConditions)
 		)
 	)
-	.orderBy(desc(notifications.createdAt))
-	.limit(50);
+	.orderBy(desc(notifications.createdAt));
 }
 
-export async function getSentNotifications(actor: Actor) {
+export async function getSentNotifications(actor: Actor, limit = 20, offset = 0) {
+	// Step 1: Select distinct task IDs sent by actor ordered by latest activity
+	const taskSubquery = await db
+		.select({
+			taskId: notifications.taskId,
+			latestActivity: max(notifications.createdAt)
+		})
+		.from(notifications)
+		.leftJoin(tasks, eq(tasks.id, notifications.taskId))
+		.where(
+			and(
+				eq(notifications.actorId, actor.id),
+				or(isNull(notifications.taskId), isNull(tasks.deletedAt))
+			)
+		)
+		.groupBy(notifications.taskId)
+		.orderBy(desc(max(notifications.createdAt)))
+		.limit(limit)
+		.offset(offset);
+
+	if (taskSubquery.length === 0) return [];
+
+	const targetTaskIds = taskSubquery.map((t) => t.taskId);
+	const hasNullTask = targetTaskIds.some((id) => id === null);
+	const validTaskIds = targetTaskIds.filter((id): id is string => id !== null);
+
+	const taskConditions = [];
+	if (validTaskIds.length > 0) {
+		taskConditions.push(inArray(notifications.taskId, validTaskIds));
+	}
+	if (hasNullTask) {
+		taskConditions.push(isNull(notifications.taskId));
+	}
+
 	return await db.select({
 		id: notifications.id,
 		type: notifications.type,
@@ -80,15 +146,15 @@ export async function getSentNotifications(actor: Actor) {
 	.where(
 		and(
 			eq(notifications.actorId, actor.id),
-			or(isNull(notifications.taskId), isNull(tasks.deletedAt))
+			or(isNull(notifications.taskId), isNull(tasks.deletedAt)),
+			or(...taskConditions)
 		)
 	)
-	.orderBy(desc(notifications.createdAt))
-	.limit(50);
+	.orderBy(desc(notifications.createdAt));
 }
 
 export async function markAsRead(actor: Actor, notificationId?: string) {
-	if (notificationId) {
+	if (notificationId && notificationId !== 'all') {
 		await db.update(notifications)
 			.set({ readAt: new Date() })
 			.where(and(eq(notifications.id, notificationId), eq(notifications.userId, actor.id)));
@@ -96,7 +162,7 @@ export async function markAsRead(actor: Actor, notificationId?: string) {
 		// Mark all as read
 		await db.update(notifications)
 			.set({ readAt: new Date() })
-			.where(eq(notifications.userId, actor.id));
+			.where(and(eq(notifications.userId, actor.id), isNull(notifications.readAt)));
 	}
 }
 

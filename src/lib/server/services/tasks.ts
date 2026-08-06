@@ -1,6 +1,6 @@
 import { db } from '../db/db';
 import { tasks, auditLogs, comments, users, commentReactions, stages, taskLinks, boards, taskTags, tags, taskFollowers } from '../db/schema';
-import { eq, and, isNull, sql, inArray } from 'drizzle-orm';
+import { eq, and, isNull, sql, inArray, or } from 'drizzle-orm';
 import { unionAll } from 'drizzle-orm/pg-core';
 import type { Actor } from './users';
 import { generateKeyBetween } from 'fractional-indexing';
@@ -30,13 +30,26 @@ export async function createTask(
 	const orderIndex = generateKeyBetween(previousIndex, nextIndex);
 	
 	const runInTransaction = async (tx: TransactionClient) => {
+		let targetStageId = stageId;
+		if (parentTaskId) {
+			const [parentTask] = await tx.select({ boardId: tasks.boardId, stageId: tasks.stageId })
+				.from(tasks)
+				.where(and(eq(tasks.id, parentTaskId), isNull(tasks.deletedAt)));
+			if (parentTask) {
+				const [validStage] = await tx.select({ id: stages.id }).from(stages).where(and(eq(stages.id, targetStageId), isNull(stages.deletedAt)));
+				if (!validStage && parentTask.stageId) {
+					targetStageId = parentTask.stageId;
+				}
+			}
+		}
+
 		// Get boardId from stage and validate group/soft-delete
 		const [stage] = await tx.select({ boardId: stages.boardId })
 			.from(stages)
 			.innerJoin(boards, eq(stages.boardId, boards.id))
 			.where(
 				and(
-					eq(stages.id, stageId),
+					eq(stages.id, targetStageId),
 					eq(boards.groupId, actor.groupId),
 					isNull(stages.deletedAt),
 					isNull(boards.deletedAt)
@@ -63,7 +76,7 @@ export async function createTask(
 
 		const [newTask] = await tx.insert(tasks).values({
 			title,
-			stageId,
+			stageId: targetStageId,
 			boardId,
 			groupId: actor.groupId,
 			orderIndex,
@@ -553,6 +566,11 @@ export async function linkTasks(actor: Actor, sourceTaskId: string, targetTaskId
 		const actualSource = linkType === 'blocks' ? sourceTaskId : targetTaskId;
 		const actualTarget = linkType === 'blocks' ? targetTaskId : sourceTaskId;
 
+		const existing = await db.select({ id: taskLinks.id }).from(taskLinks).where(
+			and(eq(taskLinks.sourceTaskId, actualSource), eq(taskLinks.targetTaskId, actualTarget))
+		).limit(1);
+		if (existing.length > 0) throw new Error('Tasks are already linked');
+
 		const cycleQuery = sql`
 			WITH RECURSIVE traverse AS (
 				SELECT target_task_id FROM task_links WHERE source_task_id = ${actualTarget} AND link_type = 'blocks'
@@ -572,6 +590,14 @@ export async function linkTasks(actor: Actor, sourceTaskId: string, targetTaskId
 			linkType: 'blocks'
 		});
 	} else {
+		const existing = await db.select({ id: taskLinks.id }).from(taskLinks).where(
+			or(
+				and(eq(taskLinks.sourceTaskId, sourceTaskId), eq(taskLinks.targetTaskId, targetTaskId)),
+				and(eq(taskLinks.sourceTaskId, targetTaskId), eq(taskLinks.targetTaskId, sourceTaskId))
+			)
+		).limit(1);
+		if (existing.length > 0) throw new Error('Tasks are already linked');
+
 		await db.insert(taskLinks).values({
 			sourceTaskId,
 			targetTaskId,
@@ -628,5 +654,34 @@ export async function getTaskLinks(actor: Actor, taskId: string) {
 		isNull(tasks.deletedAt)
 	  ));
 
-	return [...outgoing, ...incoming];
+	const seenIds = new Set<string>();
+	const allLinks = [...outgoing, ...incoming];
+	return allLinks.filter(l => {
+		if (seenIds.has(l.id)) return false;
+		seenIds.add(l.id);
+		return true;
+	});
 }
+
+export async function toggleTaskFollower(actor: Actor, taskId: string, userId?: string) {
+	const targetUserId = userId || actor.id;
+	
+	const [task] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.groupId, actor.groupId), isNull(tasks.deletedAt)));
+	if (!task) throw new Error('Task not found');
+	
+	if (targetUserId !== actor.id) {
+		const [targetUser] = await db.select({ id: users.id }).from(users).where(and(eq(users.id, targetUserId), eq(users.groupId, actor.groupId), isNull(users.deletedAt)));
+		if (!targetUser) throw new Error('Target user not found');
+	}
+
+	const existing = await db.select({ taskId: taskFollowers.taskId }).from(taskFollowers).where(and(eq(taskFollowers.taskId, taskId), eq(taskFollowers.userId, targetUserId))).limit(1);
+
+	if (existing.length > 0) {
+		await db.delete(taskFollowers).where(and(eq(taskFollowers.taskId, taskId), eq(taskFollowers.userId, targetUserId)));
+		return { isFollowing: false };
+	} else {
+		await db.insert(taskFollowers).values({ taskId, userId: targetUserId });
+		return { isFollowing: true };
+	}
+}
+

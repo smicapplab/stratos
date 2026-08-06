@@ -1,6 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db/db';
-import { projects, projectMembers, users } from '$lib/server/db/schema';
+import { projects, projectMembers, users, boards } from '$lib/server/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { addProjectMember, removeProjectMember, updateProjectVisibility, getAccessibleProjects, getProjectActivity, updateProjectSettings, deleteProject } from '$lib/server/services/projects';
 import { sendProjectInviteEmail } from '$lib/server/services/email';
@@ -25,6 +25,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		name: projects.name,
 		icon: projects.icon,
 		visibility: projects.visibility,
+		enableStandups: projects.enableStandups,
 		groupId: projects.groupId,
 		createdAt: projects.createdAt
 	}).from(projects).where(
@@ -34,6 +35,23 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			isNull(projects.deletedAt)
 		)
 	);
+
+	// Fetch primary board for this project to retrieve task prefix
+	const [primaryBoard] = await db.select({ prefix: boards.prefix })
+		.from(boards)
+		.where(
+			and(
+				eq(boards.projectId, projectId),
+				eq(boards.groupId, locals.user!.groupId),
+				isNull(boards.deletedAt)
+			)
+		)
+		.limit(1);
+
+	const projectWithPrefix = {
+		...project,
+		prefix: primaryBoard?.prefix || 'TSK'
+	};
 
 	// Fetch members with user details
 	const members = await db.select({
@@ -74,7 +92,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const activity = await getProjectActivity(locals.user!, projectId, 15, 0);
 
 	return {
-		project,
+		project: projectWithPrefix,
 		members,
 		availableUsers,
 		tags,
@@ -85,13 +103,45 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 export const actions: Actions = {
 	updateProjectSettings: async ({ request, params, locals }) => {
 		const data = await request.formData();
-		const name = data.get('name')?.toString();
+		const name = data.get('name')?.toString()?.trim();
 		const icon = data.get('icon')?.toString();
+		const prefix = data.get('prefix')?.toString()?.trim().toUpperCase();
 
 		if (!name) return fail(400, { error: 'Project name is required' });
+		if (!prefix) return fail(400, { error: 'Task prefix is required' });
+		if (prefix.length > 10 || !/^[A-Z0-9]+$/.test(prefix)) {
+			return fail(400, { error: 'Prefix must be 1 to 10 uppercase letters or numbers' });
+		}
 
 		try {
+			// Check prefix uniqueness across the group
+			const existingBoards = await db.select({ id: boards.id, projectId: boards.projectId })
+				.from(boards)
+				.where(
+					and(
+						eq(boards.groupId, locals.user!.groupId),
+						eq(boards.prefix, prefix),
+						isNull(boards.deletedAt)
+					)
+				);
+
+			const conflicting = existingBoards.find(b => b.projectId !== params.id);
+			if (conflicting) {
+				return fail(400, { error: `The prefix "${prefix}" is already taken by another project or board.` });
+			}
+
 			await updateProjectSettings(locals.user!, params.id, name, icon || 'Folder');
+
+			// Update prefix for all boards belonging to this project
+			await db.update(boards)
+				.set({ prefix })
+				.where(
+					and(
+						eq(boards.projectId, params.id),
+						eq(boards.groupId, locals.user!.groupId)
+					)
+				);
+
 			return { success: true };
 		} catch (err) {
 			const error = err as Error;
@@ -105,6 +155,27 @@ export const actions: Actions = {
 
 		try {
 			await updateProjectVisibility(locals.user!, params.id, visibility);
+			return { success: true };
+		} catch (err) {
+			const error = err as Error;
+			return fail(403, { error: error.message });
+		}
+	},
+
+	updateStandupsToggle: async ({ request, params, locals }) => {
+		const data = await request.formData();
+		const enableStandups = data.get('enableStandups') === 'true' || data.get('enableStandups') === 'on';
+
+		try {
+			await db.update(projects)
+				.set({ enableStandups })
+				.where(
+					and(
+						eq(projects.id, params.id),
+						eq(projects.groupId, locals.user!.groupId),
+						isNull(projects.deletedAt)
+					)
+				);
 			return { success: true };
 		} catch (err) {
 			const error = err as Error;
@@ -133,7 +204,6 @@ export const actions: Actions = {
 				}
 			}
 
-			// Find existing user in group (ensuring not soft-deleted)
 			let [targetUser] = await db.select({
 				id: users.id,
 				email: users.email,
@@ -156,10 +226,9 @@ export const actions: Actions = {
 				tempPassword = generateTempPassword();
 				const hashedTempPassword = await argon2.hash(tempPassword);
 
-				// User doesn't exist, create a pending user in the group with temporary password & mustChangePassword flag
 				[targetUser] = await db.insert(users).values({
 					email,
-					name: email.split('@')[0], // placeholder name
+					name: email.split('@')[0],
 					groupId: locals.user!.groupId,
 					role: 'Member',
 					hashedPassword: hashedTempPassword,
@@ -169,7 +238,6 @@ export const actions: Actions = {
 
 			await addProjectMember(locals.user!, params.id, targetUser.id, role || 'Member');
 			
-			// Fire and forget email invite
 			const [project] = await db.select({ name: projects.name }).from(projects).where(and(eq(projects.id, params.id), eq(projects.groupId, locals.user!.groupId)));
 			if (project) {
 				sendProjectInviteEmail(email, project.name, locals.user!.name || 'A teammate', isNewUser, tempPassword).catch(console.error);
@@ -191,14 +259,11 @@ export const actions: Actions = {
 		try {
 			await removeProjectMember(locals.user!, params.id, userId);
 			
-			// If they removed themselves, they might lose access. The layout will naturally refresh and hide the project.
-			// To be safe, redirect to dashboard if they removed themselves and it's private and they aren't admin.
 			if (userId === locals.user!.id && locals.user!.role !== 'Admin') {
 				throw redirect(303, '/');
 			}
 			return { success: true };
 		} catch (err) {
-			// SvelteKit redirect uses a special error/response structure
 			if (err && typeof err === 'object' && 'status' in err && err.status === 303) throw err;
 			const error = err as Error;
 			return fail(403, { error: error.message });

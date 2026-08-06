@@ -27,8 +27,9 @@ vite.config.ts.timestamp-*
 .worktrees/
 worktrees/
 
-# Uploads
+# Uploads — runtime-written files, never commit
 /uploads/
+static/uploads/
 
 # Testing
 /coverage/

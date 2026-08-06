@@ -81,6 +81,7 @@
 		boardPrefix?: string | null;
 		number?: number;
 		orderIndex?: string;
+		projectId?: string | null;
 		customFields?: Record<string, any>;
 	};
 
@@ -155,8 +156,32 @@
 			: []
 	);
 
+	let fetchedSubtasks = $state<TaskType[]>([]);
+
+	async function loadSubtasks(id?: string) {
+		const targetId = id || taskId;
+		if (!targetId) return;
+		try {
+			const res = await fetch(`/api/tasks/${targetId}/subtasks`);
+			if (res.ok) {
+				fetchedSubtasks = await res.json();
+			}
+		} catch (err) {
+			console.error("Failed to load subtasks", err);
+		}
+	}
+
+	$effect(() => {
+		const id = taskId;
+		if (id) {
+			loadSubtasks(id);
+		}
+	});
+
 	let subtasks = $derived(
-		allTasks?.filter((t) => t.parentTaskId === taskId) || [],
+		fetchedSubtasks.length > 0 
+			? fetchedSubtasks 
+			: (allTasks?.filter((t) => t.parentTaskId === taskId) || [])
 	);
 
 	// Tiptap Mentions State
@@ -369,14 +394,17 @@
 	});
 
 	$effect(() => {
-		if (linkSearchQuery.length >= 2) {
+		if (linkSearchQuery.trim().length >= 1) {
 			const currentTaskId = untrack(() => task.id);
+			const currentProjectId = untrack(() => projectId || task.projectId);
+			const projectParam = currentProjectId ? `&projectId=${encodeURIComponent(currentProjectId)}` : '';
 			const delay = setTimeout(async () => {
-				const res = await fetch(`/api/search?q=${encodeURIComponent(linkSearchQuery)}`);
+				const res = await fetch(`/api/search?q=${encodeURIComponent(linkSearchQuery.trim())}${projectParam}`);
 				if (res.ok) {
 					const data = await res.json();
-					linkSearchResults = data.tasks.filter(
-						(t: any) => t.id !== currentTaskId,
+					const linkedIds = new Set(untrack(() => linkedTasks).map((l) => l.linkedTaskId));
+					linkSearchResults = (data.tasks || []).filter(
+						(t: any) => t.id !== currentTaskId && !linkedIds.has(t.id),
 					);
 				}
 			}, 300);
@@ -387,15 +415,17 @@
 	});
 
 	$effect(() => {
-		if (subtaskSearchQuery.length >= 2) {
+		if (subtaskSearchQuery.trim().length >= 1) {
 			const currentTaskId = untrack(() => task.id);
+			const currentProjectId = untrack(() => projectId || task.projectId);
+			const projectParam = currentProjectId ? `&projectId=${encodeURIComponent(currentProjectId)}` : '';
 			const delay = setTimeout(async () => {
-				const res = await fetch(`/api/search?q=${encodeURIComponent(subtaskSearchQuery)}`);
+				const res = await fetch(`/api/search?q=${encodeURIComponent(subtaskSearchQuery.trim())}${projectParam}`);
 				if (res.ok) {
 					const data = await res.json();
 					const currentParentId = untrack(() => task.parentTaskId);
-					subtaskSearchResults = data.tasks.filter(
-						(t: any) => t.id !== currentTaskId && t.parentTaskId === null && t.id !== currentParentId,
+					subtaskSearchResults = (data.tasks || []).filter(
+						(t: any) => t.id !== currentTaskId && t.id !== currentParentId,
 					);
 				}
 			}, 300);
@@ -427,6 +457,7 @@
 			showSubtaskMenu = false;
 			subtaskSearchQuery = "";
 			toastStore.success("Subtask linked");
+			loadSubtasks();
 		} else {
 			toastStore.error("Failed to link subtask");
 		}
@@ -533,7 +564,11 @@
 			success = res.ok;
 		}
 
-		if (!success) toastStore.error('Failed to update title');
+		if (success) {
+			loadSubtasks();
+		} else {
+			toastStore.error('Failed to update title');
+		}
 	}
 
 	function confirmDeleteSubtask(subtaskId: string) {
@@ -560,6 +595,7 @@
 
 				if (success) {
 					toastStore.success('Subtask deleted');
+					loadSubtasks();
 				} else {
 					toastStore.error('Failed to delete subtask');
 				}
@@ -587,25 +623,34 @@
 
 		if (success) {
 			toastStore.success("Subtask unlinked");
+			loadSubtasks();
 		} else {
 			toastStore.error("Failed to unlink subtask");
 		}
 	}
 
 	async function toggleSubtask(subtask: any) {
-		let boardStages = stages;
-		if (!boardStages || boardStages.length === 0) {
+		let boardStages = stages || [];
+		if (boardStages.length === 0) {
 			toastStore.error("Cannot toggle subtask from this view.");
 			return;
 		}
 
-		const currentStage = boardStages.find(s => s.id === subtask.stageId);
-		const isDone = currentStage?.name?.toLowerCase().match(/done|completed|closed|resolved/);
+		// Filter stages to the subtask's board if available
+		const taskBoardStages = subtask.boardId 
+			? boardStages.filter(s => s.boardId === subtask.boardId)
+			: boardStages;
+
+		const activeStagesList = taskBoardStages.length > 0 ? taskBoardStages : boardStages;
+		const currentStage = activeStagesList.find(s => s.id === subtask.stageId);
+		const isDone = currentStage?.isCompleted === true || !!currentStage?.name?.toLowerCase().match(/done|completed|closed|resolved/);
+		
 		const targetStage = isDone 
-			? boardStages[0]?.id 
-			: (boardStages.find(s => s.name.toLowerCase().match(/done|completed|closed|resolved/))?.id || boardStages[boardStages.length - 1]?.id);
+			? (activeStagesList.find(s => !s.isCompleted)?.id || boardStages.find(s => !s.isCompleted)?.id || activeStagesList[0]?.id)
+			: (activeStagesList.find(s => s.isCompleted === true)?.id || boardStages.find(s => s.isCompleted === true)?.id || activeStagesList[activeStagesList.length - 1]?.id || boardStages[boardStages.length - 1]?.id);
 		
 		if (targetStage && targetStage !== subtask.stageId) {
+			subtask.stageId = targetStage; // Optimistic update
 			const formData = new FormData();
 			formData.append('taskId', subtask.id);
 			formData.append('title', subtask.title); // Title is strictly required by the backend
@@ -622,14 +667,18 @@
 			} catch (e) {
 				success = res.ok;
 			}
-			if (!success) toastStore.error('Failed to toggle subtask status');
+			if (success) {
+				loadSubtasks();
+			} else {
+				toastStore.error('Failed to toggle subtask status');
+			}
 		}
 	}
 
 	function isSubtaskDone(subtask: any) {
 		if (!stages || stages.length === 0) return false;
 		const s = stages.find(s => s.id === subtask.stageId);
-		return !!s?.name?.toLowerCase().match(/done|completed|closed|resolved/);
+		return s?.isCompleted === true || !!s?.name?.toLowerCase().match(/done|completed|closed|resolved/);
 	}
 
 	let isCompleted = $derived((() => {
@@ -1502,7 +1551,7 @@
 
 						{#if subtasks.length > 0}
 							<div class="space-y-0.5 mb-3">
-								{#each subtasks as subtask}
+								{#each subtasks as subtask (subtask.id)}
 									<div
 										class="w-full text-left flex items-center gap-2.5 py-1 px-2 hover:bg-zinc-50 dark:hover:bg-white/5 rounded-lg transition-colors group"
 									>
@@ -1573,9 +1622,15 @@
 									method="POST"
 									action="?/createTask"
 									use:enhance={() => {
-										return async ({ update }) => {
+										return async ({ update, result }) => {
 											update({ reset: true });
 											showSubtaskMenu = false;
+											if (result.type === 'success') {
+												toastStore.success('Subtask created');
+												loadSubtasks();
+											} else if (result.type === 'failure') {
+												toastStore.error((result.data as any)?.error || 'Failed to create subtask');
+											}
 										};
 									}}
 								>
@@ -1601,8 +1656,8 @@
 											placeholder="Search tasks to link..."
 											class="w-full bg-white dark:bg-[#121214] border border-zinc-200 dark:border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-brand-primary/50 outline-none placeholder:text-zinc-500"
 										/>
-										{#if subtaskSearchQuery.length >= 2}
-											<div class="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-white/10 rounded-xl shadow-xl z-50 p-1">
+										{#if subtaskSearchQuery.length >= 1}
+											<div class="mt-1 max-h-48 overflow-y-auto bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-white/10 rounded-xl shadow-xl p-1">
 												{#each subtaskSearchResults as res}
 													<button
 														type="button"
@@ -1764,9 +1819,9 @@
 										class="w-full bg-white dark:bg-[#121214] border border-zinc-200 dark:border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-brand-primary/50 outline-none placeholder:text-zinc-500"
 									/>
 
-									{#if linkSearchQuery.length >= 2}
+									{#if linkSearchQuery.length >= 1}
 										<div
-											class="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-white/10 rounded-xl shadow-xl z-50 p-1"
+											class="mt-1 max-h-48 overflow-y-auto bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-white/10 rounded-xl shadow-xl p-1"
 										>
 											{#each linkSearchResults as res}
 												<button

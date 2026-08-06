@@ -28,6 +28,24 @@ export async function createStage(actor: Actor, boardId: string, name: string, p
 	return newStage;
 }
 
+export async function getGroupStages(actor: Actor) {
+	return await db.select({
+		id: stages.id,
+		name: stages.name,
+		boardId: stages.boardId,
+		isCompleted: stages.isCompleted,
+		orderIndex: stages.orderIndex
+	}).from(stages)
+	.innerJoin(boards, eq(stages.boardId, boards.id))
+	.where(
+		and(
+			eq(boards.groupId, actor.groupId),
+			isNull(stages.deletedAt),
+			isNull(boards.deletedAt)
+		)
+	).orderBy(stages.orderIndex);
+}
+
 export async function getBoardStages(actor: Actor, boardId: string) {
 	// Verify board belongs to actor's group
 	const [board] = await db.select({ id: boards.id }).from(boards).where(
