@@ -86,4 +86,42 @@ describe('Standups Service', () => {
 		expect(db.insert).toHaveBeenCalledTimes(1);
 		expect(result.status).toBe('CHECKED_IN');
 	});
+
+	it('should throw an error when attempting to upsert an empty standup', async () => {
+		mockSelectChain.then.mockImplementationOnce((resolve) => {
+			if (typeof resolve === 'function') resolve([{ id: 'proj-1', enableStandups: true }]);
+			return Promise.resolve();
+		}).mockImplementationOnce((resolve) => {
+			if (typeof resolve === 'function') resolve([]);
+			return Promise.resolve();
+		});
+
+		await expect(
+			upsertStandup(mockActor, 'proj-1', {
+				dateStr: '2026-08-06',
+				morningIntent: '   ',
+				eveningOutcome: '',
+				blockers: undefined
+			})
+		).rejects.toThrow('At least one entry (Morning Focus, Evening Accomplishments, or Blockers) is required.');
+	});
+
+	it('should throw an error when a standup field exceeds 2000 characters', async () => {
+		mockSelectChain.then.mockImplementationOnce((resolve) => {
+			if (typeof resolve === 'function') resolve([{ id: 'proj-1', enableStandups: true }]);
+			return Promise.resolve();
+		}).mockImplementationOnce((resolve) => {
+			if (typeof resolve === 'function') resolve([]);
+			return Promise.resolve();
+		});
+
+		const longString = 'a'.repeat(2001);
+		await expect(
+			upsertStandup(mockActor, 'proj-1', {
+				dateStr: '2026-08-06',
+				morningIntent: longString
+			})
+		).rejects.toThrow('Standup entries cannot exceed 2000 characters.');
+	});
 });
+

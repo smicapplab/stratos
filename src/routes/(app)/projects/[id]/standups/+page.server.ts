@@ -106,13 +106,27 @@ export const actions: Actions = {
 		const eveningOutcome = data.get('eveningOutcome')?.toString();
 		const blockers = data.get('blockers')?.toString();
 		const dateStr = data.get('dateStr')?.toString();
+		const morningTaskIdsStr = data.get('morningTaskIds')?.toString();
+		const eveningTaskIdsStr = data.get('eveningTaskIds')?.toString();
+
+		let morningTaskIds: any[] | undefined = undefined;
+		let eveningTaskIds: any[] | undefined = undefined;
+
+		if (morningTaskIdsStr) {
+			try { morningTaskIds = JSON.parse(morningTaskIdsStr); } catch (e) {}
+		}
+		if (eveningTaskIdsStr) {
+			try { eveningTaskIds = JSON.parse(eveningTaskIdsStr); } catch (e) {}
+		}
 
 		try {
 			const updated = await upsertStandup(locals.user, params.id, {
 				dateStr,
 				morningIntent,
 				eveningOutcome,
-				blockers
+				blockers,
+				morningTaskIds,
+				eveningTaskIds
 			});
 			return { success: true, standup: updated };
 		} catch (err) {
