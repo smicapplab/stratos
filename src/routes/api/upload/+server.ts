@@ -114,10 +114,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				createdAt: inserted.createdAt
 			}
 		});
-	} catch (error) {
-		console.error('Upload error:', error);
-		const e = error as Error;
-		return json({ error: e.message || 'Upload failed' }, { status: 400 });
+	} catch (err) {
+		console.error('Upload error:', err);
+		return json({ error: 'Upload failed' }, { status: 500 });
 	}
 };
 
