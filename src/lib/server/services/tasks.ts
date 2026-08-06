@@ -223,7 +223,7 @@ export interface TaskUpdatePayload {
 	priority?: string;
 	assigneeId?: string | null;
 	dueDate?: Date | null;
-	checklists?: { id: string; text: string; completed: boolean }[];
+	checklists?: { id: string; text: string; completed?: boolean; done?: boolean; assigneeId?: string | null; dueDate?: string | null }[];
 	stageId?: string;
 	parentTaskId?: string | null;
 	customFields?: Record<string, string | number | boolean | null>;

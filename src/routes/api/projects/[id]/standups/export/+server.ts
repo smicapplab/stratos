@@ -95,6 +95,46 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 
 	XLSX.utils.book_append_sheet(wb, wsLogs, 'Detailed Check-in Logs');
 
+	// Sheet 3: Ongoing Tasks Progress
+	const taskHeaders = [
+		'Task ID',
+		'Task Title',
+		'Assignee Name',
+		'Assignee Email',
+		'Stage / Status',
+		'Estimate',
+		'Latest Logged Progress %'
+	];
+
+	const taskData: any[][] = [taskHeaders];
+
+	if (Array.isArray(report.ongoingTasks)) {
+		for (const t of report.ongoingTasks) {
+			taskData.push([
+				t.taskIdDisplay,
+				t.title,
+				t.assigneeName,
+				t.assigneeEmail,
+				t.stageName,
+				t.estimate,
+				t.progress
+			]);
+		}
+	}
+
+	const wsTasks = XLSX.utils.aoa_to_sheet(taskData);
+	wsTasks['!cols'] = [
+		{ wch: 12 }, // Task ID
+		{ wch: 40 }, // Task Title
+		{ wch: 22 }, // Assignee Name
+		{ wch: 28 }, // Assignee Email
+		{ wch: 18 }, // Stage / Status
+		{ wch: 14 }, // Estimate
+		{ wch: 25 }  // Latest Logged Progress %
+	];
+
+	XLSX.utils.book_append_sheet(wb, wsTasks, 'Ongoing Tasks Progress');
+
 	// Write buffer to native .xlsx format
 	const excelBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 	const filename = `Standup-Report-${project.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${startDate}-to-${endDate}.xlsx`;

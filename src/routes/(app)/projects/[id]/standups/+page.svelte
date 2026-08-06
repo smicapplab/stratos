@@ -6,7 +6,7 @@
 	import StandupCheckInModal from '$lib/components/standup/StandupCheckInModal.svelte';
 	import StandupGridMatrix from '$lib/components/standup/StandupGridMatrix.svelte';
 	import { toastStore } from '$lib/stores/ui.svelte';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 
 	let { data } = $props();
 
@@ -30,26 +30,34 @@
 		isCheckInOpen = true;
 	}
 
-	async function handleSaveStandup(payload: { dateStr?: string; morningIntent?: string; eveningOutcome?: string; blockers?: string }) {
+	async function handleSaveStandup(payload: { dateStr?: string; morningIntent?: string; eveningOutcome?: string; blockers?: string; morningTaskIds?: any[]; eveningTaskIds?: any[] }) {
 		const formData = new FormData();
 		if (payload.dateStr) formData.append('dateStr', payload.dateStr);
 		if (payload.morningIntent) formData.append('morningIntent', payload.morningIntent);
 		if (payload.eveningOutcome) formData.append('eveningOutcome', payload.eveningOutcome);
 		if (payload.blockers) formData.append('blockers', payload.blockers);
+		if (payload.morningTaskIds) formData.append('morningTaskIds', JSON.stringify(payload.morningTaskIds));
+		if (payload.eveningTaskIds) formData.append('eveningTaskIds', JSON.stringify(payload.eveningTaskIds));
 
-		try {
-			const res = await fetch('?/saveStandup', {
-				method: 'POST',
-				body: formData
-			});
-			if (res.ok) {
-				toastStore.success('Standup check-in saved!');
-				window.location.reload();
-			} else {
-				toastStore.error('Failed to save standup check-in.');
-			}
-		} catch (err) {
-			toastStore.error('Failed to save standup check-in.');
+		const res = await fetch('?/saveStandup', {
+			method: 'POST',
+			body: formData
+		});
+
+		if (res.ok) {
+			toastStore.success('Standup check-in saved!');
+			await invalidateAll();
+		} else {
+			let errorMsg = 'Failed to save standup check-in.';
+			try {
+				const resData = await res.json();
+				if (resData?.error) errorMsg = resData.error;
+				else if (typeof resData?.data === 'string') {
+					const parsed = JSON.parse(resData.data);
+					if (parsed?.error) errorMsg = parsed.error;
+				}
+			} catch (e) {}
+			throw new Error(errorMsg);
 		}
 	}
 
