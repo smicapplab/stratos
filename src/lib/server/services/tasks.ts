@@ -685,3 +685,25 @@ export async function toggleTaskFollower(actor: Actor, taskId: string, userId?: 
 	}
 }
 
+export function handleTaskStageChange(
+	task: { id: string; stageId: string; startDate: Date | null },
+	targetStageId: string,
+	allBoardStages: Array<{ id: string; orderIndex: string }>
+): { shouldSetStartDate: boolean; newStartDate: Date | null } {
+	if (!allBoardStages || allBoardStages.length === 0) {
+		return { shouldSetStartDate: false, newStartDate: task.startDate };
+	}
+
+	const sortedStages = [...allBoardStages].sort((a, b) => a.orderIndex.localeCompare(b.orderIndex));
+	const intakeStageId = sortedStages[0]?.id;
+
+	const isLeavingIntake = task.stageId === intakeStageId && targetStageId !== intakeStageId;
+	const shouldSetStartDate = isLeavingIntake && !task.startDate;
+
+	return {
+		shouldSetStartDate,
+		newStartDate: shouldSetStartDate ? new Date() : task.startDate
+	};
+}
+
+

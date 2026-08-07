@@ -118,6 +118,7 @@ export const tasks = pgTable('tasks', {
 	priority: varchar('priority', { length: 50 }).default('Medium').notNull(), // Low, Medium, High, Urgent
 	checklists: jsonb('checklists').default([]),
 	assigneeId: uuid('assignee_id').references(() => users.id),
+	startDate: timestamp('start_date', { withTimezone: true }),
 	dueDate: timestamp('due_date', { withTimezone: true }),
 	orderIndex: text('order_index').notNull(),
 	customFields: jsonb('custom_fields').default({}),

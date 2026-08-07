@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Plus, Settings2, GripHorizontal } from 'lucide-svelte';
+	import { Plus, Settings2, GripHorizontal, GanttChartSquare } from 'lucide-svelte';
 	import DynamicIcon from '$lib/components/ui/DynamicIcon.svelte';
 
 	let {
@@ -54,6 +54,13 @@
 				class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all min-h-[36px] {activeView === 'calendar' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-xs' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'}"
 			>
 				Calendar
+			</button>
+			<button
+				onclick={() => activeView = 'gantt'}
+				class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all min-h-[36px] flex items-center gap-1.5 {activeView === 'gantt' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-xs' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'}"
+			>
+				<GanttChartSquare class="w-3.5 h-3.5" />
+				<span>Gantt</span>
 			</button>
 			<button
 				onclick={() => activeView = 'reports'}

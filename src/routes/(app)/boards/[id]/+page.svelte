@@ -11,9 +11,12 @@
 	import TableView from '$lib/components/ui/TableView.svelte';
 	import CalendarView from '$lib/components/ui/CalendarView.svelte';
 	import ReportsView from '$lib/components/ui/ReportsView.svelte';
+	import GanttView from '$lib/components/ui/GanttView.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import BoardHeader from '$lib/components/board/BoardHeader.svelte';
 	import CreateStageModal from '$lib/components/board/CreateStageModal.svelte';
+	import BoardFilterBar from '$lib/components/board/BoardFilterBar.svelte';
+	import { filterTasks, type BoardFilterState } from '$lib/utils/boardFilters';
 	import { modalStore } from '$lib/stores/ui.svelte';
 	import { triggerCelebration } from '$lib/stores/celebrationStore';
 
@@ -119,6 +122,42 @@
 	let showEpicsOnly = $state(false);
 	let isDragging = $state(false);
 
+	let filterState = $state<BoardFilterState>({
+		searchQuery: '',
+		assigneeIds: [],
+		assignedToMe: false,
+		priorities: [],
+		dateFilter: 'all',
+		tagIds: [],
+		hierarchy: 'all'
+	});
+
+	let filteredTasks = $derived(filterTasks(tasks, filterState, user?.id));
+
+	let activeFilterCount = $derived((() => {
+		let count = 0;
+		if (filterState.searchQuery && filterState.searchQuery.trim() !== '') count++;
+		if (filterState.assignedToMe) count++;
+		if (filterState.assigneeIds && filterState.assigneeIds.length > 0) count += filterState.assigneeIds.length;
+		if (filterState.priorities && filterState.priorities.length > 0) count += filterState.priorities.length;
+		if (filterState.dateFilter && filterState.dateFilter !== 'all') count++;
+		if (filterState.hierarchy && filterState.hierarchy !== 'all') count++;
+		if (filterState.tagIds && filterState.tagIds.length > 0) count += filterState.tagIds.length;
+		return count;
+	})());
+
+	function clearFilters() {
+		filterState = {
+			searchQuery: '',
+			assigneeIds: [],
+			assignedToMe: false,
+			priorities: [],
+			dateFilter: 'all',
+			tagIds: [],
+			hierarchy: 'all'
+		};
+	}
+
 	// Sync server data to local mutable state whenever the server data updates
 	$effect(() => {
 		if (isDragging) return;
@@ -148,7 +187,7 @@
 		});
 
 		columns = sortedStages.map(stage => {
-			const stageTasks = tasks.filter(t => t.stageId === stage.id).sort((a, b) => {
+			const stageTasks = filteredTasks.filter(t => t.stageId === stage.id).sort((a, b) => {
 				if (a.orderIndex < b.orderIndex) return -1;
 				if (a.orderIndex > b.orderIndex) return 1;
 				return 0;
@@ -346,7 +385,7 @@
 			goto(url.pathname + url.search, { replaceState: true, noScroll: true, keepFocus: true });
 		}
 	}
-	let activeView = $state<'board' | 'table' | 'calendar' | 'reports'>('board');
+	let activeView = $state<'board' | 'table' | 'calendar' | 'reports' | 'gantt'>('board');
 	
 	let loadedBoardId = $state<string | null>(null);
 
@@ -442,8 +481,8 @@
 
 	$effect(() => {
 		const stored = localStorage.getItem(`board-view-${board.id}`);
-		if (stored === 'table' || stored === 'calendar' || stored === 'board' || (stored === 'reports' && (user?.role === 'Admin' || user?.role === 'Manager'))) {
-			activeView = stored;
+		if (stored === 'table' || stored === 'calendar' || stored === 'board' || stored === 'gantt' || (stored === 'reports' && (user?.role === 'Admin' || user?.role === 'Manager'))) {
+			activeView = stored as any;
 		}
 	});
 
@@ -466,6 +505,14 @@
 		onOpenSettings={() => { settingsOpen = !settingsOpen; settingsTab = 'general'; }}
 		onOpenReorderModal={openReorderModal}
 		onOpenCreateStageModal={() => isCreateStageModalOpen = true}
+	/>
+
+	<!-- Board Filter Bar -->
+	<BoardFilterBar
+		bind:filterState
+		{groupUsers}
+		{activeFilterCount}
+		onClear={clearFilters}
 	/>
 
 			{#if settingsOpen}
@@ -711,16 +758,20 @@
 	</div>
 	{:else if activeView === 'table'}
 	<div class="flex-1 overflow-auto custom-scrollbar">
-		<TableView {tasks} {stages} {groupUsers} {customFields} onTaskClick={(t: any) => activeTask = t} />
+		<TableView tasks={filteredTasks} {stages} {groupUsers} {customFields} onTaskClick={(t: any) => activeTask = t} />
 	</div>
 	{:else if activeView === 'calendar'}
 	<div class="flex-1 overflow-auto custom-scrollbar">
 		<CalendarView 
-			{tasks} 
+			tasks={filteredTasks} 
 			onTaskClick={(t: any) => activeTask = t} 
 			onReschedule={handleReschedule}
 			onAddEvent={handleCalendarAddEvent}
 		/>
+	</div>
+	{:else if activeView === 'gantt'}
+	<div class="flex-1 overflow-auto custom-scrollbar">
+		<GanttView {board} tasks={filteredTasks} {stages} {groupUsers} onTaskClick={(t: any) => activeTask = t} />
 	</div>
 	{:else if activeView === 'reports' && (user.role === 'Admin' || user.role === 'Manager')}
 	<div class="flex-1 overflow-auto custom-scrollbar bg-transparent">
