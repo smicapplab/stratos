@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { updateTask, createTask, stripHtml } from './tasks';
+import { updateTask, createTask, stripHtml, handleTaskStageChange } from './tasks';
 
 // Mock the database
 const { mockSelectChain, mockTx } = vi.hoisted(() => {
@@ -256,4 +256,38 @@ describe('Tasks Service (Security Hardening & FTS Text Extraction)', () => {
 				.rejects.toThrow('Unauthorized');
 		});
 	});
+
+	describe('handleTaskStageChange()', () => {
+		const stagesList = [
+			{ id: 'stage-intake', orderIndex: 'a0' },
+			{ id: 'stage-in-progress', orderIndex: 'a1' },
+			{ id: 'stage-done', orderIndex: 'a2' }
+		];
+
+		it('sets startDate when moving out of intake stage', () => {
+			const task = { id: 'task-1', stageId: 'stage-intake', startDate: null };
+			const result = handleTaskStageChange(task, 'stage-in-progress', stagesList);
+
+			expect(result.shouldSetStartDate).toBe(true);
+			expect(result.newStartDate).toBeInstanceOf(Date);
+		});
+
+		it('does NOT override startDate if startDate was already set', () => {
+			const existingDate = new Date('2026-08-01T00:00:00Z');
+			const task = { id: 'task-1', stageId: 'stage-intake', startDate: existingDate };
+			const result = handleTaskStageChange(task, 'stage-in-progress', stagesList);
+
+			expect(result.shouldSetStartDate).toBe(false);
+			expect(result.newStartDate).toEqual(existingDate);
+		});
+
+		it('does NOT set startDate when moving within intake stage', () => {
+			const task = { id: 'task-1', stageId: 'stage-intake', startDate: null };
+			const result = handleTaskStageChange(task, 'stage-intake', stagesList);
+
+			expect(result.shouldSetStartDate).toBe(false);
+			expect(result.newStartDate).toBeNull();
+		});
+	});
 });
+

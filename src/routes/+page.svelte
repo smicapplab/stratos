@@ -3,15 +3,11 @@
 	import { Mail, Lock, Eye, EyeOff } from 'lucide-svelte';
 	import BrandLogo from '$lib/components/ui/BrandLogo.svelte';
 
-	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 
 	let { form } = $props();
 	let showPassword = $state(false);
-	let redirectUrl = $state('/dashboard');
-
-	onMount(() => {
-		redirectUrl = localStorage.getItem('lastPath') || '/dashboard';
-	});
+	let redirectUrl = $derived($page.url.searchParams.get('redirectTo') || '/dashboard');
 </script>
 
 <div class="min-h-screen relative overflow-hidden bg-zinc-50 dark:bg-[#09090b] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
